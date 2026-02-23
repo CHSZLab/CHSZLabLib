@@ -28,6 +28,10 @@ CC="${CC:-gcc}" CXX="${CXX:-g++}" pip wheel . --no-build-isolation -w dist/
 echo "=== Installing wheel ==="
 pip install --force-reinstall --no-deps dist/chszlablib-*.whl
 
+# --- Copy .so extensions into source tree (so tests work from project root) ---
+SITE_PKG="$(python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")/chszlablib"
+cp "$SITE_PKG"/_*.so "$SCRIPT_DIR/chszlablib/"
+
 # --- Run tests ---
 echo "=== Running tests ==="
 pytest tests/ -v
