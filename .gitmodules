@@ -1,0 +1,16 @@
+[submodule "KaHIP"]
+	path = KaHIP
+	url = git@github.com:KaHIP/KaHIP.git
+	branch = master
+[submodule "VieClus"]
+	path = VieClus
+	url = git@github.com:VieClus/VieClus.git
+	branch = master
+[submodule "VieCut"]
+	path = VieCut
+	url = git@github.com:VieCut/VieCut.git
+	branch = master
+[submodule "CHILS"]
+	path = CHILS
+	url = git@github.com:KarlsruheMIS/CHILS.git
+	branch = main
