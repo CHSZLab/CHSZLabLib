@@ -354,7 +354,7 @@ Graph decomposition: partitioning, cuts, clustering, and community detection.
 
 **Problem.** Given an undirected graph $G = (V, E)$ with node weights $c : V \to \mathbb{R}_{\geq 0}$ and edge weights $\omega : E \to \mathbb{R}_{\geq 0}$, find a partition of $V$ into $k$ disjoint blocks $V_1, \dotsc, V_k$ that minimizes the **edge cut**
 
-$$\text{cut}(\mathcal{P}) = \sum_{\substack{\{u,v\} \in E \\ \pi(u) \neq \pi(v)}} \omega(\{u,v\}),$$
+$$\text{cut}(\mathcal{P}) = \sum_{\substack{\lbrace u,v \rbrace \in E \\ \pi(u) \neq \pi(v)}} \omega(\lbrace u,v \rbrace),$$
 
 where $\pi(v)$ denotes the block of node $v$, subject to the **balance constraint**
 
@@ -420,9 +420,9 @@ print(f"Refined edgecut: {refined.edgecut} (balance: {refined.balance:.4f})")
 
 #### `Decomposition.node_separator(g, ...)` — Balanced Node Separator (KaHIP)
 
-**Problem.** Given an undirected graph $G = (V, E)$, find a set $S \subset V$ of minimum cardinality such that removing $S$ partitions $V \setminus S$ into two non-empty sets $A$ and $B$ with no edges between them, i.e., $\{u, v\} \notin E$ for all $u \in A,\, v \in B$, subject to the balance constraint
+**Problem.** Given an undirected graph $G = (V, E)$, find a set $S \subset V$ of minimum cardinality such that removing $S$ partitions $V \setminus S$ into two non-empty sets $A$ and $B$ with no edges between them, i.e., $\lbrace u, v \rbrace \notin E$ for all $u \in A, v \in B$, subject to the balance constraint
 
-$$\max\bigl(|A|,\, |B|\bigr) \leq (1 + \varepsilon) \left\lceil \frac{|V \setminus S|}{2} \right\rceil.$$
+$$\max\bigl(|A|, |B|\bigr) \leq (1 + \varepsilon) \left\lceil \frac{|V \setminus S|}{2} \right\rceil.$$
 
 Node separators are a fundamental tool in divide-and-conquer algorithms, nested dissection orderings for sparse matrix factorization, and VLSI design.
 
@@ -434,7 +434,7 @@ Decomposition.node_separator(g, num_parts=2, mode="eco", imbalance=0.03, seed=0)
 
 #### `Decomposition.node_ordering(g, ...)` — Nested Dissection Ordering (KaHIP)
 
-**Problem.** Given a sparse symmetric positive-definite matrix $A$ (represented as its adjacency graph $G$), compute a permutation $\sigma$ of $\{0, \dotsc, n-1\}$ such that the **fill-in** — the number of new non-zeros introduced during Cholesky factorization of $P A P^T$ — is minimized. The algorithm uses **recursive nested dissection**: it finds a node separator $S$, orders $S$ last, then recurses on the two disconnected subgraphs. High-quality separators (via KaHIP) yield orderings that significantly reduce fill-in and factorization time for large sparse systems.
+**Problem.** Given a sparse symmetric positive-definite matrix $A$ (represented as its adjacency graph $G$), compute a permutation $\sigma$ of $\lbrace 0, \dotsc, n-1 \rbrace$ such that the **fill-in** — the number of new non-zeros introduced during Cholesky factorization of $P A P^T$ — is minimized. The algorithm uses **recursive nested dissection**: it finds a node separator $S$, orders $S$ last, then recurses on the two disconnected subgraphs. High-quality separators (via KaHIP) yield orderings that significantly reduce fill-in and factorization time for large sparse systems.
 
 ```python
 Decomposition.node_ordering(g, mode="eco", seed=0) -> OrderingResult
@@ -446,7 +446,7 @@ Decomposition.node_ordering(g, mode="eco", seed=0) -> OrderingResult
 
 **Problem.** Given an undirected graph $G = (V, E)$ with edge weights $\omega : E \to \mathbb{R}_{\geq 0}$, find a partition of $V$ into two non-empty sets $S$ and $\bar{S} = V \setminus S$ that minimizes the **cut weight**
 
-$$\lambda(G) = \min_{\emptyset \neq S \subset V} \sum_{\substack{\{u,v\} \in E \\ u \in S,\, v \in \bar{S}}} \omega(\{u,v\}).$$
+$$\lambda(G) = \min_{\emptyset \neq S \subset V} \sum_{\substack{\lbrace u,v \rbrace \in E \\ u \in S, v \in \bar{S}}} \omega(\lbrace u,v \rbrace).$$
 
 The value $\lambda(G)$ is the **edge connectivity** of the graph. The minimum cut identifies the most vulnerable bottleneck in a network. Applications include network reliability analysis, image segmentation, and connectivity certification.
 
@@ -467,9 +467,9 @@ Decomposition.mincut(g, algorithm="viecut", seed=0) -> MincutResult
 
 #### `Decomposition.cluster(g, ...)` — Community Detection / Graph Clustering (VieClus)
 
-**Problem.** Given an undirected graph $G = (V, E)$ with $m = |E|$, find a partition $\mathcal{C} = \{C_1, \dotsc, C_k\}$ of $V$ — where $k$ is determined automatically — that maximizes the **Newman–Girvan modularity**
+**Problem.** Given an undirected graph $G = (V, E)$ with $m = |E|$, find a partition $\mathcal{C} = \lbrace C_1, \dotsc, C_k \rbrace$ of $V$ — where $k$ is determined automatically — that maximizes the **Newman–Girvan modularity**
 
-$$Q = \frac{1}{2m} \sum_{u, v \in V} \left[ A_{uv} - \frac{d_u \, d_v}{2m} \right] \delta\bigl(c(u),\, c(v)\bigr),$$
+$$Q = \frac{1}{2m} \sum_{u, v \in V} \left[ A_{uv} - \frac{d_u \; d_v}{2m} \right] \delta\bigl(c(u), c(v)\bigr),$$
 
 where $A_{uv}$ is the adjacency matrix entry, $d_v$ is the degree of node $v$, $c(v)$ denotes the cluster of $v$, and $\delta$ is the Kronecker delta. Modularity quantifies the density of edges within clusters relative to a random graph with the same degree sequence. VieClus uses an evolutionary algorithm with multilevel refinement to maximize this objective.
 
@@ -483,7 +483,7 @@ Decomposition.cluster(g, time_limit=1.0, seed=0, cluster_upperbound=0) -> Cluste
 
 **Problem.** Given an undirected graph $G = (V, E)$ with edge weights $\omega : E \to \mathbb{R}_{\geq 0}$, find a partition of $V$ into two sets $S$ and $\bar{S} = V \setminus S$ that maximizes the **cut weight**
 
-$$\text{maxcut}(G) = \max_{S \subseteq V} \sum_{\substack{\{u,v\} \in E \\ u \in S,\, v \in \bar{S}}} \omega(\{u,v\}).$$
+$$\text{maxcut}(G) = \max_{S \subseteq V} \sum_{\substack{\lbrace u,v \rbrace \in E \\ u \in S, v \in \bar{S}}} \omega(\lbrace u,v \rbrace).$$
 
 This is the dual of the minimum cut problem and is NP-hard. The solver applies **FPT kernelization** rules (parameterized by the number of edges above the Edwards bound) to reduce the instance, followed by either a heuristic or an exact branch-and-bound solver.
 
@@ -502,7 +502,7 @@ Decomposition.maxcut(g, method="heuristic", time_limit=1.0) -> MaxCutResult
 
 **Problem.** Given a graph $G = (V, E)$ with signed edge weights $\omega : E \to \mathbb{R}$ (positive edges indicate similarity, negative edges indicate dissimilarity), find a partition $\mathcal{C}$ of $V$ into an arbitrary number of clusters that minimizes the total number of **disagreements**
 
-$$\text{disagree}(\mathcal{C}) = \sum_{\substack{\{u,v\} \in E,\; \omega(\{u,v\}) > 0 \\ c(u) \neq c(v)}} \omega(\{u,v\}) \;+\; \sum_{\substack{\{u,v\} \in E,\; \omega(\{u,v\}) < 0 \\ c(u) = c(v)}} |\omega(\{u,v\})|,$$
+$$\text{disagree}(\mathcal{C}) = \sum_{\substack{\lbrace u,v \rbrace \in E,\; \omega(\lbrace u,v \rbrace) > 0 \\ c(u) \neq c(v)}} \omega(\lbrace u,v \rbrace) \;+\; \sum_{\substack{\lbrace u,v \rbrace \in E,\; \omega(\lbrace u,v \rbrace) < 0 \\ c(u) = c(v)}} |\omega(\lbrace u,v \rbrace)|,$$
 
 i.e., positive edges crossing cluster boundaries plus negative edges within clusters. Unlike standard clustering, the number of clusters $k$ is not fixed but determined by the optimization. SCC uses multilevel label propagation to solve this efficiently.
 
@@ -555,7 +555,7 @@ hs.reset()  # reuse for a different graph
 
 **Problem.** Given an undirected graph $G = (V, E)$ and a seed node $v \in V$, find a cluster $C \ni v$ that minimizes the **triangle-motif conductance**
 
-$$\phi_{\triangle}(C) = \frac{t_{\partial}(C)}{\min\bigl(t(C),\, t(V \setminus C)\bigr)},$$
+$$\phi_{\triangle}(C) = \frac{t_{\partial}(C)}{\min\bigl(t(C), t(V \setminus C)\bigr)},$$
 
 where $t(C)$ is the number of triangles with all three vertices in $C$, and $t_{\partial}(C)$ is the number of triangles with vertices in both $C$ and $V \setminus C$. Unlike global clustering, this operates **locally** — the algorithm explores only the neighborhood of the seed node via BFS and does not need to process the entire graph. Applications include community detection around a query node in social networks.
 
@@ -589,7 +589,7 @@ Maximum independent set and maximum weight independent set solvers.
 
 **Problem.** Given an undirected graph $G = (V, E)$, find an **independent set** $I \subseteq V$ of maximum cardinality, i.e.,
 
-$$\max_{I \subseteq V} |I| \quad \text{subject to} \quad \{u, v\} \notin E \;\; \text{for all } u, v \in I.$$
+$$\max_{I \subseteq V} |I| \quad \text{subject to} \quad \lbrace u, v \rbrace \notin E \;\; \text{for all } u, v \in I.$$
 
 The maximum independent set problem is NP-hard and hard to approximate. ReduMIS combines **graph reduction rules** (crown, LP, domination, twin) that provably simplify the instance with an **evolutionary algorithm** that operates on the reduced kernel.
 
@@ -611,7 +611,7 @@ IndependenceProblems.online_mis(g, time_limit=10.0, seed=0, ils_iterations=15000
 
 **Problem.** Given an undirected graph $G = (V, E)$ with node weights $c : V \to \mathbb{R}_{\geq 0}$, find an independent set of maximum total weight, i.e.,
 
-$$\max_{I \subseteq V} \sum_{v \in I} c(v) \quad \text{subject to} \quad \{u, v\} \notin E \;\; \text{for all } u, v \in I.$$
+$$\max_{I \subseteq V} \sum_{v \in I} c(v) \quad \text{subject to} \quad \lbrace u, v \rbrace \notin E \;\; \text{for all } u, v \in I.$$
 
 Branch & Reduce is an **exact** solver that applies data reduction rules to shrink the instance and then solves the reduced kernel via branch-and-bound. It is guaranteed to find an optimal solution but may require exponential time in the worst case.
 
@@ -668,7 +668,7 @@ $$\Delta^+(\vec{G}) = \max_{v \in V} d^+_{\vec{G}}(v).$$
 
 The optimal value equals the **arboricity** of the graph,
 
-$$a(G) = \max_{H \subseteq G,\, |V(H)| \geq 2} \left\lceil \frac{|E(H)|}{|V(H)| - 1} \right\rceil.$$
+$$a(G) = \max_{H \subseteq G, |V(H)| \geq 2} \left\lceil \frac{|E(H)|}{|V(H)| - 1} \right\rceil.$$
 
 Low out-degree orientations enable space-efficient data structures for adjacency queries, fast triangle enumeration, and compact graph representations.
 
@@ -698,7 +698,7 @@ Path-based graph optimization.
 
 **Problem.** Given an undirected graph $G = (V, E)$ with edge weights $\omega : E \to \mathbb{R}_{\geq 0}$ and two designated vertices $s, t \in V$, find a simple (vertex-disjoint) path $P = (s = v_0, v_1, \dotsc, v_\ell = t)$ that maximizes
 
-$$\sum_{i=0}^{\ell-1} \omega(\{v_i, v_{i+1}\}).$$
+$$\sum_{i=0}^{\ell-1} \omega(\lbrace v_i, v_{i+1} \rbrace).$$
 
 For unweighted graphs, this reduces to finding the path with the most edges. The problem is NP-hard; KaLP uses **graph partitioning** to decompose the search space into blocks, then applies dynamic programming within and across blocks to find long paths efficiently.
 
