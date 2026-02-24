@@ -11,7 +11,7 @@
 
 ---
 
-CHSZLabLib provides a unified Python interface to four established C/C++ graph algorithm libraries:
+CHSZLabLib provides a unified Python interface to five established C/C++ graph algorithm libraries:
 
 | Library | Capability | Reference |
 |---------|-----------|-----------|
@@ -19,13 +19,14 @@ CHSZLabLib provides a unified Python interface to four established C/C++ graph a
 | [**VieCut**](https://github.com/VieCut/VieCut) | Global minimum cuts | Vienna Minimum Cuts |
 | [**VieClus**](https://github.com/VieClus/VieClus) | Graph clustering / community detection | Vienna Graph Clustering |
 | [**CHILS**](https://github.com/KarlsruheMIS/CHILS) | Maximum weight independent set | Concurrent Heuristic Independent Local Search |
+| [**KaMIS**](https://github.com/KarlsruheMIS/KaMIS) | Maximum independent set (weighted & unweighted) | Karlsruhe Maximum Independent Sets |
 
 All algorithms operate on a shared `Graph` object backed by NumPy arrays in CSR format -- no data copying between tools.
 
 ## Quick Start
 
 ```python
-from chszlablib import Graph, partition, mincut, cluster, mwis
+from chszlablib import Graph, partition, mincut, cluster, mwis, redumis
 
 # Build a graph
 g = Graph(num_nodes=6)
@@ -50,6 +51,10 @@ for i in range(g.num_nodes):
     g.set_node_weight(i, i + 1)
 m = mwis(g, time_limit=1.0)
 print(f"MWIS weight: {m.weight}, vertices: {m.vertices}")
+
+# Maximum independent set (unweighted)
+r = redumis(g, time_limit=1.0)
+print(f"MIS size: {r.size}, vertices: {r.vertices}")
 ```
 
 ## Installation
@@ -180,6 +185,48 @@ Find a maximum weight independent set using CHILS.
 
 Returns `MWISResult` with `weight` (int) and `vertices` (ndarray of node indices).
 
+### Maximum Independent Set (KaMIS)
+
+KaMIS provides four algorithms covering both unweighted and weighted MIS problems. All return `MISResult` with `size` (int), `weight` (int), and `vertices` (ndarray of node indices).
+
+#### Unweighted MIS
+
+```python
+redumis(g, time_limit=10.0, seed=0, full_kernelization=False) -> MISResult
+```
+
+Evolutionary algorithm with graph reductions. Best solution quality for unweighted MIS.
+
+| Parameter | Description |
+|-----------|-------------|
+| `time_limit` | Seconds to optimize (default 10.0) |
+| `full_kernelization` | Use full kernelization (`True`) or FastKer (`False`, default) |
+
+```python
+online_mis(g, time_limit=10.0, seed=0, ils_iterations=15000) -> MISResult
+```
+
+Iterated local search. Faster than ReduMIS, useful for quick approximate solutions.
+
+| Parameter | Description |
+|-----------|-------------|
+| `time_limit` | Seconds to optimize (default 10.0) |
+| `ils_iterations` | Number of ILS iterations (default 15000) |
+
+#### Weighted MIS
+
+```python
+branch_reduce(g, time_limit=10.0, seed=0) -> MISResult
+```
+
+Exact branch-and-reduce solver for maximum weight independent set. Uses node weights from the graph.
+
+```python
+mmwis_solver(g, time_limit=10.0, seed=0) -> MISResult
+```
+
+Memetic evolutionary algorithm for maximum weight independent set. Trades exactness for scalability on larger graphs.
+
 ## I/O
 
 Read and write graphs in [METIS format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf):
@@ -204,13 +251,14 @@ pytest tests/ -v
 
 ```
 CHSZLabLib/
-  chszlablib/         Python package (graph, partition, mincut, cluster, mwis, io)
+  chszlablib/         Python package (graph, partition, mincut, cluster, mwis, mis, io)
   bindings/           pybind11 C++ binding code
   KaHIP/              KaHIP submodule
   VieCut/             VieCut submodule
   VieClus/            VieClus submodule
   CHILS/              CHILS submodule
-  tests/              pytest suite (72 tests)
+  KaMIS/              KaMIS submodule (ReduMIS, OnlineMIS, Branch&Reduce, MMWIS)
+  tests/              pytest suite (82 tests)
   CMakeLists.txt      Top-level build configuration
   build.sh            One-step build script
 ```
