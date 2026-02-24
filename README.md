@@ -324,6 +324,23 @@ Partition a graph using HeiStream's streaming algorithm. HeiStream selects an in
 
 Returns `StreamPartitionResult` with `assignment` (ndarray of partition IDs).
 
+```python
+# Direct Fennel — fast one-pass streaming
+stream_partition(g, k=4, max_buffer_size=1, batch_size=1)
+
+# BuffCut — priority-buffered multi-level partitioning
+stream_partition(g, k=4, max_buffer_size=1000, batch_size=100)
+
+# BuffCut parallel — 3-thread pipeline
+stream_partition(g, k=4, max_buffer_size=1000, batch_size=100, run_parallel=True)
+
+# Batched no-priority (default)
+stream_partition(g, k=4)
+
+# Restreaming — multiple passes for better quality
+stream_partition(g, k=4, max_buffer_size=1000, batch_size=100, num_streams_passes=3)
+```
+
 #### Streaming Node-by-Node API
 
 For true streaming use cases where the graph arrives incrementally:
