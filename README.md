@@ -1,7 +1,7 @@
 <h1 align="center">CHSZLabLib</h1>
 
 <p align="center">
-  <strong>A unified Python interface to high-performance graph algorithms</strong>
+  <strong>State-of-the-art graph algorithms from C++ — easy to use in Python</strong>
 </p>
 
 <p align="center">
@@ -13,9 +13,10 @@
 
 <p align="center">
   <em>
-    11 state-of-the-art graph algorithm libraries.&nbsp;
+    11 C++ algorithm libraries.&nbsp;
     One <code>Graph</code> object.&nbsp;
-    Zero-copy NumPy arrays.
+    Zero-copy NumPy arrays.&nbsp;
+    Built for humans and AI agents.
   </em>
 </p>
 
@@ -23,9 +24,11 @@
 
 ## About
 
-CHSZLabLib is a **usability-focused** Python wrapper around 11 high-performance C/C++ graph algorithm libraries. It is designed for researchers, practitioners, and AI agents who want easy access to state-of-the-art graph algorithms through a clean, consistent API.
+The [Algorithm Engineering Group](https://ae.ifi.uni-heidelberg.de/) at Heidelberg University develops high-performance C++ algorithms for a wide range of combinatorial optimization problems on graphs — graph partitioning, minimum and maximum cuts, community detection, independent sets, edge orientation, longest paths, and more. These solvers represent the state of the art in their respective domains.
 
-**For maximum performance** (custom parameter tuning, MPI-level parallelism, full algorithmic control), use the underlying C/C++ repositories directly. This library prioritizes convenience and a unified interface over exposing every possible knob.
+**CHSZLabLib wraps 11 of these libraries into a single, easy-to-use Python interface.** One `Graph` object, consistent method signatures, typed result objects, and zero-copy NumPy arrays — designed to be productive for end users and fully discoverable by AI agents (LLMs).
+
+For full algorithmic control (custom parameter tuning, MPI-level parallelism, every possible knob), use the underlying C/C++ repositories directly. This library prioritizes **convenience and a unified interface**.
 
 ---
 
