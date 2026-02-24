@@ -34,6 +34,7 @@ CHSZLabLib is a **usability-focused** Python wrapper around 11 high-performance 
 - [About](#about)
 - [Integrated Libraries](#integrated-libraries)
 - [Quick Start](#quick-start)
+- [Agent Quick Reference](#agent-quick-reference)
 - [Installation](#installation)
 - [Graph Construction](#graph-construction)
 - [API Reference](#api-reference)
@@ -115,6 +116,96 @@ print(f"Max out-degree: {eo.max_out_degree}")
 sp = Decomposition.stream_partition(g, k=3, imbalance=3.0)
 print(f"Stream assignment: {sp.assignment}")
 ```
+
+---
+
+## Agent Quick Reference
+
+> **For AI agents and interactive exploration.** Call `chszlablib.describe()` at runtime for a full self-describing API overview, or use the tables below to map your task to the right method.
+
+### Problem-to-Method Mapping
+
+| I need to... | Method | Key parameters |
+|:-------------|:-------|:---------------|
+| Split a graph into *k* balanced parts | `Decomposition.partition` | `num_parts`, `mode` |
+| Refine a partition over time | `Decomposition.evolutionary_partition` | `num_parts`, `time_limit`, `initial_partition` |
+| Find graph communities | `Decomposition.cluster` | `time_limit` |
+| Find the global minimum cut | `Decomposition.mincut` | `algorithm` |
+| Maximize the cut between two sets | `Decomposition.maxcut` | `method` |
+| Cluster a signed graph | `Decomposition.correlation_clustering` | `seed`, `time_limit` |
+| Find a local community around a node | `Decomposition.motif_cluster` | `seed_node`, `method` |
+| Partition a streaming graph | `Decomposition.stream_partition` | `k`, `imbalance` |
+| Compute a fill-reducing ordering | `Decomposition.node_ordering` | `mode` |
+| Find a node separator | `Decomposition.node_separator` | `num_parts`, `mode` |
+| Find a large independent set | `IndependenceProblems.redumis` | `time_limit` |
+| Find max-weight independent set | `IndependenceProblems.chils` | `time_limit`, `num_concurrent` |
+| Orient edges (min max out-degree) | `Orientation.orient_edges` | `algorithm` |
+| Find the longest simple path | `PathProblems.longest_path` | `start_vertex`, `target_vertex` |
+
+### One-Liner Recipes
+
+```python
+from chszlablib import Graph, Decomposition, IndependenceProblems, Orientation, PathProblems
+
+g = Graph.from_edge_list([(0,1),(1,2),(2,0),(2,3),(3,4),(4,5),(5,3)])
+
+Decomposition.partition(g, num_parts=2, mode="eco")                     # balanced partition
+Decomposition.mincut(g, algorithm="viecut")                             # global minimum cut
+Decomposition.cluster(g, time_limit=1.0)                                # community detection
+Decomposition.maxcut(g, method="heuristic")                             # maximum cut
+Decomposition.correlation_clustering(g, time_limit=1.0)                 # signed clustering
+Decomposition.motif_cluster(g, seed_node=0, method="social")            # local cluster
+Decomposition.stream_partition(g, k=2, imbalance=3.0)                   # streaming partition
+IndependenceProblems.redumis(g, time_limit=5.0)                         # max independent set
+IndependenceProblems.chils(g, time_limit=5.0)                           # max weight independent set
+Orientation.orient_edges(g, algorithm="combined")                       # edge orientation
+PathProblems.longest_path(g, start_vertex=0, target_vertex=5)           # longest s-t path
+```
+
+### Programmatic Introspection
+
+```python
+from chszlablib import Decomposition
+
+# Discover all valid modes for partitioning
+Decomposition.PARTITION_MODES     # ("fast", "eco", "strong", "fastsocial", ...)
+Decomposition.MINCUT_ALGORITHMS   # ("viecut", "vc", "noi", "ks", ...)
+
+# List all methods with descriptions
+Decomposition.available_methods()
+# {'partition': 'Balanced graph partitioning (KaHIP)', ...}
+
+# Full API overview (prints to stdout)
+import chszlablib
+chszlablib.describe()
+```
+
+### Graph Construction Shortcuts
+
+```python
+# From edge list
+g = Graph.from_edge_list([(0,1), (1,2), (2,0)])
+
+# From NetworkX (optional dependency)
+g = Graph.from_networkx(nx_graph)
+g.to_networkx()  # convert back
+
+# From SciPy CSR (optional dependency)
+g = Graph.from_scipy_sparse(csr_matrix)
+g.to_scipy_sparse()  # convert back
+
+# From METIS file
+g = Graph.from_metis("graph.metis")
+```
+
+### Common Pitfalls
+
+- **Call `g.finalize()` before passing to algorithms** (or let property access auto-finalize).
+- **Mode strings are case-sensitive:** use `"eco"`, not `"Eco"` or `"ECO"`.
+- **Self-loops and duplicate edges raise `InvalidGraphError`.**
+- **NetworkX / SciPy are optional** — import errors give a helpful message.
+- **`PartitionResult.balance` is only set by `evolutionary_partition`.**
+- **Catch `CHSZLabLibError` to handle all library errors, or use specific subclasses (`InvalidModeError`, `InvalidGraphError`, `GraphNotFinalizedError`).**
 
 ---
 
@@ -202,20 +293,31 @@ g = read_metis("mesh.graph")
 g.to_metis("output.graph")
 ```
 
-### Converting from NetworkX
+### From edge list
+
+```python
+from chszlablib import Graph
+
+g = Graph.from_edge_list([(0, 1), (1, 2), (2, 3)])               # unweighted
+g = Graph.from_edge_list([(0, 1, 5), (1, 2, 3)], num_nodes=4)    # weighted, explicit node count
+```
+
+### From NetworkX / SciPy (optional dependencies)
 
 ```python
 import networkx as nx
-import numpy as np
 from chszlablib import Graph
 
-G_nx = nx.karate_club_graph()
-A = nx.to_scipy_sparse_array(G_nx, format="csr")
+# NetworkX → CHSZLabLib
+g = Graph.from_networkx(nx.karate_club_graph())
 
-g = Graph.from_csr(
-    xadj   = np.array(A.indptr, dtype=np.int64),
-    adjncy = np.array(A.indices, dtype=np.int32),
-)
+# CHSZLabLib → NetworkX
+G_nx = g.to_networkx()
+
+# SciPy CSR ↔ CHSZLabLib
+import scipy.sparse as sp
+g = Graph.from_scipy_sparse(csr_matrix)
+A = g.to_scipy_sparse()
 ```
 
 ---
