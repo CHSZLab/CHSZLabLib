@@ -8,6 +8,7 @@ from chszlablib.mis import redumis, online_mis, branch_reduce, mmwis_solver
 from chszlablib.correlation_clustering import correlation_clustering, evolutionary_correlation_clustering
 from chszlablib.orientation import orient_edges
 from chszlablib.maxcut import maxcut
+from chszlablib.longest_path import longest_path
 
 __all__ = [
     "Graph",
@@ -28,4 +29,5 @@ __all__ = [
     "evolutionary_correlation_clustering",
     "orient_edges",
     "maxcut",
+    "longest_path",
 ]

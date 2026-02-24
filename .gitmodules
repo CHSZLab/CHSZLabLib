@@ -26,3 +26,6 @@
 [submodule "fpt-max-cut"]
 	path = fpt-max-cut
 	url = https://github.com/DataReductionMaxCut/fpt-max-cut.git
+[submodule "KaLP"]
+	path = KaLP
+	url = https://github.com/KarlsruheLongestPaths/KaLP.git
