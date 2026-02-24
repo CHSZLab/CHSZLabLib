@@ -3,8 +3,7 @@
 import numpy as np
 import pytest
 
-from chszlablib import Graph, Decomposition
-from chszlablib.heistream import HeiStreamPartitioner, StreamPartitionResult
+from chszlablib import Graph, Decomposition, HeiStreamPartitioner, StreamPartitionResult
 
 
 # ---------------------------------------------------------------------------

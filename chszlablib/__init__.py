@@ -2,6 +2,7 @@ from chszlablib.graph import Graph
 from chszlablib.io import read_metis, write_metis
 from chszlablib.decomposition import (
     Decomposition,
+    HeiStreamPartitioner,
     PartitionResult,
     SeparatorResult,
     OrderingResult,
@@ -10,8 +11,8 @@ from chszlablib.decomposition import (
     CorrelationClusteringResult,
     MaxCutResult,
     MotifClusterResult,
+    StreamPartitionResult,
 )
-from chszlablib.heistream import HeiStreamPartitioner, StreamPartitionResult
 from chszlablib.independence import IndependenceProblems, MISResult, MWISResult
 from chszlablib.orientation import Orientation, EdgeOrientationResult
 from chszlablib.paths import PathProblems, LongestPathResult
@@ -23,11 +24,10 @@ __all__ = [
     "write_metis",
     # Namespace classes
     "Decomposition",
+    "HeiStreamPartitioner",
     "IndependenceProblems",
     "Orientation",
     "PathProblems",
-    # Streaming (stateful class)
-    "HeiStreamPartitioner",
     # Result dataclasses
     "PartitionResult",
     "SeparatorResult",
