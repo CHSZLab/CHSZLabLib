@@ -32,3 +32,6 @@
 [submodule "HeidelbergMotifClustering"]
 	path = HeidelbergMotifClustering
 	url = https://github.com/LocalClustering/HeidelbergMotifClustering.git
+[submodule "HeiStream"]
+	path = HeiStream
+	url = https://github.com/KaHIP/HeiStream.git

@@ -10,6 +10,7 @@ from chszlablib.orientation import orient_edges
 from chszlablib.maxcut import maxcut
 from chszlablib.longest_path import longest_path
 from chszlablib.motif_clustering import motif_cluster
+from chszlablib.heistream import HeiStreamPartitioner, stream_partition
 
 __all__ = [
     "Graph",
@@ -32,4 +33,6 @@ __all__ = [
     "maxcut",
     "longest_path",
     "motif_cluster",
+    "HeiStreamPartitioner",
+    "stream_partition",
 ]
