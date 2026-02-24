@@ -52,19 +52,36 @@ CHSZLabLib is a **usability-focused** Python wrapper around 11 high-performance 
 
 ## Integrated Libraries
 
+**Decomposition** — Partitioning, cuts, clustering, and community detection.
+
 | Library | Domain | Algorithms |
 |:--------|:-------|:-----------|
 | [KaHIP](https://github.com/KaHIP/KaHIP) | Graph partitioning | KaFFPa (6 modes), KaFFPaE (evolutionary), node separators, nested dissection |
+| [HeiStream](https://github.com/KaHIP/HeiStream) | Streaming partitioning | Fennel, BuffCut, parallel pipeline, restreaming |
 | [VieCut](https://github.com/VieCut/VieCut) | Minimum cuts | VieCut, NOI, Karger-Stein, Matula, Padberg-Rinaldi, Cactus |
-| [VieClus](https://github.com/VieClus/VieClus) | Community detection | Modularity-maximizing evolutionary clustering |
-| [CHILS](https://github.com/KennethLangedal/CHILS) | Weighted independent set | Concurrent heuristic independent local search |
-| [KaMIS](https://github.com/KarlsruheMIS/KaMIS) | Independent set | ReduMIS, OnlineMIS, Branch&Reduce, MMWIS |
-| [SCC](https://github.com/ScalableCorrelationClustering/ScalableCorrelationClustering) | Correlation clustering | Label propagation + evolutionary on signed graphs |
-| [HeiOrient](https://github.com/KaHIP/HeiOrient) | Edge orientation | 2-approx greedy, DFS local search, Eager Path Search |
-| [HeiStream](https://github.com/KaHIP/HeiStream) | Streaming partitioning | Fennel, BuffCut, parallel pipeline, batched model |
-| [KaLP](https://github.com/KarlsruheLongestPaths/KaLP) | Longest paths | Partitioning-aided longest simple path solver |
 | [fpt-max-cut](https://github.com/KarlsruheMIS/fpt-max-cut) | Maximum cut | FPT kernelization + heuristic/exact solvers |
+| [VieClus](https://github.com/VieClus/VieClus) | Community detection | Modularity-maximizing evolutionary clustering |
+| [SCC](https://github.com/ScalableCorrelationClustering/ScalableCorrelationClustering) | Correlation clustering | Label propagation + evolutionary on signed graphs |
 | [HeidelbergMotifClustering](https://github.com/LocalClustering/HeidelbergMotifClustering) | Local clustering | Triangle-motif-based flow and partitioning methods |
+
+**IndependenceProblems** — Maximum independent set and maximum weight independent set.
+
+| Library | Domain | Algorithms |
+|:--------|:-------|:-----------|
+| [KaMIS](https://github.com/KarlsruheMIS/KaMIS) | Independent set | ReduMIS, OnlineMIS, Branch&Reduce, MMWIS |
+| [CHILS](https://github.com/KennethLangedal/CHILS) | Weighted independent set | Concurrent heuristic independent local search |
+
+**Orientation** — Edge orientation for minimum maximum out-degree.
+
+| Library | Domain | Algorithms |
+|:--------|:-------|:-----------|
+| [HeiOrient](https://github.com/KaHIP/HeiOrient) | Edge orientation | 2-approx greedy, DFS local search, Eager Path Search |
+
+**PathProblems** — Path-based graph optimization.
+
+| Library | Domain | Algorithms |
+|:--------|:-------|:-----------|
+| [KaLP](https://github.com/KarlsruheLongestPaths/KaLP) | Longest paths | Partitioning-aided longest simple path solver |
 
 ---
 
@@ -212,6 +229,21 @@ The library organizes algorithms into four namespace classes. Each class is a pu
 ### Decomposition
 
 Graph decomposition: partitioning, cuts, clustering, and community detection.
+
+| Method | Problem | Library |
+|:-------|:--------|:--------|
+| `partition` | Balanced graph partitioning | KaHIP |
+| `evolutionary_partition` | Balanced graph partitioning (evolutionary) | KaHIP |
+| `node_separator` | Balanced node separator | KaHIP |
+| `node_ordering` | Nested dissection ordering | KaHIP |
+| `stream_partition` | Streaming graph partitioning | HeiStream |
+| `HeiStreamPartitioner` | Streaming graph partitioning (node-by-node) | HeiStream |
+| `mincut` | Global minimum cut | VieCut |
+| `maxcut` | Maximum cut | fpt-max-cut |
+| `cluster` | Community detection (modularity) | VieClus |
+| `correlation_clustering` | Correlation clustering | SCC |
+| `evolutionary_correlation_clustering` | Correlation clustering (evolutionary) | SCC |
+| `motif_cluster` | Local motif clustering | HeidelbergMotifClustering |
 
 #### `Decomposition.partition(g, ...)` — Balanced Graph Partitioning (KaHIP)
 
@@ -440,6 +472,14 @@ Decomposition.motif_cluster(g, seed_node, method="social", bfs_depths=None,
 
 Maximum independent set and maximum weight independent set solvers.
 
+| Method | Problem | Library |
+|:-------|:--------|:--------|
+| `redumis` | Maximum independent set (evolutionary) | KaMIS |
+| `online_mis` | Maximum independent set (local search) | KaMIS |
+| `branch_reduce` | Maximum weight independent set (exact) | KaMIS |
+| `mmwis` | Maximum weight independent set (evolutionary) | KaMIS |
+| `chils` | Maximum weight independent set (concurrent local search) | CHILS |
+
 #### `IndependenceProblems.redumis(g, ...)` — Maximum Independent Set (KaMIS)
 
 **Problem.** Given an undirected graph $G = (V, E)$, find an **independent set** $I \subseteq V$ of maximum cardinality, i.e.,
@@ -509,6 +549,12 @@ print(f"Weight: {result.weight}, vertices: {result.vertices}")
 
 ### Orientation
 
+Edge orientation for minimum maximum out-degree.
+
+| Method | Problem | Library |
+|:-------|:--------|:--------|
+| `orient_edges` | Edge orientation (min max out-degree) | HeiOrient |
+
 #### `Orientation.orient_edges(g, ...)` — Edge Orientation (HeiOrient)
 
 **Problem.** Given an undirected graph $G = (V, E)$, orient each edge (assign a direction) to obtain a directed graph $\vec{G}$ that minimizes the **maximum out-degree**
@@ -536,6 +582,12 @@ Orientation.orient_edges(g, algorithm="combined", seed=0, eager_size=100) -> Edg
 ---
 
 ### PathProblems
+
+Path-based graph optimization.
+
+| Method | Problem | Library |
+|:-------|:--------|:--------|
+| `longest_path` | Longest simple path | KaLP |
 
 #### `PathProblems.longest_path(g, ...)` — Longest Simple Path (KaLP)
 
