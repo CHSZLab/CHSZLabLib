@@ -304,4 +304,12 @@ class TestRepr:
         g = Graph(num_nodes=3)
         g.add_edge(0, 1)
         g.add_edge(1, 2)
-        assert repr(g) == "Graph(num_nodes=3, num_edges=2)"
+        assert repr(g) == "Graph(n=3, edges_added=2, finalized=False)"
+        g.finalize()
+        assert repr(g) == "Graph(n=3, m=2, weighted=False)"
+
+    def test_repr_weighted(self):
+        g = Graph(num_nodes=2)
+        g.add_edge(0, 1, weight=5)
+        g.finalize()
+        assert repr(g) == "Graph(n=2, m=1, weighted=True)"

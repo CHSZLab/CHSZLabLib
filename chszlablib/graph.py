@@ -182,7 +182,41 @@ class Graph:
         xadj = np.asarray(xadj, dtype=np.int64)
         adjncy = np.asarray(adjncy, dtype=np.int32)
 
+        if xadj.ndim != 1 or len(xadj) < 1:
+            raise ValueError(
+                f"xadj must be a 1-D array of length >= 1, "
+                f"got shape {xadj.shape}"
+            )
         n = len(xadj) - 1
+        if xadj[0] != 0:
+            raise ValueError(f"xadj[0] must be 0, got {xadj[0]}")
+        if xadj[-1] != len(adjncy):
+            raise ValueError(
+                f"xadj[-1] must equal len(adjncy) ({len(adjncy)}), "
+                f"got {xadj[-1]}"
+            )
+        if not np.all(np.diff(xadj) >= 0):
+            raise ValueError("xadj must be monotonically non-decreasing")
+        if len(adjncy) > 0:
+            if np.any(adjncy < 0) or np.any(adjncy >= n):
+                raise ValueError(
+                    f"adjncy values must be in [0, {n}), "
+                    f"got range [{adjncy.min()}, {adjncy.max()}]"
+                )
+        if node_weights is not None:
+            nw = np.asarray(node_weights)
+            if nw.shape != (n,):
+                raise ValueError(
+                    f"node_weights must have shape ({n},), got {nw.shape}"
+                )
+        if edge_weights is not None:
+            ew = np.asarray(edge_weights)
+            if ew.shape != (len(adjncy),):
+                raise ValueError(
+                    f"edge_weights must have shape ({len(adjncy)},), "
+                    f"got {ew.shape}"
+                )
+
         g = cls.__new__(cls)
         g._num_nodes = n
         g._finalized = True
@@ -287,4 +321,16 @@ class Graph:
             )
 
     def __repr__(self) -> str:
-        return f"Graph(num_nodes={self._num_nodes}, num_edges={self.num_edges})"
+        if self._finalized:
+            has_nw = not np.all(self._node_weights == 1)
+            has_ew = not np.all(self._edge_weights == 1)
+            weighted = has_nw or has_ew
+            return (
+                f"Graph(n={self._num_nodes}, m={len(self._adjncy) // 2}, "
+                f"weighted={weighted})"
+            )
+        else:
+            return (
+                f"Graph(n={self._num_nodes}, "
+                f"edges_added={len(self._edge_list)}, finalized=False)"
+            )

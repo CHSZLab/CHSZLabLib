@@ -44,6 +44,9 @@ class IndependenceProblems:
         """Compute an unweighted MIS using the ReduMIS evolutionary algorithm."""
         from chszlablib._kamis import redumis as _redumis
 
+        if time_limit < 0:
+            raise ValueError(f"time_limit must be >= 0, got {time_limit}")
+
         g.finalize()
         xadj = g.xadj.astype(np.int32, copy=False)
         adjncy = g.adjncy.astype(np.int32, copy=False)
@@ -63,6 +66,9 @@ class IndependenceProblems:
     ) -> MISResult:
         """Compute an unweighted MIS using the OnlineMIS local search algorithm."""
         from chszlablib._kamis import online_mis as _online_mis
+
+        if time_limit < 0:
+            raise ValueError(f"time_limit must be >= 0, got {time_limit}")
 
         g.finalize()
         xadj = g.xadj.astype(np.int32, copy=False)
@@ -85,6 +91,9 @@ class IndependenceProblems:
         """Compute a weighted MIS using the exact branch-and-reduce algorithm."""
         from chszlablib._kamis_wmis import branch_reduce as _branch_reduce
 
+        if time_limit < 0:
+            raise ValueError(f"time_limit must be >= 0, got {time_limit}")
+
         g.finalize()
         xadj = g.xadj.astype(np.int32, copy=False)
         adjncy = g.adjncy.astype(np.int32, copy=False)
@@ -101,6 +110,9 @@ class IndependenceProblems:
     ) -> MISResult:
         """Compute a weighted MIS using the MMWIS memetic evolutionary algorithm."""
         from chszlablib._kamis_mmwis import mmwis_solver as _mmwis_solver
+
+        if time_limit < 0:
+            raise ValueError(f"time_limit must be >= 0, got {time_limit}")
 
         g.finalize()
         xadj = g.xadj.astype(np.int32, copy=False)
@@ -121,6 +133,11 @@ class IndependenceProblems:
     ) -> MWISResult:
         """Compute a maximum weight independent set using CHILS."""
         from chszlablib._chils import mwis as _mwis
+
+        if time_limit < 0:
+            raise ValueError(f"time_limit must be >= 0, got {time_limit}")
+        if num_concurrent < 1:
+            raise ValueError(f"num_concurrent must be >= 1, got {num_concurrent}")
 
         g.finalize()
         xadj = g.xadj.astype(np.int64, copy=False)

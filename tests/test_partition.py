@@ -74,7 +74,7 @@ class TestPartition:
 
     def test_partition_invalid_mode(self):
         g = make_bipartite()
-        with pytest.raises(KeyError):
+        with pytest.raises(ValueError, match="Unknown mode"):
             Decomposition.partition(g, num_parts=2, mode="nonexistent")
 
 

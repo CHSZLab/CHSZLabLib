@@ -81,7 +81,7 @@ class TestKaffpaE:
 
     def test_invalid_mode(self):
         g = make_bipartite()
-        with pytest.raises(KeyError):
+        with pytest.raises(ValueError, match="Unknown mode"):
             Decomposition.evolutionary_partition(g, num_parts=2, time_limit=1, mode="nonexistent")
 
     def test_balance_field(self):

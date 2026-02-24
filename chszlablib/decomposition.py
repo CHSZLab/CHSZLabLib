@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Literal, Sequence
 
 import numpy as np
 
@@ -36,6 +36,43 @@ _MINCUT_ALGO_MAP = {
     "pr": "pr",
     "cactus": "cactus",
 }
+
+_ORIENTATION_ALGO_MAP = {"two_approx", "dfs", "combined"}
+
+_MOTIF_METHOD_MAP = {"social", "lmchgp"}
+
+# ---------------------------------------------------------------------------
+# Type aliases
+# ---------------------------------------------------------------------------
+
+PartitionMode = Literal[
+    "fast", "eco", "strong", "fastsocial", "ecosocial", "strongsocial",
+]
+KaFFPaEMode = Literal[
+    "fast", "eco", "strong", "fastsocial", "ecosocial", "strongsocial",
+    "ultrafastsocial",
+]
+MincutAlgorithm = Literal[
+    "viecut", "vc", "noi", "ks", "matula", "pr", "cactus",
+]
+MaxcutMethod = Literal["heuristic", "exact"]
+MotifMethod = Literal["social", "lmchgp"]
+
+# ---------------------------------------------------------------------------
+# Validation helpers
+# ---------------------------------------------------------------------------
+
+
+def _validate_mode(mode: str, valid: dict, label: str = "mode") -> int:
+    """Validate a mode string and return its integer code."""
+    key = mode.lower()
+    if key not in valid:
+        raise ValueError(
+            f"Unknown {label} {mode!r}. "
+            f"Choose from: {', '.join(sorted(valid))}"
+        )
+    return valid[key]
+
 
 # ---------------------------------------------------------------------------
 # Result dataclasses
@@ -133,13 +170,19 @@ class Decomposition:
     def partition(
         g: Graph,
         num_parts: int = 2,
-        mode: str = "eco",
+        mode: PartitionMode = "eco",
         imbalance: float = 0.03,
         seed: int = 0,
         suppress_output: bool = True,
     ) -> PartitionResult:
         """Partition a graph into *num_parts* blocks using KaHIP."""
         from chszlablib._kahip import kaffpa
+
+        if num_parts < 2:
+            raise ValueError(f"num_parts must be >= 2, got {num_parts}")
+        if imbalance < 0:
+            raise ValueError(f"imbalance must be >= 0, got {imbalance}")
+        mode_code = _validate_mode(mode, _MODE_MAP)
 
         g.finalize()
         vwgt = g.node_weights.astype(np.int32, copy=False)
@@ -150,7 +193,7 @@ class Decomposition:
         edgecut, part = kaffpa(
             vwgt, xadj, adjcwgt, adjncy,
             num_parts, imbalance, suppress_output, seed,
-            _MODE_MAP[mode.lower()],
+            mode_code,
         )
         return PartitionResult(edgecut=edgecut, assignment=part)
 
@@ -158,13 +201,19 @@ class Decomposition:
     def node_separator(
         g: Graph,
         num_parts: int = 2,
-        mode: str = "eco",
+        mode: PartitionMode = "eco",
         imbalance: float = 0.03,
         seed: int = 0,
         suppress_output: bool = True,
     ) -> SeparatorResult:
         """Compute a node separator using KaHIP."""
         from chszlablib._kahip import node_separator as _ns
+
+        if num_parts < 2:
+            raise ValueError(f"num_parts must be >= 2, got {num_parts}")
+        if imbalance < 0:
+            raise ValueError(f"imbalance must be >= 0, got {imbalance}")
+        mode_code = _validate_mode(mode, _MODE_MAP)
 
         g.finalize()
         vwgt = g.node_weights.astype(np.int32, copy=False)
@@ -175,19 +224,21 @@ class Decomposition:
         num_sep, sep = _ns(
             vwgt, xadj, adjcwgt, adjncy,
             num_parts, imbalance, suppress_output, seed,
-            _MODE_MAP[mode.lower()],
+            mode_code,
         )
         return SeparatorResult(num_separator_vertices=num_sep, separator=sep)
 
     @staticmethod
     def node_ordering(
         g: Graph,
-        mode: str = "eco",
+        mode: PartitionMode = "eco",
         seed: int = 0,
         suppress_output: bool = True,
     ) -> OrderingResult:
         """Compute a reduced nested dissection ordering using KaHIP."""
         from chszlablib._kahip import node_ordering as _no
+
+        mode_code = _validate_mode(mode, _MODE_MAP)
 
         g.finalize()
         xadj = g.xadj.astype(np.int32, copy=False)
@@ -196,7 +247,7 @@ class Decomposition:
         ordering = _no(
             xadj, adjncy,
             suppress_output, seed,
-            _MODE_MAP[mode.lower()],
+            mode_code,
         )
         return OrderingResult(ordering=ordering)
 
@@ -205,7 +256,7 @@ class Decomposition:
         g: Graph,
         num_parts: int,
         time_limit: int,
-        mode: str = "strong",
+        mode: KaFFPaEMode = "strong",
         imbalance: float = 0.03,
         seed: int = 0,
         suppress_output: bool = True,
@@ -213,6 +264,14 @@ class Decomposition:
     ) -> PartitionResult:
         """Partition a graph using KaHIP's evolutionary/memetic algorithm (KaFFPaE)."""
         from chszlablib._kahipe import kaffpaE as _kaffpaE
+
+        if num_parts < 2:
+            raise ValueError(f"num_parts must be >= 2, got {num_parts}")
+        if time_limit < 0:
+            raise ValueError(f"time_limit must be >= 0, got {time_limit}")
+        if imbalance < 0:
+            raise ValueError(f"imbalance must be >= 0, got {imbalance}")
+        mode_code = _validate_mode(mode, _KAFFPAE_MODE_MAP)
 
         g.finalize()
         vwgt = g.node_weights.astype(np.int32, copy=False)
@@ -231,7 +290,7 @@ class Decomposition:
             num_parts, imbalance, suppress_output,
             graph_partitioned, init_part,
             time_limit, seed,
-            _KAFFPAE_MODE_MAP[mode.lower()],
+            mode_code,
         )
         return PartitionResult(edgecut=edgecut, assignment=part, balance=balance)
 
@@ -251,6 +310,11 @@ class Decomposition:
     ) -> StreamPartitionResult:
         """Partition a graph using HeiStream's streaming algorithm."""
         from chszlablib._heistream import heistream_partition
+
+        if k < 2:
+            raise ValueError(f"k must be >= 2, got {k}")
+        if imbalance < 0:
+            raise ValueError(f"imbalance must be >= 0, got {imbalance}")
 
         g.finalize()
         xadj = g.xadj.astype(np.int64)
@@ -274,7 +338,7 @@ class Decomposition:
     # --- VieCut: Minimum Cut ---
 
     @staticmethod
-    def mincut(g: Graph, algorithm: str = "viecut", seed: int = 0) -> MincutResult:
+    def mincut(g: Graph, algorithm: MincutAlgorithm = "viecut", seed: int = 0) -> MincutResult:
         """Compute a global minimum cut of an undirected graph."""
         from chszlablib._viecut import minimum_cut
 
@@ -305,10 +369,17 @@ class Decomposition:
     @staticmethod
     def maxcut(
         g: Graph,
-        method: str = "heuristic",
+        method: MaxcutMethod = "heuristic",
         time_limit: float = 1.0,
     ) -> MaxCutResult:
         """Compute a maximum cut of a graph using FPT kernelization."""
+        if method not in ("heuristic", "exact"):
+            raise ValueError(
+                f"Unknown method {method!r}. Choose from: heuristic, exact"
+            )
+        if time_limit < 0:
+            raise ValueError(f"time_limit must be >= 0, got {time_limit}")
+
         g.finalize()
 
         xadj = g.xadj.astype(np.int64, copy=False)
@@ -348,6 +419,9 @@ class Decomposition:
     ) -> ClusterResult:
         """Cluster a graph using VieClus (modularity maximization)."""
         from chszlablib._vieclus import cluster as _cluster
+
+        if time_limit < 0:
+            raise ValueError(f"time_limit must be >= 0, got {time_limit}")
 
         g.finalize()
 
@@ -420,13 +494,26 @@ class Decomposition:
     def motif_cluster(
         g: Graph,
         seed_node: int,
-        method: str = "social",
+        method: MotifMethod = "social",
         bfs_depths: list[int] | None = None,
         time_limit: int = 60,
         seed: int = 0,
     ) -> MotifClusterResult:
         """Find a local cluster around a seed node based on triangle motifs."""
+        if method not in _MOTIF_METHOD_MAP:
+            raise ValueError(
+                f"Unknown method {method!r}. "
+                f"Choose from: {', '.join(sorted(_MOTIF_METHOD_MAP))}"
+            )
+        if time_limit < 0:
+            raise ValueError(f"time_limit must be >= 0, got {time_limit}")
+
         g.finalize()
+
+        if seed_node < 0 or seed_node >= g.num_nodes:
+            raise ValueError(
+                f"seed_node {seed_node} out of range [0, {g.num_nodes})"
+            )
 
         if bfs_depths is None:
             bfs_depths = [10, 15, 20]
@@ -441,27 +528,18 @@ class Decomposition:
                 xadj, adjncy, seed_node,
                 [int(d) for d in bfs_depths], time_limit, seed,
             )
-            return MotifClusterResult(
-                cluster_nodes=cluster_nodes,
-                motif_conductance=float(conductance),
-            )
-
-        elif method == "lmchgp":
+        else:
             from chszlablib._motif import motif_cluster_lmchgp
 
             cluster_nodes, conductance = motif_cluster_lmchgp(
                 xadj, adjncy, seed_node,
                 [int(d) for d in bfs_depths], time_limit, seed,
             )
-            return MotifClusterResult(
-                cluster_nodes=cluster_nodes,
-                motif_conductance=float(conductance),
-            )
 
-        else:
-            raise ValueError(
-                f"Unknown method '{method}'. Choose 'social' or 'lmchgp'."
-            )
+        return MotifClusterResult(
+            cluster_nodes=cluster_nodes,
+            motif_conductance=float(conductance),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -518,6 +596,11 @@ class HeiStreamPartitioner:
         run_parallel: bool = False,
         suppress_output: bool = True,
     ):
+        if k < 2:
+            raise ValueError(f"k must be >= 2, got {k}")
+        if imbalance < 0:
+            raise ValueError(f"imbalance must be >= 0, got {imbalance}")
+
         self._k = k
         self._imbalance = imbalance
         self._seed = seed

@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 
 from chszlablib.graph import Graph
+
+PartitionConfig = Literal["strong", "eco", "fast"]
 
 
 @dataclass
@@ -28,7 +31,7 @@ class PathProblems:
         g: Graph,
         start_vertex: int = 0,
         target_vertex: int = -1,
-        partition_config: str = "eco",
+        partition_config: PartitionConfig = "eco",
         block_size: int = 10,
         number_of_threads: int = 1,
         split_steps: int = 0,
