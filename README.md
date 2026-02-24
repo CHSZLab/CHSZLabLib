@@ -469,7 +469,7 @@ Decomposition.mincut(g, algorithm="viecut", seed=0) -> MincutResult
 
 **Problem.** Given an undirected graph $G = (V, E)$ with $m = |E|$, find a partition $\mathcal{C} = \lbrace C_1, \dotsc, C_k \rbrace$ of $V$ — where $k$ is determined automatically — that maximizes the **Newman–Girvan modularity**
 
-$$Q = \frac{1}{2m} \sum_{u, v \in V} \left[ A_{uv} - \frac{d_u \; d_v}{2m} \right] \delta\bigl(c(u), c(v)\bigr),$$
+$$Q = \frac{1}{2m} \sum_{u, v \in V} \left[ A_{uv} - \frac{d_u ~ d_v}{2m} \right] \delta\bigl(c(u), c(v)\bigr),$$
 
 where $A_{uv}$ is the adjacency matrix entry, $d_v$ is the degree of node $v$, $c(v)$ denotes the cluster of $v$, and $\delta$ is the Kronecker delta. Modularity quantifies the density of edges within clusters relative to a random graph with the same degree sequence. VieClus uses an evolutionary algorithm with multilevel refinement to maximize this objective.
 
@@ -502,7 +502,7 @@ Decomposition.maxcut(g, method="heuristic", time_limit=1.0) -> MaxCutResult
 
 **Problem.** Given a graph $G = (V, E)$ with signed edge weights $\omega : E \to \mathbb{R}$ (positive edges indicate similarity, negative edges indicate dissimilarity), find a partition $\mathcal{C}$ of $V$ into an arbitrary number of clusters that minimizes the total number of **disagreements**
 
-$$\text{disagree}(\mathcal{C}) = \sum_{\substack{\lbrace u,v \rbrace \in E,\; \omega(\lbrace u,v \rbrace) > 0 \\ c(u) \neq c(v)}} \omega(\lbrace u,v \rbrace) \;+\; \sum_{\substack{\lbrace u,v \rbrace \in E,\; \omega(\lbrace u,v \rbrace) < 0 \\ c(u) = c(v)}} |\omega(\lbrace u,v \rbrace)|,$$
+$$\text{disagree}(\mathcal{C}) = \sum_{\substack{\lbrace u,v \rbrace \in E, ~ \omega(\lbrace u,v \rbrace) > 0 \\ c(u) \neq c(v)}} \omega(\lbrace u,v \rbrace) ~+~ \sum_{\substack{\lbrace u,v \rbrace \in E, ~ \omega(\lbrace u,v \rbrace) < 0 \\ c(u) = c(v)}} |\omega(\lbrace u,v \rbrace)|,$$
 
 i.e., positive edges crossing cluster boundaries plus negative edges within clusters. Unlike standard clustering, the number of clusters $k$ is not fixed but determined by the optimization. SCC uses multilevel label propagation to solve this efficiently.
 
@@ -589,7 +589,7 @@ Maximum independent set and maximum weight independent set solvers.
 
 **Problem.** Given an undirected graph $G = (V, E)$, find an **independent set** $I \subseteq V$ of maximum cardinality, i.e.,
 
-$$\max_{I \subseteq V} |I| \quad \text{subject to} \quad \lbrace u, v \rbrace \notin E \;\; \text{for all } u, v \in I.$$
+$$\max_{I \subseteq V} |I| \quad \text{subject to} \quad \lbrace u, v \rbrace \notin E \quad \text{for all } u, v \in I.$$
 
 The maximum independent set problem is NP-hard and hard to approximate. ReduMIS combines **graph reduction rules** (crown, LP, domination, twin) that provably simplify the instance with an **evolutionary algorithm** that operates on the reduced kernel.
 
@@ -611,7 +611,7 @@ IndependenceProblems.online_mis(g, time_limit=10.0, seed=0, ils_iterations=15000
 
 **Problem.** Given an undirected graph $G = (V, E)$ with node weights $c : V \to \mathbb{R}_{\geq 0}$, find an independent set of maximum total weight, i.e.,
 
-$$\max_{I \subseteq V} \sum_{v \in I} c(v) \quad \text{subject to} \quad \lbrace u, v \rbrace \notin E \;\; \text{for all } u, v \in I.$$
+$$\max_{I \subseteq V} \sum_{v \in I} c(v) \quad \text{subject to} \quad \lbrace u, v \rbrace \notin E \quad \text{for all } u, v \in I.$$
 
 Branch & Reduce is an **exact** solver that applies data reduction rules to shrink the instance and then solves the reduced kernel via branch-and-bound. It is guaranteed to find an optimal solution but may require exponential time in the worst case.
 
