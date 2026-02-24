@@ -28,7 +28,7 @@ The [Algorithm Engineering Group](https://ae.ifi.uni-heidelberg.de/) at Heidelbe
 
 **CHSZLabLib wraps 11 of these libraries into a single, easy-to-use Python interface.** One `Graph` object, consistent method signatures, typed result objects, and zero-copy NumPy arrays — designed to be productive for end users and fully discoverable by AI agents (LLMs).
 
-For full algorithmic control (custom parameter tuning, MPI-level parallelism, every possible knob), use the underlying C/C++ repositories directly. This library prioritizes **convenience and a unified interface**.
+For full algorithmic control (custom parameter tuning, every possible knob), use the underlying C/C++ repositories directly. This library prioritizes **convenience and a unified interface**.
 
 ---
 
