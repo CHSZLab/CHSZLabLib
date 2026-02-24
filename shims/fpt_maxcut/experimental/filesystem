@@ -1,0 +1,4 @@
+#pragma once
+// Shim: redirect <experimental/filesystem> to <filesystem> on modern compilers
+#include <filesystem>
+namespace std { namespace experimental { using namespace std::filesystem; } }

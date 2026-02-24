@@ -8,6 +8,21 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(pybind11 CONFIG REQUIRED)
 find_package(OpenMP)
 
+# =============================================================================
+# MQLib  (for fpt-max-cut; must come BEFORE the global -include cstdint
+# workaround which breaks MQLib's older C++ code)
+# =============================================================================
+set(FPT_MAXCUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/fpt-max-cut)
+set(MQLIB_DIR ${FPT_MAXCUT_DIR}/solvers/MQLib)
+file(GLOB_RECURSE MQLIB_SOURCES ${MQLIB_DIR}/src/*.cpp)
+list(FILTER MQLIB_SOURCES EXCLUDE REGEX "main\\.cpp$")
+add_library(mqlib_static STATIC ${MQLIB_SOURCES})
+target_include_directories(mqlib_static PUBLIC ${MQLIB_DIR}/include)
+target_compile_options(mqlib_static PRIVATE -w -O2
+    "SHELL:-include cstdint"
+    "SHELL:-include limits"
+)
+
 # Fix missing <cstdint> includes in older tlx/VieCut headers on newer compilers
 add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-include;cstdint>")
 
@@ -712,6 +727,35 @@ target_include_directories(heiorient INTERFACE
 target_compile_features(heiorient INTERFACE cxx_std_17)
 
 # =============================================================================
+# fpt-max-cut  (FPT kernelization + MQLib solver for Max-Cut)
+# =============================================================================
+# MQLib was built above (before the -include cstdint workaround).
+# Here we build the fpt-max-cut core as a static library.
+
+# --- fpt-max-cut static library ---
+add_library(fpt_maxcut_static STATIC
+    ${FPT_MAXCUT_DIR}/src/mc-graph.cpp
+    ${FPT_MAXCUT_DIR}/src/utils.cpp
+    ${FPT_MAXCUT_DIR}/src/output-filter.cpp
+)
+target_include_directories(fpt_maxcut_static PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/shims/fpt_maxcut   # filesystem shim (must come first)
+    ${FPT_MAXCUT_DIR}                                # project root (for ./src/output-filter.hpp)
+    ${FPT_MAXCUT_DIR}/src                            # source headers
+    ${MQLIB_DIR}/include                             # MQLib headers
+)
+target_link_libraries(fpt_maxcut_static PUBLIC mqlib_static)
+target_compile_options(fpt_maxcut_static PRIVATE -w -fpermissive)
+target_compile_definitions(fpt_maxcut_static PRIVATE NDEBUG)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(fpt_maxcut_static PUBLIC OpenMP::OpenMP_CXX)
+endif()
+find_package(Threads)
+if(Threads_FOUND)
+    target_link_libraries(fpt_maxcut_static PUBLIC Threads::Threads)
+endif()
+
+# =============================================================================
 # Pybind11 modules
 # =============================================================================
 
@@ -773,3 +817,8 @@ install(TARGETS _scc_evo DESTINATION chszlablib)
 pybind11_add_module(_heiorient bindings/heiorient_binding.cpp)
 target_link_libraries(_heiorient PRIVATE heiorient)
 install(TARGETS _heiorient DESTINATION chszlablib)
+
+# --- _maxcut (FPT Max-Cut) ---
+pybind11_add_module(_maxcut bindings/maxcut_binding.cpp)
+target_link_libraries(_maxcut PRIVATE fpt_maxcut_static)
+install(TARGETS _maxcut DESTINATION chszlablib)
