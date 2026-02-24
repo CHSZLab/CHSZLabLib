@@ -600,6 +600,52 @@ if(OpenMP_CXX_FOUND)
 endif()
 
 # =============================================================================
+# ScalableCorrelationClustering (SCC)
+# =============================================================================
+set(SCC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/SCC)
+
+add_library(scc_static STATIC
+    ${SCC_DIR}/extern/argtable3-3.0.3/argtable3.c
+    ${SCC_DIR}/lib/clustering/signed_graph_clusterer.cpp
+    ${SCC_DIR}/lib/clustering/coarsening/clustering/node_ordering.cpp
+    ${SCC_DIR}/lib/clustering/coarsening/clustering/size_constraint_label_propagation.cpp
+    ${SCC_DIR}/lib/clustering/coarsening/coarsening.cpp
+    ${SCC_DIR}/lib/clustering/coarsening/contraction.cpp
+    ${SCC_DIR}/lib/tools/graph_extractor.cpp
+    ${SCC_DIR}/lib/clustering/uncoarsening/refinement/kway_graph_refinement/kway_graph_refinement.cpp
+    ${SCC_DIR}/lib/clustering/uncoarsening/refinement/kway_graph_refinement/kway_graph_refinement_commons.cpp
+    ${SCC_DIR}/lib/clustering/uncoarsening/refinement/kway_graph_refinement/kway_graph_refinement_core.cpp
+    ${SCC_DIR}/lib/clustering/uncoarsening/refinement/label_propagation_refinement/label_propagation_refinement.cpp
+    ${SCC_DIR}/lib/clustering/uncoarsening/refinement/quotient_graph_refinement/complete_boundary.cpp
+    ${SCC_DIR}/lib/clustering/uncoarsening/refinement/quotient_graph_refinement/partial_boundary.cpp
+    ${SCC_DIR}/lib/clustering/uncoarsening/refinement/refinement.cpp
+    ${SCC_DIR}/lib/clustering/uncoarsening/uncoarsening.cpp
+    ${SCC_DIR}/lib/data_structure/graph_hierarchy.cpp
+    ${SCC_DIR}/lib/io/graph_io.cpp
+    ${SCC_DIR}/lib/tools/quality_metrics.cpp
+    ${SCC_DIR}/lib/tools/random_functions.cpp
+    ${SCC_DIR}/tools/tools.cpp
+)
+
+target_include_directories(scc_static PUBLIC
+    ${SCC_DIR}
+    ${SCC_DIR}/app
+    ${SCC_DIR}/extern/argtable3-3.0.3
+    ${SCC_DIR}/extern/andres_graph/include
+    ${SCC_DIR}/lib
+    ${SCC_DIR}/lib/io
+    ${SCC_DIR}/lib/partition
+    ${SCC_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement
+    ${SCC_DIR}/lib/tools
+)
+
+target_compile_options(scc_static PRIVATE -w -fpermissive)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(scc_static PUBLIC OpenMP::OpenMP_CXX)
+endif()
+
+# =============================================================================
 # Pybind11 modules
 # =============================================================================
 
@@ -646,3 +692,8 @@ install(TARGETS _kamis_wmis DESTINATION chszlablib)
 pybind11_add_module(_kamis_mmwis bindings/kamis_mmwis_binding.cpp)
 target_link_libraries(_kamis_mmwis PRIVATE kamis_mmwis_static)
 install(TARGETS _kamis_mmwis DESTINATION chszlablib)
+
+# --- _scc (Correlation Clustering) ---
+pybind11_add_module(_scc bindings/scc_binding.cpp)
+target_link_libraries(_scc PRIVATE scc_static)
+install(TARGETS _scc DESTINATION chszlablib)

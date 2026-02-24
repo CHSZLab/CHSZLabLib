@@ -17,3 +17,6 @@
 [submodule "KaMIS"]
 	path = KaMIS
 	url = https://github.com/KarlsruheMIS/KaMIS.git
+[submodule "SCC"]
+	path = SCC
+	url = https://github.com/ScalableCorrelationClustering/ScalableCorrelationClustering.git

@@ -5,6 +5,7 @@ from chszlablib.mincut import mincut
 from chszlablib.cluster import cluster
 from chszlablib.mwis import mwis
 from chszlablib.mis import redumis, online_mis, branch_reduce, mmwis_solver
+from chszlablib.correlation_clustering import correlation_clustering
 
 __all__ = [
     "Graph",
@@ -20,4 +21,5 @@ __all__ = [
     "online_mis",
     "branch_reduce",
     "mmwis_solver",
+    "correlation_clustering",
 ]

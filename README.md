@@ -11,7 +11,7 @@
 
 ---
 
-CHSZLabLib provides a unified Python interface to five established C/C++ graph algorithm libraries:
+CHSZLabLib provides a unified Python interface to six established C/C++ graph algorithm libraries:
 
 | Library | Capability | Reference |
 |---------|-----------|-----------|
@@ -20,13 +20,14 @@ CHSZLabLib provides a unified Python interface to five established C/C++ graph a
 | [**VieClus**](https://github.com/VieClus/VieClus) | Graph clustering / community detection | Vienna Graph Clustering |
 | [**CHILS**](https://github.com/KarlsruheMIS/CHILS) | Maximum weight independent set | Concurrent Heuristic Independent Local Search |
 | [**KaMIS**](https://github.com/KarlsruheMIS/KaMIS) | Maximum independent set (weighted & unweighted) | Karlsruhe Maximum Independent Sets |
+| [**SCC**](https://github.com/ScalableCorrelationClustering/ScalableCorrelationClustering) | Correlation clustering for signed graphs | Scalable Correlation Clustering |
 
 All algorithms operate on a shared `Graph` object backed by NumPy arrays in CSR format -- no data copying between tools.
 
 ## Quick Start
 
 ```python
-from chszlablib import Graph, partition, mincut, cluster, mwis, redumis
+from chszlablib import Graph, partition, mincut, cluster, mwis, redumis, correlation_clustering
 
 # Build a graph
 g = Graph(num_nodes=6)
@@ -55,6 +56,14 @@ print(f"MWIS weight: {m.weight}, vertices: {m.vertices}")
 # Maximum independent set (unweighted)
 r = redumis(g, time_limit=1.0)
 print(f"MIS size: {r.size}, vertices: {r.vertices}")
+
+# Correlation clustering (signed graph)
+g2 = Graph(num_nodes=4)
+for u, v in [(0,1), (1,2), (2,3)]:
+    g2.add_edge(u, v, weight=1)    # positive = attract
+g2.add_edge(0, 3, weight=-1)       # negative = repel
+cc = correlation_clustering(g2)
+print(f"Clusters: {cc.num_clusters}, edge cut: {cc.edge_cut}")
 ```
 
 ## Installation
@@ -227,6 +236,21 @@ mmwis_solver(g, time_limit=10.0, seed=0) -> MISResult
 
 Memetic evolutionary algorithm for maximum weight independent set. Trades exactness for scalability on larger graphs.
 
+### Correlation Clustering (SCC)
+
+```python
+correlation_clustering(g, seed=0, time_limit=0) -> CorrelationClusteringResult
+```
+
+Cluster a signed graph by minimizing disagreements. Positive edge weights represent attraction (nodes should be in the same cluster), negative weights represent repulsion (nodes should be in different clusters).
+
+| Parameter | Description |
+|-----------|-------------|
+| `seed` | Random seed (default 0) |
+| `time_limit` | Seconds to optimize. 0 = single run (default). > 0 = repeat and keep best. |
+
+Returns `CorrelationClusteringResult` with `edge_cut` (int), `num_clusters` (int), and `assignment` (ndarray of cluster IDs).
+
 ## I/O
 
 Read and write graphs in [METIS format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf):
@@ -251,14 +275,15 @@ pytest tests/ -v
 
 ```
 CHSZLabLib/
-  chszlablib/         Python package (graph, partition, mincut, cluster, mwis, mis, io)
+  chszlablib/         Python package (graph, partition, mincut, cluster, mwis, mis, correlation_clustering, io)
   bindings/           pybind11 C++ binding code
   KaHIP/              KaHIP submodule
   VieCut/             VieCut submodule
   VieClus/            VieClus submodule
   CHILS/              CHILS submodule
   KaMIS/              KaMIS submodule (ReduMIS, OnlineMIS, Branch&Reduce, MMWIS)
-  tests/              pytest suite (82 tests)
+  SCC/                ScalableCorrelationClustering submodule
+  tests/              pytest suite
   CMakeLists.txt      Top-level build configuration
   build.sh            One-step build script
 ```

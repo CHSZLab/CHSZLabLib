@@ -6,6 +6,7 @@ import time
 from chszlablib import (
     Graph, partition, mincut, cluster, mwis,
     redumis, online_mis, branch_reduce, mmwis_solver,
+    correlation_clustering,
 )
 
 
@@ -105,6 +106,18 @@ def main():
                 break
         print(f"  {name:16s}  |IS|={r.size:>6,}  weight={r.weight:>10,}  "
               f"valid={valid}  ({dt:.3f}s)")
+    print()
+
+    # --- 6. Correlation Clustering (SCC) ---
+    print("=" * 60)
+    print("6. Correlation Clustering (SCC)")
+    print("=" * 60)
+    # Note: correlation clustering expects signed edge weights.
+    # On a standard (unsigned) graph, all edges are treated as positive.
+    t0 = time.perf_counter()
+    r = correlation_clustering(g, seed=0)
+    dt = time.perf_counter() - t0
+    print(f"  edge_cut={r.edge_cut:>10,}  clusters={r.num_clusters:,}  ({dt:.3f}s)")
     print()
 
     print("All algorithms completed successfully.")
