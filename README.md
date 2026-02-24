@@ -11,7 +11,7 @@
 
 ---
 
-CHSZLabLib provides a unified Python interface to seven established C/C++ graph algorithm libraries:
+CHSZLabLib provides a unified Python interface to eight established C/C++ graph algorithm libraries:
 
 | Library | Capability | Reference |
 |---------|-----------|-----------|
@@ -22,13 +22,14 @@ CHSZLabLib provides a unified Python interface to seven established C/C++ graph 
 | [**KaMIS**](https://github.com/KarlsruheMIS/KaMIS) | Maximum independent set (weighted & unweighted) | Karlsruhe Maximum Independent Sets |
 | [**SCC**](https://github.com/ScalableCorrelationClustering/ScalableCorrelationClustering) | Correlation clustering for signed graphs | Scalable Correlation Clustering |
 | [**HeiOrient**](https://github.com/HeiOrient/HeiOrient) | Edge orientation (minimize max out-degree) | Heidelberg Edge Orientation |
+| [**HeiStream**](https://github.com/KaHIP/HeiStream) | Streaming graph partitioning (Fennel, BuffCut) | Heidelberg Streaming Partitioner |
 
 All algorithms operate on a shared `Graph` object backed by NumPy arrays in CSR format -- no data copying between tools.
 
 ## Quick Start
 
 ```python
-from chszlablib import Graph, partition, mincut, cluster, mwis, redumis, correlation_clustering, evolutionary_correlation_clustering, orient_edges
+from chszlablib import Graph, partition, mincut, cluster, mwis, redumis, correlation_clustering, evolutionary_correlation_clustering, orient_edges, stream_partition
 
 # Build a graph
 g = Graph(num_nodes=6)
@@ -73,6 +74,10 @@ print(f"Evo clusters: {cc2.num_clusters}, edge cut: {cc2.edge_cut}")
 # Edge orientation (minimize maximum out-degree)
 eo = orient_edges(g)
 print(f"Max out-degree: {eo.max_out_degree}")
+
+# Streaming graph partitioning
+sp = stream_partition(g, k=2, imbalance=3.0)
+print(f"Stream partition: {sp.assignment}")
 ```
 
 ## Installation
@@ -291,6 +296,45 @@ Orient undirected edges to minimize the maximum out-degree.
 
 Returns `EdgeOrientationResult` with `max_out_degree` (int), `out_degrees` (ndarray of per-node out-degrees), and `edge_heads` (ndarray of 0/1 per CSR entry: 1 = oriented away from row node).
 
+### Streaming Graph Partitioning (HeiStream)
+
+```python
+stream_partition(g, k=2, imbalance=3.0, seed=0, max_buffer_size=0, batch_size=0,
+                 num_streams_passes=1, run_parallel=False) -> StreamPartitionResult
+```
+
+Partition a graph using HeiStream's streaming algorithm. Supports direct Fennel one-pass mode, BuffCut with priority buffer, and buffered no-priority mode.
+
+| Parameter | Description |
+|-----------|-------------|
+| `k` | Number of partitions (default 2) |
+| `imbalance` | Allowed imbalance in percent, e.g. 3.0 = 3% (default 3.0) |
+| `seed` | Random seed (default 0) |
+| `max_buffer_size` | Buffer size for BuffCut. 0 = auto, 1 = direct Fennel, >1 = priority buffer (default 0) |
+| `batch_size` | Batch size for model partitioning. 0 = default (16384) |
+| `num_streams_passes` | Number of streaming passes / restreaming (default 1) |
+| `run_parallel` | Use parallel 3-thread pipeline (default False) |
+
+Returns `StreamPartitionResult` with `assignment` (ndarray of partition IDs).
+
+#### Streaming Node-by-Node API
+
+For true streaming use cases where the graph arrives incrementally:
+
+```python
+from chszlablib import HeiStreamPartitioner
+
+hs = HeiStreamPartitioner(k=4, imbalance=3.0, max_buffer_size=1000)
+hs.new_node(0, [1, 2])
+hs.new_node(1, [0, 3])
+hs.new_node(2, [0])
+hs.new_node(3, [1])
+result = hs.partition()
+print(result.assignment)   # array of partition IDs
+```
+
+The `HeiStreamPartitioner` accepts the same parameters as `stream_partition`. Call `reset()` to clear all nodes and reuse the partitioner.
+
 ## I/O
 
 Read and write graphs in [METIS format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf):
@@ -315,7 +359,7 @@ pytest tests/ -v
 
 ```
 CHSZLabLib/
-  chszlablib/         Python package (graph, partition, mincut, cluster, mwis, mis, correlation_clustering, orientation, io)
+  chszlablib/         Python package (graph, partition, mincut, cluster, mwis, mis, correlation_clustering, orientation, heistream, io)
   bindings/           pybind11 C++ binding code
   KaHIP/              KaHIP submodule
   VieCut/             VieCut submodule
@@ -324,6 +368,7 @@ CHSZLabLib/
   KaMIS/              KaMIS submodule (ReduMIS, OnlineMIS, Branch&Reduce, MMWIS)
   SCC/                ScalableCorrelationClustering submodule
   HeiOrient/          HeiOrient submodule (edge orientation)
+  HeiStream/          HeiStream submodule (streaming graph partitioning)
   tests/              pytest suite
   CMakeLists.txt      Top-level build configuration
   build.sh            One-step build script
