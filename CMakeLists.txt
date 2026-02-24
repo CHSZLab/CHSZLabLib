@@ -966,6 +966,114 @@ target_link_libraries(kalp_static PUBLIC ${KALP_TBB_LIB_DIR}/libtbb.so.2)
 target_link_directories(kalp_static PUBLIC ${KALP_TBB_LIB_DIR})
 
 # =============================================================================
+# HeidelbergMotifClustering  (SOCIAL + LMCHGP local motif clustering)
+# =============================================================================
+set(MOTIF_DIR ${CMAKE_CURRENT_SOURCE_DIR}/HeidelbergMotifClustering/SOCIAL)
+
+add_library(motif_static STATIC
+    ${MOTIF_DIR}/lib/data_structure/graph_hierarchy.cpp
+    ${MOTIF_DIR}/lib/algorithms/strongly_connected_components.cpp
+    ${MOTIF_DIR}/lib/algorithms/topological_sort.cpp
+    ${MOTIF_DIR}/lib/algorithms/bfs_depth.cpp
+    ${MOTIF_DIR}/lib/algorithms/triangle_listing.cpp
+    ${MOTIF_DIR}/lib/algorithms/mqi.cpp
+    ${MOTIF_DIR}/lib/algorithms/push_relabel.cpp
+    ${MOTIF_DIR}/lib/algorithms/cycle_search.cpp
+    ${MOTIF_DIR}/lib/io/graph_io.cpp
+    ${MOTIF_DIR}/lib/tools/quality_metrics.cpp
+    ${MOTIF_DIR}/lib/tools/random_functions.cpp
+    ${MOTIF_DIR}/lib/tools/graph_extractor.cpp
+    ${MOTIF_DIR}/lib/tools/misc.cpp
+    ${MOTIF_DIR}/lib/tools/partition_snapshooter.cpp
+    ${MOTIF_DIR}/lib/partition/graph_partitioner.cpp
+    ${MOTIF_DIR}/lib/partition/w_cycles/wcycle_partitioner.cpp
+    ${MOTIF_DIR}/lib/partition/coarsening/coarsening.cpp
+    ${MOTIF_DIR}/lib/partition/coarsening/contraction.cpp
+    ${MOTIF_DIR}/lib/partition/coarsening/edge_rating/edge_ratings.cpp
+    ${MOTIF_DIR}/lib/partition/coarsening/matching/matching.cpp
+    ${MOTIF_DIR}/lib/partition/coarsening/matching/random_matching.cpp
+    ${MOTIF_DIR}/lib/partition/coarsening/matching/gpa/path.cpp
+    ${MOTIF_DIR}/lib/partition/coarsening/matching/gpa/gpa_matching.cpp
+    ${MOTIF_DIR}/lib/partition/coarsening/matching/gpa/path_set.cpp
+    ${MOTIF_DIR}/lib/partition/coarsening/clustering/node_ordering.cpp
+    ${MOTIF_DIR}/lib/partition/coarsening/clustering/size_constraint_label_propagation.cpp
+    ${MOTIF_DIR}/lib/partition/initial_partitioning/initial_partitioning.cpp
+    ${MOTIF_DIR}/lib/partition/initial_partitioning/initial_partitioner.cpp
+    ${MOTIF_DIR}/lib/partition/initial_partitioning/initial_partition_bipartition.cpp
+    ${MOTIF_DIR}/lib/partition/initial_partitioning/initial_refinement/initial_refinement.cpp
+    ${MOTIF_DIR}/lib/partition/initial_partitioning/bipartition.cpp
+    ${MOTIF_DIR}/lib/partition/initial_partitioning/initial_node_separator.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/uncoarsening.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/separator/area_bfs.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/separator/vertex_separator_algorithm.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/separator/vertex_separator_flow_solver.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/greedy_neg_cycle.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/problem_factory.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/augmented_Qgraph.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/mixed_refinement.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/label_propagation_refinement/label_propagation_refinement.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/refinement.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/2way_fm_refinement/two_way_fm.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement/two_way_flow_refinement.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement/boundary_bfs.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement/flow_solving_kernel/cut_flow_problem_solver.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement/most_balanced_minimum_cuts/most_balanced_minimum_cuts.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/quotient_graph_refinement.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/complete_boundary.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/partial_boundary.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/quotient_graph_scheduling/quotient_graph_scheduling.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/quotient_graph_scheduling/simple_quotient_graph_scheduler.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/quotient_graph_scheduling/active_block_quotient_graph_scheduler.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/kway_graph_refinement/kway_graph_refinement.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/kway_graph_refinement/kway_graph_refinement_core.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/kway_graph_refinement/kway_graph_refinement_commons.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/kway_graph_refinement/multitry_kway_fm.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/kway_motif_cond_refinement/kway_motif_cond_refinement.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/kway_motif_cond_refinement/kway_motif_cond_refinement_core.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/kway_motif_cond_refinement/kway_motif_cond_refinement_commons.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/kway_motif_cond_refinement/multitry_kway_fm_motif_cond.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/augmented_Qgraph_fabric.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/advanced_models.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/node_separators/greedy_ns_local_search.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/node_separators/fm_ns_local_search.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/node_separators/localized_fm_ns_local_search.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/cycle_refinement.cpp
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/tabu_search/tabu_search.cpp
+    ${MOTIF_DIR}/lib/mapping/local_search_mapping.cpp
+    ${MOTIF_DIR}/lib/mapping/full_search_space.cpp
+    ${MOTIF_DIR}/lib/mapping/full_search_space_pruned.cpp
+    ${MOTIF_DIR}/lib/mapping/communication_graph_search_space.cpp
+    ${MOTIF_DIR}/lib/mapping/fast_construct_mapping.cpp
+    ${MOTIF_DIR}/lib/mapping/construct_distance_matrix.cpp
+    ${MOTIF_DIR}/lib/mapping/mapping_algorithms.cpp
+    ${MOTIF_DIR}/lib/mapping/construct_mapping.cpp
+    ${MOTIF_DIR}/extern/argtable3-3.0.3/argtable3.c
+)
+
+target_include_directories(motif_static PUBLIC
+    ${MOTIF_DIR}
+    ${MOTIF_DIR}/app
+    ${MOTIF_DIR}/extern/argtable3-3.0.3
+    ${MOTIF_DIR}/lib
+    ${MOTIF_DIR}/lib/io
+    ${MOTIF_DIR}/lib/partition
+    ${MOTIF_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement
+    ${MOTIF_DIR}/lib/tools
+)
+
+target_compile_options(motif_static PRIVATE -w -fpermissive)
+target_compile_definitions(motif_static PRIVATE
+    -DNDEBUG
+    -DMODE64BITEDGES
+    -DPOINTER64=1
+    -DMODE_MOTIF_CLUSTERING_GRAPH
+)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(motif_static PUBLIC OpenMP::OpenMP_CXX)
+endif()
+
+# =============================================================================
 # Pybind11 modules
 # =============================================================================
 
@@ -1046,3 +1154,14 @@ set_target_properties(_kalp PROPERTIES
     INSTALL_RPATH "${KALP_TBB_LIB_DIR}"
 )
 install(TARGETS _kalp DESTINATION chszlablib)
+
+# --- _motif (Motif Clustering: SOCIAL + LMCHGP) ---
+pybind11_add_module(_motif bindings/motif_binding.cpp)
+target_link_libraries(_motif PRIVATE motif_static)
+target_compile_definitions(_motif PRIVATE
+    -DNDEBUG
+    -DMODE64BITEDGES
+    -DPOINTER64=1
+    -DMODE_MOTIF_CLUSTERING_GRAPH
+)
+install(TARGETS _motif DESTINATION chszlablib)

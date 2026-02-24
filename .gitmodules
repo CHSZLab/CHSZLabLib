@@ -29,3 +29,6 @@
 [submodule "KaLP"]
 	path = KaLP
 	url = https://github.com/KarlsruheLongestPaths/KaLP.git
+[submodule "HeidelbergMotifClustering"]
+	path = HeidelbergMotifClustering
+	url = https://github.com/LocalClustering/HeidelbergMotifClustering.git

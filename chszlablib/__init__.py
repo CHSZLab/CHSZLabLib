@@ -9,6 +9,7 @@ from chszlablib.correlation_clustering import correlation_clustering, evolutiona
 from chszlablib.orientation import orient_edges
 from chszlablib.maxcut import maxcut
 from chszlablib.longest_path import longest_path
+from chszlablib.motif_clustering import motif_cluster
 
 __all__ = [
     "Graph",
@@ -30,4 +31,5 @@ __all__ = [
     "orient_edges",
     "maxcut",
     "longest_path",
+    "motif_cluster",
 ]
