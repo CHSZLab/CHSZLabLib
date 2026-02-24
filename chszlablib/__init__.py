@@ -1,3 +1,9 @@
+from chszlablib.exceptions import (
+    CHSZLabLibError,
+    InvalidModeError,
+    InvalidGraphError,
+    GraphNotFinalizedError,
+)
 from chszlablib.graph import Graph
 from chszlablib.io import read_metis, write_metis
 from chszlablib.decomposition import (
@@ -18,6 +24,11 @@ from chszlablib.orientation import Orientation, EdgeOrientationResult
 from chszlablib.paths import PathProblems, LongestPathResult
 
 __all__ = [
+    # Exceptions
+    "CHSZLabLibError",
+    "InvalidModeError",
+    "InvalidGraphError",
+    "GraphNotFinalizedError",
     # Core
     "Graph",
     "read_metis",

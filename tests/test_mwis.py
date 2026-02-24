@@ -29,6 +29,7 @@ def test_mwis_path():
     g = make_path_weighted()
     result = IndependenceProblems.chils(g, time_limit=1.0, num_concurrent=1)
     assert isinstance(result, MWISResult)
+    assert result.size == 2
     assert result.weight == 20
     assert set(result.vertices) == {0, 2}
 
@@ -58,5 +59,6 @@ def test_mwis_single_node():
     g = Graph(num_nodes=1)
     g.set_node_weight(0, 42)
     result = IndependenceProblems.chils(g, time_limit=1.0, num_concurrent=1)
+    assert result.size == 1
     assert result.weight == 42
     assert list(result.vertices) == [0]
