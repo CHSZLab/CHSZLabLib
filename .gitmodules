@@ -20,3 +20,6 @@
 [submodule "SCC"]
 	path = SCC
 	url = https://github.com/ScalableCorrelationClustering/ScalableCorrelationClustering.git
+[submodule "HeiOrient"]
+	path = HeiOrient
+	url = https://github.com/HeiOrient/HeiOrient.git

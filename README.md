@@ -11,7 +11,7 @@
 
 ---
 
-CHSZLabLib provides a unified Python interface to six established C/C++ graph algorithm libraries:
+CHSZLabLib provides a unified Python interface to seven established C/C++ graph algorithm libraries:
 
 | Library | Capability | Reference |
 |---------|-----------|-----------|
@@ -21,13 +21,14 @@ CHSZLabLib provides a unified Python interface to six established C/C++ graph al
 | [**CHILS**](https://github.com/KarlsruheMIS/CHILS) | Maximum weight independent set | Concurrent Heuristic Independent Local Search |
 | [**KaMIS**](https://github.com/KarlsruheMIS/KaMIS) | Maximum independent set (weighted & unweighted) | Karlsruhe Maximum Independent Sets |
 | [**SCC**](https://github.com/ScalableCorrelationClustering/ScalableCorrelationClustering) | Correlation clustering for signed graphs | Scalable Correlation Clustering |
+| [**HeiOrient**](https://github.com/HeiOrient/HeiOrient) | Edge orientation (minimize max out-degree) | Heidelberg Edge Orientation |
 
 All algorithms operate on a shared `Graph` object backed by NumPy arrays in CSR format -- no data copying between tools.
 
 ## Quick Start
 
 ```python
-from chszlablib import Graph, partition, mincut, cluster, mwis, redumis, correlation_clustering, evolutionary_correlation_clustering
+from chszlablib import Graph, partition, mincut, cluster, mwis, redumis, correlation_clustering, evolutionary_correlation_clustering, orient_edges
 
 # Build a graph
 g = Graph(num_nodes=6)
@@ -68,6 +69,10 @@ print(f"Clusters: {cc.num_clusters}, edge cut: {cc.edge_cut}")
 # Evolutionary correlation clustering (better quality, longer runtime)
 cc2 = evolutionary_correlation_clustering(g2, time_limit=2.0)
 print(f"Evo clusters: {cc2.num_clusters}, edge cut: {cc2.edge_cut}")
+
+# Edge orientation (minimize maximum out-degree)
+eo = orient_edges(g)
+print(f"Max out-degree: {eo.max_out_degree}")
 ```
 
 ## Installation
@@ -270,6 +275,22 @@ Memetic evolutionary algorithm for correlation clustering. Uses a population-bas
 
 Returns the same `CorrelationClusteringResult`.
 
+### Edge Orientation (HeiOrient)
+
+```python
+orient_edges(g, algorithm="combined", seed=0, eager_size=100) -> EdgeOrientationResult
+```
+
+Orient undirected edges to minimize the maximum out-degree.
+
+| Parameter | Description |
+|-----------|-------------|
+| `algorithm` | `"two_approx"` (fast greedy), `"dfs"` (DFS local search), `"combined"` (Eager Path Search, best quality) |
+| `seed` | Random seed (default 0) |
+| `eager_size` | Eager threshold for combined algorithm (default 100) |
+
+Returns `EdgeOrientationResult` with `max_out_degree` (int), `out_degrees` (ndarray of per-node out-degrees), and `edge_heads` (ndarray of 0/1 per CSR entry: 1 = oriented away from row node).
+
 ## I/O
 
 Read and write graphs in [METIS format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf):
@@ -294,7 +315,7 @@ pytest tests/ -v
 
 ```
 CHSZLabLib/
-  chszlablib/         Python package (graph, partition, mincut, cluster, mwis, mis, correlation_clustering, io)
+  chszlablib/         Python package (graph, partition, mincut, cluster, mwis, mis, correlation_clustering, orientation, io)
   bindings/           pybind11 C++ binding code
   KaHIP/              KaHIP submodule
   VieCut/             VieCut submodule
@@ -302,6 +323,7 @@ CHSZLabLib/
   CHILS/              CHILS submodule
   KaMIS/              KaMIS submodule (ReduMIS, OnlineMIS, Branch&Reduce, MMWIS)
   SCC/                ScalableCorrelationClustering submodule
+  HeiOrient/          HeiOrient submodule (edge orientation)
   tests/              pytest suite
   CMakeLists.txt      Top-level build configuration
   build.sh            One-step build script

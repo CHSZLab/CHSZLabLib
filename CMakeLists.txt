@@ -700,6 +700,18 @@ if(OpenMP_CXX_FOUND)
 endif()
 
 # =============================================================================
+# HeiOrient  (header-only — edge orientation algorithms)
+# =============================================================================
+set(HEIORIENT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/HeiOrient)
+
+add_library(heiorient INTERFACE)
+target_include_directories(heiorient INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/shims/heiOrient_absl   # abseil shim (must come first)
+    ${HEIORIENT_DIR}                                     # HeiOrient root (Bazel-style includes)
+)
+target_compile_features(heiorient INTERFACE cxx_std_17)
+
+# =============================================================================
 # Pybind11 modules
 # =============================================================================
 
@@ -756,3 +768,8 @@ install(TARGETS _scc DESTINATION chszlablib)
 pybind11_add_module(_scc_evo bindings/scc_evo_binding.cpp)
 target_link_libraries(_scc_evo PRIVATE scc_evo_static)
 install(TARGETS _scc_evo DESTINATION chszlablib)
+
+# --- _heiorient (Edge Orientation) ---
+pybind11_add_module(_heiorient bindings/heiorient_binding.cpp)
+target_link_libraries(_heiorient PRIVATE heiorient)
+install(TARGETS _heiorient DESTINATION chszlablib)

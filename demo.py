@@ -7,6 +7,7 @@ from chszlablib import (
     Graph, partition, mincut, cluster, mwis,
     redumis, online_mis, branch_reduce, mmwis_solver,
     correlation_clustering, evolutionary_correlation_clustering,
+    orient_edges,
 )
 
 
@@ -128,6 +129,17 @@ def main():
     r = evolutionary_correlation_clustering(g, seed=0, time_limit=5.0)
     dt = time.perf_counter() - t0
     print(f"  edge_cut={r.edge_cut:>10,}  clusters={r.num_clusters:,}  ({dt:.3f}s)")
+    print()
+
+    # --- 8. Edge Orientation (HeiOrient) ---
+    print("=" * 60)
+    print("8. Edge Orientation (HeiOrient)")
+    print("=" * 60)
+    for algo in ["two_approx", "dfs", "combined"]:
+        t0 = time.perf_counter()
+        r = orient_edges(g, algorithm=algo)
+        dt = time.perf_counter() - t0
+        print(f"  algo={algo:12s}  max_out_degree={r.max_out_degree:>4}  ({dt:.3f}s)")
     print()
 
     print("All algorithms completed successfully.")
