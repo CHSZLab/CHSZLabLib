@@ -998,17 +998,18 @@ CHSZLabLib/
 │   └── io.py                    # METIS file I/O
 ├── bindings/                    # pybind11 C++ bindings (15 modules)
 ├── tests/                       # pytest suite (18 test files)
-├── KaHIP/                       # Submodule: graph partitioning
-├── VieCut/                      # Submodule: minimum cuts
-├── VieClus/                     # Submodule: clustering
-├── CHILS/                       # Submodule: weighted independent set
-├── KaMIS/                       # Submodule: independent set algorithms
-├── SCC/                         # Submodule: correlation clustering
-├── HeiOrient/                   # Submodule: edge orientation
-├── HeiStream/                   # Submodule: streaming partitioning
-├── KaLP/                        # Submodule: longest paths
-├── fpt-max-cut/                 # Submodule: maximum cut
-├── HeidelbergMotifClustering/   # Submodule: motif clustering
+├── external_repositories/       # Git submodules (algorithm libraries)
+│   ├── KaHIP/                   # Graph partitioning
+│   ├── VieCut/                  # Minimum cuts
+│   ├── VieClus/                 # Clustering
+│   ├── CHILS/                   # Weighted independent set
+│   ├── KaMIS/                   # Independent set algorithms
+│   ├── SCC/                     # Correlation clustering
+│   ├── HeiOrient/               # Edge orientation
+│   ├── HeiStream/               # Streaming partitioning
+│   ├── KaLP/                    # Longest paths
+│   ├── fpt-max-cut/             # Maximum cut
+│   └── HeidelbergMotifClustering/ # Motif clustering
 ├── CMakeLists.txt               # Top-level CMake configuration
 ├── pyproject.toml               # Python package metadata
 ├── build.sh                     # One-step build script

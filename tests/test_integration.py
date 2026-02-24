@@ -12,7 +12,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 @pytest.fixture
 def kahip_example():
-    path = os.path.join(REPO_ROOT, "KaHIP", "examples", "rgg_n_2_15_s0.graph")
+    path = os.path.join(REPO_ROOT, "external_repositories", "KaHIP", "examples", "rgg_n_2_15_s0.graph")
     if not os.path.exists(path):
         pytest.skip("KaHIP example graph not found")
     return Graph.from_metis(path)

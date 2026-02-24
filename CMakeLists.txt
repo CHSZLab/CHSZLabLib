@@ -12,7 +12,7 @@ find_package(OpenMP)
 # MQLib  (for fpt-max-cut; must come BEFORE the global -include cstdint
 # workaround which breaks MQLib's older C++ code)
 # =============================================================================
-set(FPT_MAXCUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/fpt-max-cut)
+set(FPT_MAXCUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/fpt-max-cut)
 set(MQLIB_DIR ${FPT_MAXCUT_DIR}/solvers/MQLib)
 file(GLOB_RECURSE MQLIB_SOURCES ${MQLIB_DIR}/src/*.cpp)
 list(FILTER MQLIB_SOURCES EXCLUDE REGEX "main\\.cpp$")
@@ -33,7 +33,7 @@ set(NOMPI ON CACHE BOOL "" FORCE)
 set(NONATIVEOPTIMIZATIONS ON CACHE BOOL "" FORCE)
 set(PARHIP OFF CACHE BOOL "" FORCE)
 set(BUILDPYTHONMODULE OFF CACHE BOOL "" FORCE)
-add_subdirectory(KaHIP EXCLUDE_FROM_ALL)
+add_subdirectory(external_repositories/KaHIP EXCLUDE_FROM_ALL)
 
 # =============================================================================
 # VieClus  (built manually to avoid target-name conflicts with KaHIP)
@@ -41,7 +41,7 @@ add_subdirectory(KaHIP EXCLUDE_FROM_ALL)
 # VieClus carries its own copy of KaHIP sources under extern/KaHIP.
 # We compile everything into a single static library.
 
-set(VIECLUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/VieClus)
+set(VIECLUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/VieClus)
 
 set(VIECLUS_KAFFPA_SOURCES
     ${VIECLUS_DIR}/extern/KaHIP/lib/data_structure/graph_hierarchy.cpp
@@ -155,7 +155,7 @@ endif()
 # =============================================================================
 # VieCut  (header-only library; only build tlx from its extlib)
 # =============================================================================
-set(VIECUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/VieCut)
+set(VIECUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/VieCut)
 
 # tlx is the only compiled dependency VieCut needs
 add_subdirectory(${VIECUT_DIR}/extlib/tlx EXCLUDE_FROM_ALL)
@@ -163,7 +163,7 @@ add_subdirectory(${VIECUT_DIR}/extlib/tlx EXCLUDE_FROM_ALL)
 # =============================================================================
 # CHILS  (plain C library -- no existing CMake)
 # =============================================================================
-set(CHILS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/CHILS)
+set(CHILS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/CHILS)
 
 add_library(chils_static STATIC
     ${CHILS_DIR}/src/graph.c
@@ -185,7 +185,7 @@ endif()
 # KaMIS has three sub-projects (root, wmis, mmwis) each with their own copy of
 # KaHIP and conflicting symbols.  We build each as a separate static lib.
 
-set(KAMIS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/KaMIS)
+set(KAMIS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/KaMIS)
 
 # ---------------------------------------------------------------------------
 # kamis_redumis_static — unweighted MIS (ReduMIS + OnlineMIS)
@@ -617,7 +617,7 @@ endif()
 # =============================================================================
 # ScalableCorrelationClustering (SCC)
 # =============================================================================
-set(SCC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/SCC)
+set(SCC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/SCC)
 
 add_library(scc_static STATIC
     ${SCC_DIR}/extern/argtable3-3.0.3/argtable3.c
@@ -717,7 +717,7 @@ endif()
 # =============================================================================
 # HeiOrient  (header-only — edge orientation algorithms)
 # =============================================================================
-set(HEIORIENT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/HeiOrient)
+set(HEIORIENT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/HeiOrient)
 
 add_library(heiorient INTERFACE)
 target_include_directories(heiorient INTERFACE
@@ -729,7 +729,7 @@ target_compile_features(heiorient INTERFACE cxx_std_17)
 # =============================================================================
 # KaHIP Evolutionary (kaffpaE) — modified_kahip with pseudo-MPI shim
 # =============================================================================
-set(KAHIP_PARALLEL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/KaHIP/parallel/modified_kahip)
+set(KAHIP_PARALLEL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/KaHIP/parallel/modified_kahip)
 
 add_library(kahipe_static STATIC
     ${KAHIP_PARALLEL_DIR}/interface/kaHIP_interface.cpp
@@ -813,7 +813,7 @@ target_include_directories(kahipe_static PUBLIC
     ${KAHIP_PARALLEL_DIR}/lib/tools
     ${KAHIP_PARALLEL_DIR}
     ${KAHIP_PARALLEL_DIR}/app
-    ${CMAKE_CURRENT_SOURCE_DIR}/KaHIP/extern/argtable3-3.2.2
+    ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/KaHIP/extern/argtable3-3.2.2
 )
 
 target_compile_definitions(kahipe_static PRIVATE -DMODE_KAFFPA)
@@ -855,7 +855,7 @@ endif()
 # =============================================================================
 # KaLP  (Karlsruhe Longest Paths — built manually, bundles its own KaHIP copy)
 # =============================================================================
-set(KALP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/KaLP)
+set(KALP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/KaLP)
 
 set(KALP_KAFFPA_SOURCES
     ${KALP_DIR}/extern/KaHIP/lib/data_structure/graph_hierarchy.cpp
@@ -968,7 +968,7 @@ target_link_directories(kalp_static PUBLIC ${KALP_TBB_LIB_DIR})
 # =============================================================================
 # HeidelbergMotifClustering  (SOCIAL + LMCHGP local motif clustering)
 # =============================================================================
-set(MOTIF_DIR ${CMAKE_CURRENT_SOURCE_DIR}/HeidelbergMotifClustering/SOCIAL)
+set(MOTIF_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/HeidelbergMotifClustering/SOCIAL)
 
 add_library(motif_static STATIC
     ${MOTIF_DIR}/lib/data_structure/graph_hierarchy.cpp
@@ -1076,7 +1076,7 @@ endif()
 # =============================================================================
 # HeiStream  (streaming graph partitioner — full BuffCut + Fennel)
 # =============================================================================
-set(HEISTREAM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/HeiStream)
+set(HEISTREAM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/HeiStream)
 
 # FetchContent for readerwriterqueue (lock-free queue used by parallel mode)
 include(FetchContent)

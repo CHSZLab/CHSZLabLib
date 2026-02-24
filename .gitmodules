@@ -1,37 +1,37 @@
 [submodule "KaHIP"]
-	path = KaHIP
+	path = external_repositories/KaHIP
 	url = git@github.com:KaHIP/KaHIP.git
 	branch = master
 [submodule "VieClus"]
-	path = VieClus
+	path = external_repositories/VieClus
 	url = git@github.com:VieClus/VieClus.git
 	branch = master
 [submodule "VieCut"]
-	path = VieCut
+	path = external_repositories/VieCut
 	url = git@github.com:VieCut/VieCut.git
 	branch = master
 [submodule "CHILS"]
-	path = CHILS
+	path = external_repositories/CHILS
 	url = git@github.com:KarlsruheMIS/CHILS.git
 	branch = main
 [submodule "KaMIS"]
-	path = KaMIS
+	path = external_repositories/KaMIS
 	url = https://github.com/KarlsruheMIS/KaMIS.git
 [submodule "SCC"]
-	path = SCC
+	path = external_repositories/SCC
 	url = https://github.com/ScalableCorrelationClustering/ScalableCorrelationClustering.git
 [submodule "HeiOrient"]
-	path = HeiOrient
+	path = external_repositories/HeiOrient
 	url = https://github.com/HeiOrient/HeiOrient.git
 [submodule "fpt-max-cut"]
-	path = fpt-max-cut
+	path = external_repositories/fpt-max-cut
 	url = https://github.com/DataReductionMaxCut/fpt-max-cut.git
 [submodule "KaLP"]
-	path = KaLP
+	path = external_repositories/KaLP
 	url = https://github.com/KarlsruheLongestPaths/KaLP.git
 [submodule "HeidelbergMotifClustering"]
-	path = HeidelbergMotifClustering
+	path = external_repositories/HeidelbergMotifClustering
 	url = https://github.com/LocalClustering/HeidelbergMotifClustering.git
 [submodule "HeiStream"]
-	path = HeiStream
+	path = external_repositories/HeiStream
 	url = https://github.com/KaHIP/HeiStream.git
