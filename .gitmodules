@@ -14,3 +14,6 @@
 	path = CHILS
 	url = git@github.com:KarlsruheMIS/CHILS.git
 	branch = main
+[submodule "KaMIS"]
+	path = KaMIS
+	url = https://github.com/KarlsruheMIS/KaMIS.git

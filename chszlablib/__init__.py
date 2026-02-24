@@ -4,6 +4,7 @@ from chszlablib.partition import partition, node_separator, node_ordering
 from chszlablib.mincut import mincut
 from chszlablib.cluster import cluster
 from chszlablib.mwis import mwis
+from chszlablib.mis import redumis, online_mis, branch_reduce, mmwis_solver
 
 __all__ = [
     "Graph",
@@ -15,4 +16,8 @@ __all__ = [
     "mincut",
     "cluster",
     "mwis",
+    "redumis",
+    "online_mis",
+    "branch_reduce",
+    "mmwis_solver",
 ]

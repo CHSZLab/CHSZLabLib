@@ -1,9 +1,12 @@
-"""Demo script: load a METIS graph and run all four algorithm families."""
+"""Demo script: load a METIS graph and run all algorithm families."""
 
 import sys
 import time
 
-from chszlablib import Graph, partition, mincut, cluster, mwis
+from chszlablib import (
+    Graph, partition, mincut, cluster, mwis,
+    redumis, online_mis, branch_reduce, mmwis_solver,
+)
 
 
 def main():
@@ -74,6 +77,34 @@ def main():
         if not valid:
             break
     print(f"  independent set valid: {valid}")
+    print()
+
+    # --- 5. Maximum Independent Set (KaMIS) ---
+    print("=" * 60)
+    print("5. Maximum Independent Set (KaMIS)")
+    print("=" * 60)
+
+    for name, fn, kwargs in [
+        ("ReduMIS",         redumis,        {"time_limit": 5.0}),
+        ("OnlineMIS",       online_mis,     {"time_limit": 5.0, "ils_iterations": 5000}),
+        ("Branch&Reduce",   branch_reduce,  {"time_limit": 10.0}),
+        ("MMWIS",           mmwis_solver,   {"time_limit": 5.0}),
+    ]:
+        t0 = time.perf_counter()
+        r = fn(g, **kwargs)
+        dt = time.perf_counter() - t0
+        # Verify IS validity
+        is_set = set(r.vertices)
+        valid = True
+        for u in is_set:
+            for idx in range(g.xadj[u], g.xadj[u + 1]):
+                if g.adjncy[idx] in is_set:
+                    valid = False
+                    break
+            if not valid:
+                break
+        print(f"  {name:16s}  |IS|={r.size:>6,}  weight={r.weight:>10,}  "
+              f"valid={valid}  ({dt:.3f}s)")
     print()
 
     print("All algorithms completed successfully.")
