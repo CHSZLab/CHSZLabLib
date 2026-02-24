@@ -23,3 +23,6 @@
 [submodule "HeiOrient"]
 	path = HeiOrient
 	url = https://github.com/HeiOrient/HeiOrient.git
+[submodule "KaLP"]
+	path = KaLP
+	url = https://github.com/KarlsruheLongestPaths/KaLP.git
