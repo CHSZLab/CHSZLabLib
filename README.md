@@ -303,15 +303,22 @@ stream_partition(g, k=2, imbalance=3.0, seed=0, max_buffer_size=0, batch_size=0,
                  num_streams_passes=1, run_parallel=False) -> StreamPartitionResult
 ```
 
-Partition a graph using HeiStream's streaming algorithm. Supports direct Fennel one-pass mode, BuffCut with priority buffer, and buffered no-priority mode.
+Partition a graph using HeiStream's streaming algorithm. HeiStream selects an internal execution mode based on the parameter combination:
+
+| Mode | Trigger | Description |
+|------|---------|-------------|
+| **Direct Fennel** | `max_buffer_size=1, batch_size=1` | Fast one-pass Fennel scoring, no multi-level partitioning |
+| **BuffCut** | `max_buffer_size > 1` | Priority-buffered multi-level partitioning (main HeiStream algorithm) |
+| **BuffCut parallel** | `max_buffer_size > 1, run_parallel=True` | 3-thread pipeline (I/O, priority queue, partitioner) |
+| **Batched no-priority** | default (`max_buffer_size <= 1, batch_size > 1`) | Batched model partitioning via KaHIP without priority buffer |
 
 | Parameter | Description |
 |-----------|-------------|
 | `k` | Number of partitions (default 2) |
 | `imbalance` | Allowed imbalance in percent, e.g. 3.0 = 3% (default 3.0) |
 | `seed` | Random seed (default 0) |
-| `max_buffer_size` | Buffer size for BuffCut. 0 = auto, 1 = direct Fennel, >1 = priority buffer (default 0) |
-| `batch_size` | Batch size for model partitioning. 0 = default (16384) |
+| `max_buffer_size` | Buffer size for BuffCut. 0 = default, 1 = no buffer, >1 = priority buffer |
+| `batch_size` | Batch size for model partitioning. 0 = default (16384), 1 = direct Fennel |
 | `num_streams_passes` | Number of streaming passes / restreaming (default 1) |
 | `run_parallel` | Use parallel 3-thread pipeline (default False) |
 
