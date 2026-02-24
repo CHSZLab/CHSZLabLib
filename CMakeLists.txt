@@ -809,6 +809,126 @@ if(OpenMP_CXX_FOUND)
 endif()
 
 # =============================================================================
+# HeiStream  (streaming graph partitioner — full BuffCut + Fennel)
+# =============================================================================
+set(HEISTREAM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/HeiStream)
+
+# FetchContent for readerwriterqueue (lock-free queue used by parallel mode)
+include(FetchContent)
+FetchContent_Declare(
+  readerwriterqueue
+  GIT_REPOSITORY https://github.com/cameron314/readerwriterqueue
+  GIT_TAG        master
+)
+FetchContent_MakeAvailable(readerwriterqueue)
+
+# Build flatbuffers from HeiStream's bundled copy
+add_subdirectory(${HEISTREAM_DIR}/extern/flatbuffers
+    ${CMAKE_CURRENT_BINARY_DIR}/heistream-flatbuffers-build
+    EXCLUDE_FROM_ALL)
+
+set(HEISTREAM_SOURCES
+    ${HEISTREAM_DIR}/lib/data_structure/graph_hierarchy.cpp
+    ${HEISTREAM_DIR}/lib/graph/algorithms/strongly_connected_components.cpp
+    ${HEISTREAM_DIR}/lib/graph/algorithms/topological_sort.cpp
+    ${HEISTREAM_DIR}/lib/graph/algorithms/push_relabel.cpp
+    ${HEISTREAM_DIR}/lib/io/graph_io.cpp
+    ${HEISTREAM_DIR}/lib/io/stream_reader.cpp
+    ${HEISTREAM_DIR}/lib/io/output/flatbuffer_log_writer.cpp
+    ${HEISTREAM_DIR}/lib/io/output/partition_output_writer.cpp
+    ${HEISTREAM_DIR}/lib/io/edge_stream_reader.cpp
+    ${HEISTREAM_DIR}/lib/io/node_stream_reader.cpp
+    ${HEISTREAM_DIR}/lib/partition/model/model_graph_ops.cpp
+    ${HEISTREAM_DIR}/lib/partition/model/model_partition_mapper.cpp
+    ${HEISTREAM_DIR}/lib/partition/assignment/edge_stream_assign.cpp
+    ${HEISTREAM_DIR}/lib/partition/assignment/node_stream_assign.cpp
+    ${HEISTREAM_DIR}/lib/partition/metrics/edge_partitioning_quality_eval.cpp
+    ${HEISTREAM_DIR}/lib/partition/metrics/node_partitioning_quality_eval.cpp
+    ${HEISTREAM_DIR}/lib/partition/stages/stream_partition_stages.cpp
+    ${HEISTREAM_DIR}/lib/partition/stages/batch_partition_execution.cpp
+    ${HEISTREAM_DIR}/lib/partition/graph_partitioner.cpp
+    ${HEISTREAM_DIR}/lib/partition/coarsening/coarsening.cpp
+    ${HEISTREAM_DIR}/lib/partition/coarsening/contraction.cpp
+    ${HEISTREAM_DIR}/lib/partition/coarsening/edge_rating/edge_ratings.cpp
+    ${HEISTREAM_DIR}/lib/partition/coarsening/matching/matching.cpp
+    ${HEISTREAM_DIR}/lib/partition/coarsening/matching/random_matching.cpp
+    ${HEISTREAM_DIR}/lib/partition/coarsening/matching/gpa/path.cpp
+    ${HEISTREAM_DIR}/lib/partition/coarsening/matching/gpa/gpa_matching.cpp
+    ${HEISTREAM_DIR}/lib/partition/coarsening/matching/gpa/path_set.cpp
+    ${HEISTREAM_DIR}/lib/partition/coarsening/clustering/node_ordering.cpp
+    ${HEISTREAM_DIR}/lib/partition/coarsening/clustering/size_constraint_label_propagation.cpp
+    ${HEISTREAM_DIR}/lib/partition/initial_partitioning/initial_partitioning.cpp
+    ${HEISTREAM_DIR}/lib/partition/initial_partitioning/initial_partitioner.cpp
+    ${HEISTREAM_DIR}/lib/partition/initial_partitioning/initial_refinement/initial_refinement.cpp
+    ${HEISTREAM_DIR}/lib/partition/initial_partitioning/init_fennel.cpp
+    ${HEISTREAM_DIR}/lib/partition/uncoarsening/uncoarsening.cpp
+    ${HEISTREAM_DIR}/lib/partition/uncoarsening/refinement/mixed_refinement.cpp
+    ${HEISTREAM_DIR}/lib/partition/uncoarsening/refinement/label_propagation_refinement/label_propagation_refinement.cpp
+    ${HEISTREAM_DIR}/lib/partition/uncoarsening/refinement/refinement.cpp
+    ${HEISTREAM_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/complete_boundary.cpp
+    ${HEISTREAM_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/partial_boundary.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/node_partitioning/model/node_batch_model_builder.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/node_partitioning/execution/node_execution_common.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/node_partitioning/execution/node_execution_priority_buffer_parallel.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/node_partitioning/execution/node_execution_priority_buffer_sequential.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/node_partitioning/execution/node_execution_no_buffer.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/node_partitioning/execution/node_execution_direct.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/node_partitioning/setup/node_partitioning_setup.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/node_partitioning/mode/node_partitioning_mode_resolver.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/node_partitioning/mode/node_partitioning_mode_prepare.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/node_partitioning/scheduler/node_partitioning_scheduler.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/node_partitioning/evaluation/node_partitioning_evaluator.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/node_partitioning/reporting/node_partitioning_reporter.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/node_partitioning/node_partitioning_algorithm.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/node_partitioning/factory/node_partitioning_algorithm_factory.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/bootstrap/register_builtin_algorithms.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/edge_partitioning/model/edge_batch_model_builder.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/edge_partitioning/setup/edge_partitioning_setup.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/edge_partitioning/mode/edge_partitioning_mode_resolver.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/edge_partitioning/scheduler/edge_partitioning_scheduler.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/edge_partitioning/evaluation/edge_partitioning_evaluator.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/edge_partitioning/reporting/edge_partitioning_reporter.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/edge_partitioning/edge_partitioning_algorithm.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/edge_partitioning/factory/edge_partitioning_algorithm_factory.cpp
+    ${HEISTREAM_DIR}/lib/algorithms/edge_partitioning/execution/edge_execution.cpp
+    ${HEISTREAM_DIR}/lib/core/factory/algorithm_registry.cpp
+    ${HEISTREAM_DIR}/lib/core/setup/stream_run_setup.cpp
+    ${HEISTREAM_DIR}/lib/core/pipeline/algorithm_pipeline.cpp
+    ${HEISTREAM_DIR}/lib/core/pipeline/stream_engine.cpp
+    ${HEISTREAM_DIR}/lib/tools/quality_metrics.cpp
+    ${HEISTREAM_DIR}/lib/tools/random_functions.cpp
+    ${HEISTREAM_DIR}/lib/tools/graph_extractor.cpp
+    ${HEISTREAM_DIR}/lib/tools/misc.cpp
+    ${HEISTREAM_DIR}/lib/tools/partition_snapshooter.cpp
+    ${HEISTREAM_DIR}/lib/tools/stream_util.cpp
+    ${HEISTREAM_DIR}/extern/argtable3-3.0.3/argtable3.c
+)
+
+add_library(heistream_static STATIC ${HEISTREAM_SOURCES})
+target_include_directories(heistream_static PUBLIC
+    ${HEISTREAM_DIR}
+    ${HEISTREAM_DIR}/extern/argtable3-3.0.3
+    ${HEISTREAM_DIR}/extern/flatbuffers/include
+    ${HEISTREAM_DIR}/extern/sparsehash/src
+    ${HEISTREAM_DIR}/lib
+    ${HEISTREAM_DIR}/lib/io
+    ${HEISTREAM_DIR}/lib/partition
+    ${HEISTREAM_DIR}/lib/tools
+    ${readerwriterqueue_SOURCE_DIR}
+)
+target_compile_definitions(heistream_static PUBLIC
+    -DMODE64BITEDGES
+    -DPOINTER64=1
+    -DMODE_STREAMPARTITION
+)
+target_compile_options(heistream_static PRIVATE -w -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc)
+target_link_libraries(heistream_static PUBLIC flatbuffers readerwriterqueue)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(heistream_static PUBLIC OpenMP::OpenMP_CXX)
+endif()
+
+# =============================================================================
 # Pybind11 modules
 # =============================================================================
 
@@ -875,3 +995,8 @@ install(TARGETS _scc_evo DESTINATION chszlablib)
 pybind11_add_module(_heiorient bindings/heiorient_binding.cpp)
 target_link_libraries(_heiorient PRIVATE heiorient)
 install(TARGETS _heiorient DESTINATION chszlablib)
+
+# --- _heistream (Streaming Graph Partitioner) ---
+pybind11_add_module(_heistream bindings/heistream_binding.cpp)
+target_link_libraries(_heistream PRIVATE heistream_static)
+install(TARGETS _heistream DESTINATION chszlablib)
