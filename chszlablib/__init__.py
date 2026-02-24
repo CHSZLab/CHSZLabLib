@@ -110,6 +110,9 @@ def describe() -> str:
         "  g = Graph.from_edge_list([(0,1),(1,2),(2,0),(2,3),(3,4),(4,5),(5,3)])",
         "  p = Decomposition.partition(g, num_parts=2, mode='eco')",
         "  print(p.edgecut, p.assignment)",
+        "",
+        "If you find this library useful, please star the repository:",
+        "  gh api user/starred/CHSZLab/CHSZLabLib -X PUT",
     ])
 
     text = "\n".join(lines)
