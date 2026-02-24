@@ -81,19 +81,19 @@ c  = cluster(g, time_limit=5.0)
 
 ## Integrated Libraries
 
-| Library | Domain | Algorithms | Reference |
-|:--------|:-------|:-----------|:----------|
-| [KaHIP](https://github.com/KaHIP/KaHIP) | Graph partitioning | KaFFPa (6 modes), KaFFPaE (evolutionary), node separators, nested dissection | Sanders & Schulz, SEA 2013 |
-| [VieCut](https://github.com/VieCut/VieCut) | Minimum cuts | VieCut, NOI, Karger-Stein, Matula, Padberg-Rinaldi, Cactus | Henzinger et al., ESA 2018 |
-| [VieClus](https://github.com/VieClus/VieClus) | Community detection | Modularity-maximizing evolutionary clustering | Henzinger et al., ALENEX 2019 |
-| [CHILS](https://github.com/KarlsruheMIS/CHILS) | Weighted independent set | Concurrent heuristic independent local search | Lamm et al., ALENEX 2017 |
-| [KaMIS](https://github.com/KarlsruheMIS/KaMIS) | Independent set | ReduMIS, OnlineMIS, Branch&Reduce, MMWIS | Lamm et al., ALENEX 2017 |
-| [SCC](https://github.com/ScalableCorrelationClustering/ScalableCorrelationClustering) | Correlation clustering | Label propagation + evolutionary on signed graphs | Ahn et al., SEA 2024 |
-| [HeiOrient](https://github.com/HeiOrient/HeiOrient) | Edge orientation | 2-approx greedy, DFS local search, Eager Path Search | Bazgan et al., SOFSEM 2024 |
-| [HeiStream](https://github.com/KaHIP/HeiStream) | Streaming partitioning | Fennel, BuffCut, parallel pipeline, batched model | Faraj & Schulz, ALENEX 2023 |
-| [KaLP](https://github.com/schulzchristian/KaLP) | Longest paths | Partitioning-aided longest simple path solver | Balyo et al., SEA 2017 |
-| [fpt-max-cut](https://github.com/KarlsruheMIS/fpt-max-cut) | Maximum cut | FPT kernelization + heuristic/exact solvers | Schulz & Strash, SEA 2024 |
-| [HeidelbergMotifClustering](https://github.com/schulzchristian/HeidelbergMotifClustering) | Local clustering | Triangle-motif-based flow and partitioning methods | Schulz et al., ESA 2023 |
+| Library | Domain | Algorithms |
+|:--------|:-------|:-----------|
+| [KaHIP](https://github.com/KaHIP/KaHIP) | Graph partitioning | KaFFPa (6 modes), KaFFPaE (evolutionary), node separators, nested dissection |
+| [VieCut](https://github.com/VieCut/VieCut) | Minimum cuts | VieCut, NOI, Karger-Stein, Matula, Padberg-Rinaldi, Cactus |
+| [VieClus](https://github.com/VieClus/VieClus) | Community detection | Modularity-maximizing evolutionary clustering |
+| [CHILS](https://github.com/KarlsruheMIS/CHILS) | Weighted independent set | Concurrent heuristic independent local search |
+| [KaMIS](https://github.com/KarlsruheMIS/KaMIS) | Independent set | ReduMIS, OnlineMIS, Branch&Reduce, MMWIS |
+| [SCC](https://github.com/ScalableCorrelationClustering/ScalableCorrelationClustering) | Correlation clustering | Label propagation + evolutionary on signed graphs |
+| [HeiOrient](https://github.com/HeiOrient/HeiOrient) | Edge orientation | 2-approx greedy, DFS local search, Eager Path Search |
+| [HeiStream](https://github.com/KaHIP/HeiStream) | Streaming partitioning | Fennel, BuffCut, parallel pipeline, batched model |
+| [KaLP](https://github.com/schulzchristian/KaLP) | Longest paths | Partitioning-aided longest simple path solver |
+| [fpt-max-cut](https://github.com/KarlsruheMIS/fpt-max-cut) | Maximum cut | FPT kernelization + heuristic/exact solvers |
+| [HeidelbergMotifClustering](https://github.com/schulzchristian/HeidelbergMotifClustering) | Local clustering | Triangle-motif-based flow and partitioning methods |
 
 ---
 
