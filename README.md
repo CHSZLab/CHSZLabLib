@@ -41,7 +41,6 @@ CHSZLabLib is a **usability-focused** Python wrapper around 11 high-performance 
   - [IndependenceProblems](#independenceproblems)
   - [Orientation](#orientation)
   - [PathProblems](#pathproblems)
-  - [HeiStreamPartitioner](#heistreampartitioner)
 - [Use Cases & Examples](#use-cases--examples)
 - [I/O](#io)
 - [Running Tests](#running-tests)
@@ -216,7 +215,15 @@ Graph decomposition: partitioning, cuts, clustering, and community detection.
 
 #### `Decomposition.partition(g, ...)` — Balanced Graph Partitioning (KaHIP)
 
-**Problem.** Given an undirected graph *G = (V, E)* with node and edge weights, partition *V* into *k* blocks of roughly equal total node weight such that the total weight of edges between blocks (the *edge cut*) is minimized.
+**Problem.** Given an undirected graph $G = (V, E)$ with node weights $c : V \to \mathbb{R}_{\geq 0}$ and edge weights $\omega : E \to \mathbb{R}_{\geq 0}$, find a partition of $V$ into $k$ disjoint blocks $V_1, \dotsc, V_k$ that minimizes the **edge cut**
+
+$$\text{cut}(\mathcal{P}) = \sum_{\substack{\{u,v\} \in E \\ \pi(u) \neq \pi(v)}} \omega(\{u,v\}),$$
+
+where $\pi(v)$ denotes the block of node $v$, subject to the **balance constraint**
+
+$$c(V_i) \leq (1 + \varepsilon) \left\lceil \frac{c(V)}{k} \right\rceil \quad \text{for all } i = 1, \dotsc, k,$$
+
+where $\varepsilon \geq 0$ is the allowed imbalance. The problem is NP-hard; KaHIP uses a multilevel approach with local search refinement.
 
 ```python
 Decomposition.partition(g, num_parts=2, mode="eco", imbalance=0.03, seed=0) -> PartitionResult
@@ -252,7 +259,7 @@ print(f"Edgecut: {p.edgecut}")
 
 #### `Decomposition.evolutionary_partition(g, ...)` — Evolutionary Balanced Graph Partitioning (KaHIP)
 
-**Problem.** Same as `partition`, but solved using a memetic (evolutionary) algorithm (KaFFPaE) that iteratively improves partition quality over a given time budget. Supports warm-starting from an existing partition.
+**Problem.** Same objective as `partition` (minimize edge cut subject to balance constraints). KaFFPaE solves this using a **memetic (evolutionary) algorithm**: a population of partitions is maintained and improved through recombination operators and multilevel local search over a given time budget. Supports **warm-starting** from an existing partition to refine a previously computed solution.
 
 ```python
 Decomposition.evolutionary_partition(g, num_parts, time_limit, mode="strong",
@@ -276,7 +283,11 @@ print(f"Refined edgecut: {refined.edgecut} (balance: {refined.balance:.4f})")
 
 #### `Decomposition.node_separator(g, ...)` — Balanced Node Separator (KaHIP)
 
-**Problem.** Given an undirected graph, find a small set of nodes *S* whose removal partitions the remaining nodes into two roughly balanced sets *A* and *B* with no edges between *A* and *B*. Minimize |*S*|.
+**Problem.** Given an undirected graph $G = (V, E)$, find a set $S \subset V$ of minimum cardinality such that removing $S$ partitions $V \setminus S$ into two non-empty sets $A$ and $B$ with no edges between them, i.e., $\{u, v\} \notin E$ for all $u \in A,\, v \in B$, subject to the balance constraint
+
+$$\max\bigl(|A|,\, |B|\bigr) \leq (1 + \varepsilon) \left\lceil \frac{|V \setminus S|}{2} \right\rceil.$$
+
+Node separators are a fundamental tool in divide-and-conquer algorithms, nested dissection orderings for sparse matrix factorization, and VLSI design.
 
 ```python
 Decomposition.node_separator(g, num_parts=2, mode="eco", imbalance=0.03, seed=0) -> SeparatorResult
@@ -286,7 +297,7 @@ Decomposition.node_separator(g, num_parts=2, mode="eco", imbalance=0.03, seed=0)
 
 #### `Decomposition.node_ordering(g, ...)` — Nested Dissection Ordering (KaHIP)
 
-**Problem.** Given a sparse symmetric matrix (represented as a graph), compute a permutation of the rows/columns that minimizes fill-in during Cholesky or LU factorization. Uses recursive nested dissection based on node separators.
+**Problem.** Given a sparse symmetric positive-definite matrix $A$ (represented as its adjacency graph $G$), compute a permutation $\sigma$ of $\{0, \dotsc, n-1\}$ such that the **fill-in** — the number of new non-zeros introduced during Cholesky factorization of $P A P^T$ — is minimized. The algorithm uses **recursive nested dissection**: it finds a node separator $S$, orders $S$ last, then recurses on the two disconnected subgraphs. High-quality separators (via KaHIP) yield orderings that significantly reduce fill-in and factorization time for large sparse systems.
 
 ```python
 Decomposition.node_ordering(g, mode="eco", seed=0) -> OrderingResult
@@ -296,7 +307,11 @@ Decomposition.node_ordering(g, mode="eco", seed=0) -> OrderingResult
 
 #### `Decomposition.mincut(g, ...)` — Global Minimum Cut (VieCut)
 
-**Problem.** Given an undirected weighted graph, find a partition of the nodes into two non-empty sets that minimizes the total weight of edges crossing the partition. This is the global minimum edge cut of the graph.
+**Problem.** Given an undirected graph $G = (V, E)$ with edge weights $\omega : E \to \mathbb{R}_{\geq 0}$, find a partition of $V$ into two non-empty sets $S$ and $\bar{S} = V \setminus S$ that minimizes the **cut weight**
+
+$$\lambda(G) = \min_{\emptyset \neq S \subset V} \sum_{\substack{\{u,v\} \in E \\ u \in S,\, v \in \bar{S}}} \omega(\{u,v\}).$$
+
+The value $\lambda(G)$ is the **edge connectivity** of the graph. The minimum cut identifies the most vulnerable bottleneck in a network. Applications include network reliability analysis, image segmentation, and connectivity certification.
 
 ```python
 Decomposition.mincut(g, algorithm="viecut", seed=0) -> MincutResult
@@ -315,7 +330,11 @@ Decomposition.mincut(g, algorithm="viecut", seed=0) -> MincutResult
 
 #### `Decomposition.cluster(g, ...)` — Community Detection / Graph Clustering (VieClus)
 
-**Problem.** Given an undirected graph, partition the nodes into clusters such that modularity is maximized. Modularity measures the fraction of edges within clusters minus the expected fraction in a random graph with the same degree sequence. The number of clusters is determined automatically.
+**Problem.** Given an undirected graph $G = (V, E)$ with $m = |E|$, find a partition $\mathcal{C} = \{C_1, \dotsc, C_k\}$ of $V$ — where $k$ is determined automatically — that maximizes the **Newman–Girvan modularity**
+
+$$Q = \frac{1}{2m} \sum_{u, v \in V} \left[ A_{uv} - \frac{d_u \, d_v}{2m} \right] \delta\bigl(c(u),\, c(v)\bigr),$$
+
+where $A_{uv}$ is the adjacency matrix entry, $d_v$ is the degree of node $v$, $c(v)$ denotes the cluster of $v$, and $\delta$ is the Kronecker delta. Modularity quantifies the density of edges within clusters relative to a random graph with the same degree sequence. VieClus uses an evolutionary algorithm with multilevel refinement to maximize this objective.
 
 ```python
 Decomposition.cluster(g, time_limit=1.0, seed=0, cluster_upperbound=0) -> ClusterResult
@@ -325,7 +344,11 @@ Decomposition.cluster(g, time_limit=1.0, seed=0, cluster_upperbound=0) -> Cluste
 
 #### `Decomposition.maxcut(g, ...)` — Maximum Cut (fpt-max-cut)
 
-**Problem.** Given an undirected weighted graph, partition the nodes into two sets such that the total weight of edges crossing the partition is *maximized*. This is NP-hard; the solver applies FPT kernelization rules to reduce the instance before solving.
+**Problem.** Given an undirected graph $G = (V, E)$ with edge weights $\omega : E \to \mathbb{R}_{\geq 0}$, find a partition of $V$ into two sets $S$ and $\bar{S} = V \setminus S$ that maximizes the **cut weight**
+
+$$\text{maxcut}(G) = \max_{S \subseteq V} \sum_{\substack{\{u,v\} \in E \\ u \in S,\, v \in \bar{S}}} \omega(\{u,v\}).$$
+
+This is the dual of the minimum cut problem and is NP-hard. The solver applies **FPT kernelization** rules (parameterized by the number of edges above the Edwards bound) to reduce the instance, followed by either a heuristic or an exact branch-and-bound solver.
 
 ```python
 Decomposition.maxcut(g, method="heuristic", time_limit=1.0) -> MaxCutResult
@@ -340,7 +363,11 @@ Decomposition.maxcut(g, method="heuristic", time_limit=1.0) -> MaxCutResult
 
 #### `Decomposition.correlation_clustering(g, ...)` — Correlation Clustering (SCC)
 
-**Problem.** Given a graph with signed edge weights (positive = similar, negative = dissimilar), partition the nodes into clusters to minimize the number of *disagreements*: positive edges between clusters plus negative edges within clusters.
+**Problem.** Given a graph $G = (V, E)$ with signed edge weights $\omega : E \to \mathbb{R}$ (positive edges indicate similarity, negative edges indicate dissimilarity), find a partition $\mathcal{C}$ of $V$ into an arbitrary number of clusters that minimizes the total number of **disagreements**
+
+$$\text{disagree}(\mathcal{C}) = \sum_{\substack{\{u,v\} \in E,\; \omega(\{u,v\}) > 0 \\ c(u) \neq c(v)}} \omega(\{u,v\}) \;+\; \sum_{\substack{\{u,v\} \in E,\; \omega(\{u,v\}) < 0 \\ c(u) = c(v)}} |\omega(\{u,v\})|,$$
+
+i.e., positive edges crossing cluster boundaries plus negative edges within clusters. Unlike standard clustering, the number of clusters $k$ is not fixed but determined by the optimization. SCC uses multilevel label propagation to solve this efficiently.
 
 ```python
 Decomposition.correlation_clustering(g, seed=0, time_limit=0) -> CorrelationClusteringResult
@@ -348,7 +375,7 @@ Decomposition.correlation_clustering(g, seed=0, time_limit=0) -> CorrelationClus
 
 #### `Decomposition.evolutionary_correlation_clustering(g, ...)` — Evolutionary Correlation Clustering (SCC)
 
-**Problem.** Same as `correlation_clustering`, but solved using a population-based evolutionary algorithm for higher quality at the cost of runtime.
+**Problem.** Same objective as `correlation_clustering` (minimize disagreements on a signed graph). This variant uses a **population-based memetic evolutionary algorithm** that maintains a pool of clusterings and improves them through recombination and multilevel local search over a given time budget, yielding higher-quality solutions at the cost of increased runtime.
 
 ```python
 Decomposition.evolutionary_correlation_clustering(g, seed=0, time_limit=5.0) -> CorrelationClusteringResult
@@ -358,7 +385,7 @@ Decomposition.evolutionary_correlation_clustering(g, seed=0, time_limit=5.0) -> 
 
 #### `Decomposition.stream_partition(g, ...)` — Streaming Graph Partitioning (HeiStream)
 
-**Problem.** Same objective as `partition` (balanced *k*-way partitioning minimizing edge cut), but solved in a *streaming* fashion where nodes are processed sequentially in a single or few passes. Requires far less memory than full in-memory partitioning. Useful for graphs that do not fit in main memory.
+**Problem.** Same objective as `partition` — minimize the edge cut subject to balance constraints — but solved in a **streaming** model where nodes and their adjacencies are presented sequentially and each node must be assigned to a block upon arrival (or after a bounded buffer delay). The algorithm requires $O(n + B)$ memory where $B$ is the buffer size, compared to $O(n + m)$ for full in-memory partitioning. HeiStream supports **Fennel** (direct one-pass assignment), **BuffCut** (buffered assignment with local optimization), and **restreaming** (multiple passes for improved quality).
 
 ```python
 Decomposition.stream_partition(g, k=2, imbalance=3.0, seed=0, max_buffer_size=0,
@@ -370,7 +397,7 @@ Decomposition.stream_partition(g, k=2, imbalance=3.0, seed=0, max_buffer_size=0,
 
 #### `HeiStreamPartitioner` — Incremental Streaming Partitioning (HeiStream)
 
-**Problem.** Same as `stream_partition`, but for true streaming scenarios where the graph arrives node-by-node and is not available as a complete `Graph` object.
+**Problem.** Same as `stream_partition`, but exposes a **node-by-node streaming interface** for scenarios where the graph is not available as a complete `Graph` object — e.g., when edges arrive from a network stream, a database cursor, or an online graph generator.
 
 ```python
 from chszlablib import HeiStreamPartitioner
@@ -389,7 +416,11 @@ hs.reset()  # reuse for a different graph
 
 #### `Decomposition.motif_cluster(g, ...)` — Local Motif Clustering (HeidelbergMotifClustering)
 
-**Problem.** Given a graph and a seed node, find a local cluster around the seed that has low *triangle-motif conductance* — i.e., the cluster contains many triangles internally relative to the number of triangles crossing its boundary. Unlike global clustering, this operates locally and does not need to process the entire graph.
+**Problem.** Given an undirected graph $G = (V, E)$ and a seed node $v \in V$, find a cluster $C \ni v$ that minimizes the **triangle-motif conductance**
+
+$$\phi_{\triangle}(C) = \frac{t_{\partial}(C)}{\min\bigl(t(C),\, t(V \setminus C)\bigr)},$$
+
+where $t(C)$ is the number of triangles with all three vertices in $C$, and $t_{\partial}(C)$ is the number of triangles with vertices in both $C$ and $V \setminus C$. Unlike global clustering, this operates **locally** — the algorithm explores only the neighborhood of the seed node via BFS and does not need to process the entire graph. Applications include community detection around a query node in social networks.
 
 ```python
 Decomposition.motif_cluster(g, seed_node, method="social", bfs_depths=None,
@@ -411,7 +442,11 @@ Maximum independent set and maximum weight independent set solvers.
 
 #### `IndependenceProblems.redumis(g, ...)` — Maximum Independent Set (KaMIS)
 
-**Problem.** Given an unweighted undirected graph, find a largest set of pairwise non-adjacent nodes. This is NP-hard; ReduMIS uses graph reduction rules combined with an evolutionary algorithm.
+**Problem.** Given an undirected graph $G = (V, E)$, find an **independent set** $I \subseteq V$ of maximum cardinality, i.e.,
+
+$$\max_{I \subseteq V} |I| \quad \text{subject to} \quad \{u, v\} \notin E \;\; \text{for all } u, v \in I.$$
+
+The maximum independent set problem is NP-hard and hard to approximate. ReduMIS combines **graph reduction rules** (crown, LP, domination, twin) that provably simplify the instance with an **evolutionary algorithm** that operates on the reduced kernel.
 
 ```python
 IndependenceProblems.redumis(g, time_limit=10.0, seed=0, full_kernelization=False) -> MISResult
@@ -419,7 +454,7 @@ IndependenceProblems.redumis(g, time_limit=10.0, seed=0, full_kernelization=Fals
 
 #### `IndependenceProblems.online_mis(g, ...)` — Maximum Independent Set via Local Search (KaMIS)
 
-**Problem.** Same as `redumis`. OnlineMIS uses iterated local search — faster but generally lower quality.
+**Problem.** Same objective as `redumis` (maximum cardinality independent set). OnlineMIS uses **iterated local search** with perturbation and incremental updates — significantly faster but generally produces smaller independent sets than ReduMIS.
 
 ```python
 IndependenceProblems.online_mis(g, time_limit=10.0, seed=0, ils_iterations=15000) -> MISResult
@@ -429,7 +464,11 @@ IndependenceProblems.online_mis(g, time_limit=10.0, seed=0, ils_iterations=15000
 
 #### `IndependenceProblems.branch_reduce(g, ...)` — Maximum Weight Independent Set, Exact (KaMIS)
 
-**Problem.** Given a node-weighted undirected graph, find a set of pairwise non-adjacent nodes with maximum total weight. Branch & Reduce is an *exact* solver using data reduction rules and branch-and-bound.
+**Problem.** Given an undirected graph $G = (V, E)$ with node weights $c : V \to \mathbb{R}_{\geq 0}$, find an independent set of maximum total weight, i.e.,
+
+$$\max_{I \subseteq V} \sum_{v \in I} c(v) \quad \text{subject to} \quad \{u, v\} \notin E \;\; \text{for all } u, v \in I.$$
+
+Branch & Reduce is an **exact** solver that applies data reduction rules to shrink the instance and then solves the reduced kernel via branch-and-bound. It is guaranteed to find an optimal solution but may require exponential time in the worst case.
 
 ```python
 IndependenceProblems.branch_reduce(g, time_limit=10.0, seed=0) -> MISResult
@@ -437,7 +476,7 @@ IndependenceProblems.branch_reduce(g, time_limit=10.0, seed=0) -> MISResult
 
 #### `IndependenceProblems.mmwis(g, ...)` — Maximum Weight Independent Set, Evolutionary (KaMIS)
 
-**Problem.** Same as `branch_reduce`, but solved using a memetic evolutionary algorithm (MMWIS). Trades exactness for scalability on larger instances.
+**Problem.** Same objective as `branch_reduce` (maximum weight independent set). MMWIS uses a **memetic evolutionary algorithm** — a population of independent sets is evolved through recombination and local search, guided by reduction rules. Trades exactness for scalability on larger instances where branch-and-bound is infeasible.
 
 ```python
 IndependenceProblems.mmwis(g, time_limit=10.0, seed=0) -> MISResult
@@ -445,7 +484,7 @@ IndependenceProblems.mmwis(g, time_limit=10.0, seed=0) -> MISResult
 
 #### `IndependenceProblems.chils(g, ...)` — Maximum Weight Independent Set (CHILS)
 
-**Problem.** Same as `branch_reduce` (maximum weight independent set), but solved using CHILS — a concurrent heuristic that runs multiple independent local searches in parallel. Best for large instances where exact methods are infeasible.
+**Problem.** Same objective as `branch_reduce` (maximum weight independent set). CHILS runs **multiple concurrent independent local searches** in parallel, each exploring different regions of the solution space. The concurrent design with GNN-accelerated reductions makes it particularly effective for large instances where exact methods are infeasible.
 
 ```python
 IndependenceProblems.chils(g, time_limit=10.0, num_concurrent=4, seed=0) -> MWISResult
@@ -472,7 +511,15 @@ print(f"Weight: {result.weight}, vertices: {result.vertices}")
 
 #### `Orientation.orient_edges(g, ...)` — Edge Orientation (HeiOrient)
 
-**Problem.** Given an undirected graph, orient each edge (assign a direction) such that the maximum out-degree over all nodes is minimized. The optimal value equals the *arboricity* of the graph. Applications include efficient data structures for adjacency queries and triangle enumeration.
+**Problem.** Given an undirected graph $G = (V, E)$, orient each edge (assign a direction) to obtain a directed graph $\vec{G}$ that minimizes the **maximum out-degree**
+
+$$\Delta^+(\vec{G}) = \max_{v \in V} d^+_{\vec{G}}(v).$$
+
+The optimal value equals the **arboricity** of the graph,
+
+$$a(G) = \max_{H \subseteq G,\, |V(H)| \geq 2} \left\lceil \frac{|E(H)|}{|V(H)| - 1} \right\rceil.$$
+
+Low out-degree orientations enable space-efficient data structures for adjacency queries, fast triangle enumeration, and compact graph representations.
 
 ```python
 Orientation.orient_edges(g, algorithm="combined", seed=0, eager_size=100) -> EdgeOrientationResult
@@ -492,7 +539,11 @@ Orientation.orient_edges(g, algorithm="combined", seed=0, eager_size=100) -> Edg
 
 #### `PathProblems.longest_path(g, ...)` — Longest Simple Path (KaLP)
 
-**Problem.** Given an undirected (optionally weighted) graph and two vertices *s* and *t*, find a simple path from *s* to *t* of maximum total edge weight (or maximum number of edges if unweighted). This is NP-hard; KaLP uses graph partitioning to decompose the search space.
+**Problem.** Given an undirected graph $G = (V, E)$ with edge weights $\omega : E \to \mathbb{R}_{\geq 0}$ and two designated vertices $s, t \in V$, find a simple (vertex-disjoint) path $P = (s = v_0, v_1, \dotsc, v_\ell = t)$ that maximizes
+
+$$\sum_{i=0}^{\ell-1} \omega(\{v_i, v_{i+1}\}).$$
+
+For unweighted graphs, this reduces to finding the path with the most edges. The problem is NP-hard; KaLP uses **graph partitioning** to decompose the search space into blocks, then applies dynamic programming within and across blocks to find long paths efficiently.
 
 ```python
 PathProblems.longest_path(g, start_vertex=0, target_vertex=-1, partition_config="eco",
