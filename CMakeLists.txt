@@ -712,6 +712,103 @@ target_include_directories(heiorient INTERFACE
 target_compile_features(heiorient INTERFACE cxx_std_17)
 
 # =============================================================================
+# KaHIP Evolutionary (kaffpaE) — modified_kahip with pseudo-MPI shim
+# =============================================================================
+set(KAHIP_PARALLEL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/KaHIP/parallel/modified_kahip)
+
+add_library(kahipe_static STATIC
+    ${KAHIP_PARALLEL_DIR}/interface/kaHIP_interface.cpp
+    # Core KaHIP sources (modified_kahip's own copy)
+    ${KAHIP_PARALLEL_DIR}/lib/data_structure/graph_hierarchy.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/algorithms/strongly_connected_components.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/algorithms/topological_sort.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/algorithms/cycle_search.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/io/graph_io.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/tools/quality_metrics.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/tools/random_functions.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/tools/graph_extractor.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/tools/misc.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/tools/partition_snapshooter.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/graph_partitioner.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/w_cycles/wcycle_partitioner.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/coarsening/coarsening.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/coarsening/contraction.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/coarsening/edge_rating/edge_ratings.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/coarsening/matching/matching.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/coarsening/matching/random_matching.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/coarsening/matching/gpa/path.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/coarsening/matching/gpa/gpa_matching.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/coarsening/matching/gpa/path_set.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/coarsening/clustering/node_ordering.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/coarsening/clustering/size_constraint_label_propagation.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/initial_partitioning/initial_partitioning.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/initial_partitioning/initial_partitioner.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/initial_partitioning/initial_partition_bipartition.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/initial_partitioning/initial_refinement/initial_refinement.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/initial_partitioning/bipartition.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/uncoarsening.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/separator/vertex_separator_algorithm.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/separator/vertex_separator_flow_solver.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/greedy_neg_cycle.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/problem_factory.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/augmented_Qgraph.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/augmented_Qgraph_fabric.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/advanced_models.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/cycle_refinement.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/mixed_refinement.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/label_propagation_refinement/label_propagation_refinement.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/refinement.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/2way_fm_refinement/two_way_fm.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement/two_way_flow_refinement.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement/boundary_bfs.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement/flow_solving_kernel/flow_solver.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement/flow_solving_kernel/edge_cut_flow_solver.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement/flow_solving_kernel/timer.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement/most_balanced_minimum_cuts/most_balanced_minimum_cuts.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/quotient_graph_refinement.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/complete_boundary.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/partial_boundary.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/quotient_graph_scheduling/quotient_graph_scheduling.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/quotient_graph_scheduling/simple_quotient_graph_scheduler.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/quotient_graph_scheduling/active_block_quotient_graph_scheduler.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/kway_graph_refinement/kway_graph_refinement.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/kway_graph_refinement/kway_graph_refinement_core.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/kway_graph_refinement/kway_graph_refinement_commons.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/kway_graph_refinement/multitry_kway_fm.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/tabu_search/tabu_search.cpp
+    # Galinier combine (part of core in modified_kahip)
+    ${KAHIP_PARALLEL_DIR}/lib/parallel_mh/galinier_combine/gal_combine.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/parallel_mh/galinier_combine/construct_partition.cpp
+    # Parallel MH sources (need MPI shim)
+    ${KAHIP_PARALLEL_DIR}/lib/parallel_mh/parallel_mh_async.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/parallel_mh/population.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/parallel_mh/exchange/exchanger.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/tools/graph_communication.cpp
+    ${KAHIP_PARALLEL_DIR}/lib/tools/mpi_tools.cpp
+)
+
+# Fake mpi.h MUST come first so #include <mpi.h> finds our stub
+target_include_directories(kahipe_static PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/shims/scc_mpi
+    ${KAHIP_PARALLEL_DIR}/interface
+    ${KAHIP_PARALLEL_DIR}/lib
+    ${KAHIP_PARALLEL_DIR}/lib/io
+    ${KAHIP_PARALLEL_DIR}/lib/partition
+    ${KAHIP_PARALLEL_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement
+    ${KAHIP_PARALLEL_DIR}/lib/tools
+    ${KAHIP_PARALLEL_DIR}
+    ${KAHIP_PARALLEL_DIR}/app
+    ${CMAKE_CURRENT_SOURCE_DIR}/KaHIP/extern/argtable3-3.2.2
+)
+
+target_compile_definitions(kahipe_static PRIVATE -DMODE_KAFFPA)
+target_compile_options(kahipe_static PRIVATE -w)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(kahipe_static PUBLIC OpenMP::OpenMP_CXX)
+endif()
+
+# =============================================================================
 # Pybind11 modules
 # =============================================================================
 
@@ -719,6 +816,11 @@ target_compile_features(heiorient INTERFACE cxx_std_17)
 pybind11_add_module(_kahip bindings/kahip_binding.cpp)
 target_link_libraries(_kahip PRIVATE kahip_static)
 install(TARGETS _kahip DESTINATION chszlablib)
+
+# --- _kahipe (evolutionary/memetic partitioner) ---
+pybind11_add_module(_kahipe bindings/kahipe_binding.cpp)
+target_link_libraries(_kahipe PRIVATE kahipe_static)
+install(TARGETS _kahipe DESTINATION chszlablib)
 
 # --- _viecut ---
 pybind11_add_module(_viecut bindings/viecut_binding.cpp)
