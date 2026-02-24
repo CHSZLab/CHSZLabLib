@@ -645,6 +645,60 @@ if(OpenMP_CXX_FOUND)
     target_link_libraries(scc_static PUBLIC OpenMP::OpenMP_CXX)
 endif()
 
+# SCC evolutionary (memetic) — reuses libclustering + adds evolutionary sources
+# Uses a fake mpi.h shim (single-process stub) instead of real MPI.
+add_library(scc_evo_static STATIC
+    # Base clustering sources (same as scc_static)
+    ${SCC_DIR}/extern/argtable3-3.0.3/argtable3.c
+    ${SCC_DIR}/lib/clustering/signed_graph_clusterer.cpp
+    ${SCC_DIR}/lib/clustering/coarsening/clustering/node_ordering.cpp
+    ${SCC_DIR}/lib/clustering/coarsening/clustering/size_constraint_label_propagation.cpp
+    ${SCC_DIR}/lib/clustering/coarsening/coarsening.cpp
+    ${SCC_DIR}/lib/clustering/coarsening/contraction.cpp
+    ${SCC_DIR}/lib/tools/graph_extractor.cpp
+    ${SCC_DIR}/lib/clustering/uncoarsening/refinement/kway_graph_refinement/kway_graph_refinement.cpp
+    ${SCC_DIR}/lib/clustering/uncoarsening/refinement/kway_graph_refinement/kway_graph_refinement_commons.cpp
+    ${SCC_DIR}/lib/clustering/uncoarsening/refinement/kway_graph_refinement/kway_graph_refinement_core.cpp
+    ${SCC_DIR}/lib/clustering/uncoarsening/refinement/label_propagation_refinement/label_propagation_refinement.cpp
+    ${SCC_DIR}/lib/clustering/uncoarsening/refinement/quotient_graph_refinement/complete_boundary.cpp
+    ${SCC_DIR}/lib/clustering/uncoarsening/refinement/quotient_graph_refinement/partial_boundary.cpp
+    ${SCC_DIR}/lib/clustering/uncoarsening/refinement/refinement.cpp
+    ${SCC_DIR}/lib/clustering/uncoarsening/uncoarsening.cpp
+    ${SCC_DIR}/lib/data_structure/graph_hierarchy.cpp
+    ${SCC_DIR}/lib/io/graph_io.cpp
+    ${SCC_DIR}/lib/tools/quality_metrics.cpp
+    ${SCC_DIR}/lib/tools/random_functions.cpp
+    ${SCC_DIR}/tools/tools.cpp
+    # Evolutionary sources
+    ${SCC_DIR}/lib/algorithms/cycle_search.cpp
+    ${SCC_DIR}/lib/algorithms/strongly_connected_components.cpp
+    ${SCC_DIR}/lib/clustering_evolutionary/evolutionary_signed_graph_clusterer.cpp
+    ${SCC_DIR}/lib/clustering_evolutionary/population.cpp
+    ${SCC_DIR}/lib/clustering_evolutionary/exchange/exchanger.cpp
+    ${SCC_DIR}/lib/tools/graph_communication.cpp
+    ${SCC_DIR}/lib/tools/mpi_tools.cpp
+)
+
+# Fake mpi.h MUST come first so #include <mpi.h> finds our stub
+target_include_directories(scc_evo_static PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/shims/scc_mpi
+    ${SCC_DIR}
+    ${SCC_DIR}/app
+    ${SCC_DIR}/extern/argtable3-3.0.3
+    ${SCC_DIR}/extern/andres_graph/include
+    ${SCC_DIR}/lib
+    ${SCC_DIR}/lib/io
+    ${SCC_DIR}/lib/partition
+    ${SCC_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement
+    ${SCC_DIR}/lib/tools
+)
+
+target_compile_options(scc_evo_static PRIVATE -w -fpermissive)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(scc_evo_static PUBLIC OpenMP::OpenMP_CXX)
+endif()
+
 # =============================================================================
 # Pybind11 modules
 # =============================================================================
@@ -697,3 +751,8 @@ install(TARGETS _kamis_mmwis DESTINATION chszlablib)
 pybind11_add_module(_scc bindings/scc_binding.cpp)
 target_link_libraries(_scc PRIVATE scc_static)
 install(TARGETS _scc DESTINATION chszlablib)
+
+# --- _scc_evo (Evolutionary Correlation Clustering) ---
+pybind11_add_module(_scc_evo bindings/scc_evo_binding.cpp)
+target_link_libraries(_scc_evo PRIVATE scc_evo_static)
+install(TARGETS _scc_evo DESTINATION chszlablib)

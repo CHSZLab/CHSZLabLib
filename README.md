@@ -27,7 +27,7 @@ All algorithms operate on a shared `Graph` object backed by NumPy arrays in CSR 
 ## Quick Start
 
 ```python
-from chszlablib import Graph, partition, mincut, cluster, mwis, redumis, correlation_clustering
+from chszlablib import Graph, partition, mincut, cluster, mwis, redumis, correlation_clustering, evolutionary_correlation_clustering
 
 # Build a graph
 g = Graph(num_nodes=6)
@@ -64,6 +64,10 @@ for u, v in [(0,1), (1,2), (2,3)]:
 g2.add_edge(0, 3, weight=-1)       # negative = repel
 cc = correlation_clustering(g2)
 print(f"Clusters: {cc.num_clusters}, edge cut: {cc.edge_cut}")
+
+# Evolutionary correlation clustering (better quality, longer runtime)
+cc2 = evolutionary_correlation_clustering(g2, time_limit=2.0)
+print(f"Evo clusters: {cc2.num_clusters}, edge cut: {cc2.edge_cut}")
 ```
 
 ## Installation
@@ -250,6 +254,21 @@ Cluster a signed graph by minimizing disagreements. Positive edge weights repres
 | `time_limit` | Seconds to optimize. 0 = single run (default). > 0 = repeat and keep best. |
 
 Returns `CorrelationClusteringResult` with `edge_cut` (int), `num_clusters` (int), and `assignment` (ndarray of cluster IDs).
+
+#### Evolutionary Variant
+
+```python
+evolutionary_correlation_clustering(g, seed=0, time_limit=5.0) -> CorrelationClusteringResult
+```
+
+Memetic evolutionary algorithm for correlation clustering. Uses a population-based approach that repeatedly applies multilevel clustering and combines solutions. Generally produces better results than a single run at the cost of longer running time.
+
+| Parameter | Description |
+|-----------|-------------|
+| `seed` | Random seed (default 0) |
+| `time_limit` | Seconds to optimize (default 5.0) |
+
+Returns the same `CorrelationClusteringResult`.
 
 ## I/O
 

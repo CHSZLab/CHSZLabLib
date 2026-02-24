@@ -6,7 +6,7 @@ import time
 from chszlablib import (
     Graph, partition, mincut, cluster, mwis,
     redumis, online_mis, branch_reduce, mmwis_solver,
-    correlation_clustering,
+    correlation_clustering, evolutionary_correlation_clustering,
 )
 
 
@@ -116,6 +116,16 @@ def main():
     # On a standard (unsigned) graph, all edges are treated as positive.
     t0 = time.perf_counter()
     r = correlation_clustering(g, seed=0)
+    dt = time.perf_counter() - t0
+    print(f"  edge_cut={r.edge_cut:>10,}  clusters={r.num_clusters:,}  ({dt:.3f}s)")
+    print()
+
+    # --- 7. Evolutionary Correlation Clustering (SCC) ---
+    print("=" * 60)
+    print("7. Evolutionary Correlation Clustering (SCC)")
+    print("=" * 60)
+    t0 = time.perf_counter()
+    r = evolutionary_correlation_clustering(g, seed=0, time_limit=5.0)
     dt = time.perf_counter() - t0
     print(f"  edge_cut={r.edge_cut:>10,}  clusters={r.num_clusters:,}  ({dt:.3f}s)")
     print()

@@ -60,3 +60,46 @@ def correlation_clustering(
         num_clusters=num_clusters,
         assignment=assignment,
     )
+
+
+def evolutionary_correlation_clustering(
+    g: Graph,
+    seed: int = 0,
+    time_limit: float = 5.0,
+) -> CorrelationClusteringResult:
+    """Cluster a signed graph using memetic evolutionary optimization.
+
+    Uses a population-based evolutionary algorithm that repeatedly applies
+    multilevel clustering and combines solutions. Generally produces better
+    results than single-run ``correlation_clustering`` at the cost of
+    longer running time.
+
+    Parameters
+    ----------
+    g : Graph
+        Input graph with signed edge weights.
+    seed : int
+        Random seed (default 0).
+    time_limit : float
+        Time limit in seconds (default 5.0).
+
+    Returns
+    -------
+    CorrelationClusteringResult
+        Contains *edge_cut*, *num_clusters*, and *assignment* array.
+    """
+    from chszlablib._scc_evo import evolutionary_correlation_clustering as _ecc
+
+    g.finalize()
+    xadj = g.xadj.astype(np.int32, copy=False)
+    adjncy = g.adjncy.astype(np.int32, copy=False)
+    adjwgt = g.edge_weights.astype(np.int32, copy=False) if g.edge_weights is not None else np.array([], dtype=np.int32)
+    vwgt = g.node_weights.astype(np.int32, copy=False) if g.node_weights is not None else np.array([], dtype=np.int32)
+
+    edge_cut, num_clusters, assignment = _ecc(xadj, adjncy, adjwgt, vwgt,
+                                              seed, time_limit)
+    return CorrelationClusteringResult(
+        edge_cut=edge_cut,
+        num_clusters=num_clusters,
+        assignment=assignment,
+    )

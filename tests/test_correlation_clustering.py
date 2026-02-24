@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from chszlablib import Graph, correlation_clustering
+from chszlablib import Graph, correlation_clustering, evolutionary_correlation_clustering
 
 
 # ---------------------------------------------------------------------------
@@ -114,4 +114,37 @@ class TestCorrelationClustering:
         """Assignment values should be in [0, num_clusters)."""
         g = make_two_cliques_signed(4, 4)
         r = correlation_clustering(g, seed=0)
+        assert all(0 <= a < r.num_clusters for a in r.assignment)
+
+
+class TestEvolutionaryCorrelationClustering:
+    def test_two_cliques(self):
+        """Two cliques with negative inter-edges should split into 2 clusters."""
+        g = make_two_cliques_signed(4, 4)
+        r = evolutionary_correlation_clustering(g, seed=0, time_limit=2.0)
+        assert r.num_clusters >= 2
+        assert len(r.assignment) == 8
+        clique1 = set(r.assignment[:4])
+        clique2 = set(r.assignment[4:])
+        assert len(clique1) == 1
+        assert len(clique2) == 1
+        assert clique1 != clique2
+
+    def test_all_positive(self):
+        """All positive edges — should put everything in one cluster."""
+        g = make_all_positive(6)
+        r = evolutionary_correlation_clustering(g, seed=0, time_limit=2.0)
+        assert r.num_clusters == 1
+        assert r.edge_cut == 0
+
+    def test_all_negative(self):
+        """All negative edges — ideal: each node alone, edge_cut = 0."""
+        g = make_all_negative(5)
+        r = evolutionary_correlation_clustering(g, seed=0, time_limit=2.0)
+        assert r.edge_cut <= 0
+
+    def test_assignment_valid(self):
+        """Assignment values should be in [0, num_clusters)."""
+        g = make_two_cliques_signed(4, 4)
+        r = evolutionary_correlation_clustering(g, seed=0, time_limit=2.0)
         assert all(0 <= a < r.num_clusters for a in r.assignment)
