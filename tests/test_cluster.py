@@ -3,8 +3,7 @@
 import numpy as np
 import pytest
 
-from chszlablib.graph import Graph
-from chszlablib.cluster import cluster
+from chszlablib import Graph, Decomposition
 
 
 def make_two_cliques():
@@ -25,7 +24,7 @@ def make_two_cliques():
 
 def test_cluster_two_cliques():
     g = make_two_cliques()
-    result = cluster(g, time_limit=1.0)
+    result = Decomposition.cluster(g, time_limit=1.0)
     assert result.modularity > 0.0
     assert result.num_clusters >= 2
     assert len(result.assignment) == 8
@@ -33,5 +32,5 @@ def test_cluster_two_cliques():
 
 def test_cluster_modularity_positive():
     g = make_two_cliques()
-    result = cluster(g, time_limit=1.0)
+    result = Decomposition.cluster(g, time_limit=1.0)
     assert result.modularity > 0.3

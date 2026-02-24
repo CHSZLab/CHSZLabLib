@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from chszlablib import Graph, orient_edges
+from chszlablib import Graph, Orientation
 
 
 # ---------------------------------------------------------------------------
@@ -91,7 +91,7 @@ class TestOrientEdges:
     def test_single_edge(self):
         g = Graph(2)
         g.add_edge(0, 1)
-        r = orient_edges(g)
+        r = Orientation.orient_edges(g)
         assert r.max_out_degree == 1
         validate_orientation(g, r)
 
@@ -100,31 +100,31 @@ class TestOrientEdges:
         g.add_edge(0, 1)
         g.add_edge(1, 2)
         g.add_edge(0, 2)
-        r = orient_edges(g)
+        r = Orientation.orient_edges(g)
         assert r.max_out_degree == 1
         validate_orientation(g, r)
 
     def test_path_graph(self):
         g = make_path_graph(10)
-        r = orient_edges(g)
+        r = Orientation.orient_edges(g)
         assert r.max_out_degree == 1
         validate_orientation(g, r)
 
     def test_even_cycle(self):
         g = make_cycle_graph(6)
-        r = orient_edges(g)
+        r = Orientation.orient_edges(g)
         assert r.max_out_degree == 1
         validate_orientation(g, r)
 
     def test_odd_cycle(self):
         g = make_cycle_graph(7)
-        r = orient_edges(g)
+        r = Orientation.orient_edges(g)
         assert r.max_out_degree == 1
         validate_orientation(g, r)
 
     def test_star_graph(self):
         g = make_star_graph(6)
-        r = orient_edges(g)
+        r = Orientation.orient_edges(g)
         # Star with 5 leaves: optimal max out-degree = 1
         # (orient all edges toward center)
         assert r.max_out_degree == 1
@@ -132,7 +132,7 @@ class TestOrientEdges:
 
     def test_complete_k4(self):
         g = make_complete_graph(4)
-        r = orient_edges(g)
+        r = Orientation.orient_edges(g)
         # K4: 6 edges, 4 nodes -> ceil(6/4) = 2
         # But a tournament on K4 has max out-degree = ceil((4-1)/2) = 2
         assert r.max_out_degree <= 2
@@ -140,14 +140,14 @@ class TestOrientEdges:
 
     def test_complete_k5(self):
         g = make_complete_graph(5)
-        r = orient_edges(g)
+        r = Orientation.orient_edges(g)
         # K5: 10 edges, 5 nodes -> ceil(10/5) = 2
         assert r.max_out_degree == 2
         validate_orientation(g, r)
 
     def test_result_shapes(self):
         g = make_path_graph(8)
-        r = orient_edges(g)
+        r = Orientation.orient_edges(g)
         g.finalize()
         assert r.out_degrees.shape == (8,)
         assert r.edge_heads.shape == (len(g.adjncy),)
@@ -159,21 +159,21 @@ class TestAlgorithms:
     @pytest.mark.parametrize("algo", ["two_approx", "dfs", "combined"])
     def test_path(self, algo):
         g = make_path_graph(20)
-        r = orient_edges(g, algorithm=algo)
+        r = Orientation.orient_edges(g, algorithm=algo)
         assert r.max_out_degree == 1
         validate_orientation(g, r)
 
     @pytest.mark.parametrize("algo", ["two_approx", "dfs", "combined"])
     def test_cycle(self, algo):
         g = make_cycle_graph(10)
-        r = orient_edges(g, algorithm=algo)
+        r = Orientation.orient_edges(g, algorithm=algo)
         assert r.max_out_degree == 1
         validate_orientation(g, r)
 
     @pytest.mark.parametrize("algo", ["two_approx", "dfs", "combined"])
     def test_complete(self, algo):
         g = make_complete_graph(6)
-        r = orient_edges(g, algorithm=algo)
+        r = Orientation.orient_edges(g, algorithm=algo)
         # K6: 15 edges, 6 nodes -> ceil(15/6) = 3
         lower_bound = math.ceil(15 / 6)
         assert r.max_out_degree >= lower_bound
@@ -182,7 +182,7 @@ class TestAlgorithms:
     def test_invalid_algorithm(self):
         g = make_path_graph(4)
         with pytest.raises(ValueError, match="Unknown algorithm"):
-            orient_edges(g, algorithm="nonexistent")
+            Orientation.orient_edges(g, algorithm="nonexistent")
 
 
 class TestLarger:
@@ -199,7 +199,7 @@ class TestLarger:
                     g.add_edge(u, u + 1)
                 if r < 3:
                     g.add_edge(u, u + 4)
-        r = orient_edges(g)
+        r = Orientation.orient_edges(g)
         assert r.max_out_degree <= 2
         validate_orientation(g, r)
 
@@ -215,6 +215,6 @@ class TestLarger:
         # Spokes
         for i in range(5):
             g.add_edge(i, 5 + i)
-        r = orient_edges(g)
+        r = Orientation.orient_edges(g)
         assert r.max_out_degree <= 2
         validate_orientation(g, r)

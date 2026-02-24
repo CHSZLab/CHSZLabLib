@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from chszlablib import Graph
-from chszlablib.heistream import HeiStreamPartitioner, StreamPartitionResult, stream_partition
+from chszlablib import Graph, Decomposition
+from chszlablib.heistream import HeiStreamPartitioner, StreamPartitionResult
 
 
 # ---------------------------------------------------------------------------
@@ -50,26 +50,26 @@ class TestStreamPartition:
 
     def test_path_2_parts(self):
         g = make_path_graph(10)
-        result = stream_partition(g, k=2)
+        result = Decomposition.stream_partition(g, k=2)
         assert isinstance(result, StreamPartitionResult)
         assert result.assignment.shape == (10,)
         assert set(np.unique(result.assignment)) <= {0, 1}
 
     def test_cycle_4_parts(self):
         g = make_cycle_graph(20)
-        result = stream_partition(g, k=4)
+        result = Decomposition.stream_partition(g, k=4)
         assert result.assignment.shape == (20,)
         assert set(np.unique(result.assignment)) <= set(range(4))
 
     def test_grid_2_parts(self):
         g = make_grid_graph(5, 6)
-        result = stream_partition(g, k=2)
+        result = Decomposition.stream_partition(g, k=2)
         assert result.assignment.shape == (30,)
         assert set(np.unique(result.assignment)) <= {0, 1}
 
     def test_larger_graph(self):
         g = make_grid_graph(10, 10)
-        result = stream_partition(g, k=4, imbalance=5.0)
+        result = Decomposition.stream_partition(g, k=4, imbalance=5.0)
         assert result.assignment.shape == (100,)
         parts = np.unique(result.assignment)
         assert len(parts) <= 4
@@ -79,8 +79,8 @@ class TestStreamPartition:
 
     def test_seed_determinism(self):
         g = make_grid_graph(6, 6)
-        r1 = stream_partition(g, k=3, seed=42)
-        r2 = stream_partition(g, k=3, seed=42)
+        r1 = Decomposition.stream_partition(g, k=3, seed=42)
+        r2 = Decomposition.stream_partition(g, k=3, seed=42)
         np.testing.assert_array_equal(r1.assignment, r2.assignment)
 
 
@@ -128,7 +128,7 @@ class TestHeiStreamPartitioner:
     def test_streaming_matches_graph(self):
         """Streaming API should produce same result as graph-based API."""
         g = make_path_graph(8)
-        r_graph = stream_partition(g, k=2, seed=123)
+        r_graph = Decomposition.stream_partition(g, k=2, seed=123)
 
         hs = HeiStreamPartitioner(k=2, seed=123)
         g.finalize()
@@ -150,25 +150,25 @@ class TestBuffCut:
 
     def test_buffcut_small_buffer(self):
         g = make_grid_graph(6, 6)
-        result = stream_partition(g, k=2, max_buffer_size=10, batch_size=4)
+        result = Decomposition.stream_partition(g, k=2, max_buffer_size=10, batch_size=4)
         assert result.assignment.shape == (36,)
         assert set(np.unique(result.assignment)) <= {0, 1}
 
     def test_buffcut_large_buffer(self):
         g = make_grid_graph(8, 8)
-        result = stream_partition(g, k=4, max_buffer_size=50, batch_size=8)
+        result = Decomposition.stream_partition(g, k=4, max_buffer_size=50, batch_size=8)
         assert result.assignment.shape == (64,)
         assert set(np.unique(result.assignment)) <= set(range(4))
 
     def test_direct_fennel(self):
         """buffer_size=1 forces direct Fennel one-pass."""
         g = make_grid_graph(6, 6)
-        result = stream_partition(g, k=2, max_buffer_size=1)
+        result = Decomposition.stream_partition(g, k=2, max_buffer_size=1)
         assert result.assignment.shape == (36,)
         assert set(np.unique(result.assignment)) <= {0, 1}
 
     def test_restreaming(self):
         g = make_grid_graph(6, 6)
-        result = stream_partition(g, k=2, num_streams_passes=2, max_buffer_size=10, batch_size=4)
+        result = Decomposition.stream_partition(g, k=2, num_streams_passes=2, max_buffer_size=10, batch_size=4)
         assert result.assignment.shape == (36,)
         assert set(np.unique(result.assignment)) <= {0, 1}

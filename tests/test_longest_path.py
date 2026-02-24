@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from chszlablib import Graph, longest_path
+from chszlablib import Graph, PathProblems
 
 
 # ---------------------------------------------------------------------------
@@ -73,7 +73,7 @@ def is_valid_path(g, path):
 class TestLongestPath:
     def test_path_graph(self):
         g = make_path_graph(8)
-        r = longest_path(g, start_vertex=0, target_vertex=7)
+        r = PathProblems.longest_path(g, start_vertex=0, target_vertex=7)
         assert r.length == 7  # exactly n-1 edges
         assert len(r.path) == 8
         assert r.path[0] == 0
@@ -82,20 +82,20 @@ class TestLongestPath:
 
     def test_path_graph_default_target(self):
         g = make_path_graph(6)
-        r = longest_path(g, start_vertex=0)
+        r = PathProblems.longest_path(g, start_vertex=0)
         assert r.length == 5
         assert is_valid_path(g, r.path)
 
     def test_cycle_graph(self):
         g = make_cycle_graph(6)
-        r = longest_path(g, start_vertex=0, target_vertex=3)
+        r = PathProblems.longest_path(g, start_vertex=0, target_vertex=3)
         # Longest path in C6 from 0 to 3 = 5 edges (go around)
         assert r.length >= 3  # at minimum the short way
         assert is_valid_path(g, r.path)
 
     def test_grid_graph(self):
         g = make_grid_graph(3, 3)
-        r = longest_path(g, start_vertex=0, target_vertex=8)
+        r = PathProblems.longest_path(g, start_vertex=0, target_vertex=8)
         assert r.length >= 4  # at least shortest path
         assert is_valid_path(g, r.path)
 
@@ -104,13 +104,13 @@ class TestLongestPath:
         g = Graph(4)
         g.add_edge(0, 1)
         g.add_edge(2, 3)
-        r = longest_path(g, start_vertex=0, target_vertex=3)
+        r = PathProblems.longest_path(g, start_vertex=0, target_vertex=3)
         assert r.length == 0
         assert len(r.path) == 0
 
     def test_weighted_path(self):
         g = make_weighted_path(5, [1, 10, 1, 10])
-        r = longest_path(g, start_vertex=0, target_vertex=4)
+        r = PathProblems.longest_path(g, start_vertex=0, target_vertex=4)
         assert r.length == 22  # sum of all edge weights
         assert is_valid_path(g, r.path)
 
@@ -119,7 +119,7 @@ class TestLongestPathConfigs:
     @pytest.mark.parametrize("config", ["strong", "eco", "fast"])
     def test_partition_configs(self, config):
         g = make_path_graph(10)
-        r = longest_path(g, start_vertex=0, target_vertex=9,
+        r = PathProblems.longest_path(g, start_vertex=0, target_vertex=9,
                          partition_config=config)
         assert r.length == 9
         assert is_valid_path(g, r.path)
@@ -127,14 +127,14 @@ class TestLongestPathConfigs:
     def test_invalid_config(self):
         g = make_path_graph(5)
         with pytest.raises(ValueError, match="Invalid partition_config"):
-            longest_path(g, partition_config="invalid")
+            PathProblems.longest_path(g, partition_config="invalid")
 
     def test_invalid_start_vertex(self):
         g = make_path_graph(5)
         with pytest.raises(ValueError, match="start_vertex"):
-            longest_path(g, start_vertex=10)
+            PathProblems.longest_path(g, start_vertex=10)
 
     def test_invalid_target_vertex(self):
         g = make_path_graph(5)
         with pytest.raises(ValueError, match="target_vertex"):
-            longest_path(g, target_vertex=10)
+            PathProblems.longest_path(g, target_vertex=10)

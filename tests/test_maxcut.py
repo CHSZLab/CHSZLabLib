@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from chszlablib import Graph, maxcut
+from chszlablib import Graph, Decomposition
 
 
 # ---------------------------------------------------------------------------
@@ -49,40 +49,40 @@ class TestMaxCutHeuristic:
     def test_single_edge(self):
         g = Graph(2)
         g.add_edge(0, 1)
-        r = maxcut(g)
+        r = Decomposition.maxcut(g)
         assert r.cut_value >= 1
         assert r.partition.shape == (2,)
 
     def test_path_graph(self):
         g = make_path_graph(4)
-        r = maxcut(g)
+        r = Decomposition.maxcut(g)
         assert r.cut_value >= 2
 
     def test_triangle(self):
         g = make_cycle_graph(3)
-        r = maxcut(g)
+        r = Decomposition.maxcut(g)
         assert r.cut_value >= 2
 
     def test_complete_k4(self):
         g = make_complete_graph(4)
-        r = maxcut(g, time_limit=0.5)
+        r = Decomposition.maxcut(g, time_limit=0.5)
         assert r.cut_value >= 4
 
     def test_complete_bipartite(self):
         """K_{3,3}: max cut = 9."""
         g = make_complete_bipartite(3, 3)
-        r = maxcut(g, time_limit=0.5)
+        r = Decomposition.maxcut(g, time_limit=0.5)
         assert r.cut_value >= 9
 
     def test_even_cycle(self):
         """C6: max cut = 6 (alternating partition)."""
         g = make_cycle_graph(6)
-        r = maxcut(g, time_limit=1.0)
+        r = Decomposition.maxcut(g, time_limit=1.0)
         assert r.cut_value >= 4
 
     def test_empty_graph(self):
         g = Graph(5)
-        r = maxcut(g)
+        r = Decomposition.maxcut(g)
         assert r.cut_value == 0
 
     def test_weighted_edges(self):
@@ -90,7 +90,7 @@ class TestMaxCutHeuristic:
         g.add_edge(0, 1, weight=10)
         g.add_edge(1, 2, weight=1)
         g.add_edge(2, 3, weight=10)
-        r = maxcut(g, time_limit=0.5)
+        r = Decomposition.maxcut(g, time_limit=0.5)
         assert r.cut_value >= 20
 
 
@@ -103,23 +103,23 @@ class TestMaxCutExact:
     def test_single_edge(self):
         g = Graph(2)
         g.add_edge(0, 1)
-        r = maxcut(g, method="exact")
+        r = Decomposition.maxcut(g, method="exact")
         assert r.cut_value >= 1
         assert r.partition.shape == (2,)
 
     def test_path_4(self):
         g = make_path_graph(4)
-        r = maxcut(g, method="exact", time_limit=5.0)
+        r = Decomposition.maxcut(g, method="exact", time_limit=5.0)
         assert r.cut_value >= 2
 
     def test_triangle(self):
         g = make_cycle_graph(3)
-        r = maxcut(g, method="exact", time_limit=5.0)
+        r = Decomposition.maxcut(g, method="exact", time_limit=5.0)
         assert r.cut_value >= 2
 
     def test_small_complete(self):
         g = make_complete_graph(5)
-        r = maxcut(g, method="exact", time_limit=5.0)
+        r = Decomposition.maxcut(g, method="exact", time_limit=5.0)
         # K5: max cut = 6 (ceil(5*4/4) = 6 by Edwards bound)
         assert r.cut_value >= 6
 
@@ -134,4 +134,4 @@ class TestMaxCutErrors:
         g = Graph(2)
         g.add_edge(0, 1)
         with pytest.raises(ValueError, match="Unknown method"):
-            maxcut(g, method="nonexistent")
+            Decomposition.maxcut(g, method="nonexistent")

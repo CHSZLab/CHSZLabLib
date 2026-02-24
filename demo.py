@@ -3,12 +3,7 @@
 import sys
 import time
 
-from chszlablib import (
-    Graph, partition, mincut, cluster, mwis,
-    redumis, online_mis, branch_reduce, mmwis_solver,
-    correlation_clustering, evolutionary_correlation_clustering,
-    orient_edges,
-)
+from chszlablib import Graph, Decomposition, IndependenceProblems, Orientation
 
 
 def main():
@@ -29,7 +24,7 @@ def main():
     print("=" * 60)
     for mode in ["fast", "eco", "strong"]:
         t0 = time.perf_counter()
-        r = partition(g, num_parts=4, mode=mode)
+        r = Decomposition.partition(g, num_parts=4, mode=mode)
         dt = time.perf_counter() - t0
         print(f"  mode={mode:12s}  edgecut={r.edgecut:>8,}  ({dt:.3f}s)")
     print()
@@ -40,7 +35,7 @@ def main():
     print("=" * 60)
     for algo in ["noi", "viecut", "pr"]:
         t0 = time.perf_counter()
-        r = mincut(g, algorithm=algo)
+        r = Decomposition.mincut(g, algorithm=algo)
         dt = time.perf_counter() - t0
         side0 = sum(1 for x in r.partition if x == 0)
         side1 = g.num_nodes - side0
@@ -53,7 +48,7 @@ def main():
     print("3. Graph Clustering (VieClus)")
     print("=" * 60)
     t0 = time.perf_counter()
-    r = cluster(g, time_limit=5.0)
+    r = Decomposition.cluster(g, time_limit=5.0)
     dt = time.perf_counter() - t0
     print(f"  modularity={r.modularity:.6f}  clusters={r.num_clusters:,}  ({dt:.3f}s)")
     print()
@@ -63,7 +58,7 @@ def main():
     print("4. Maximum Weight Independent Set (CHILS)")
     print("=" * 60)
     t0 = time.perf_counter()
-    r = mwis(g, time_limit=5.0, num_concurrent=4)
+    r = IndependenceProblems.chils(g, time_limit=5.0, num_concurrent=4)
     dt = time.perf_counter() - t0
     print(f"  weight={r.weight:>12,}  |IS|={len(r.vertices):,}  ({dt:.3f}s)")
 
@@ -87,10 +82,10 @@ def main():
     print("=" * 60)
 
     for name, fn, kwargs in [
-        ("ReduMIS",         redumis,        {"time_limit": 5.0}),
-        ("OnlineMIS",       online_mis,     {"time_limit": 5.0, "ils_iterations": 5000}),
-        ("Branch&Reduce",   branch_reduce,  {"time_limit": 10.0}),
-        ("MMWIS",           mmwis_solver,   {"time_limit": 5.0}),
+        ("ReduMIS",         IndependenceProblems.redumis,        {"time_limit": 5.0}),
+        ("OnlineMIS",       IndependenceProblems.online_mis,     {"time_limit": 5.0, "ils_iterations": 5000}),
+        ("Branch&Reduce",   IndependenceProblems.branch_reduce,  {"time_limit": 10.0}),
+        ("MMWIS",           IndependenceProblems.mmwis,          {"time_limit": 5.0}),
     ]:
         t0 = time.perf_counter()
         r = fn(g, **kwargs)
@@ -116,7 +111,7 @@ def main():
     # Note: correlation clustering expects signed edge weights.
     # On a standard (unsigned) graph, all edges are treated as positive.
     t0 = time.perf_counter()
-    r = correlation_clustering(g, seed=0)
+    r = Decomposition.correlation_clustering(g, seed=0)
     dt = time.perf_counter() - t0
     print(f"  edge_cut={r.edge_cut:>10,}  clusters={r.num_clusters:,}  ({dt:.3f}s)")
     print()
@@ -126,7 +121,7 @@ def main():
     print("7. Evolutionary Correlation Clustering (SCC)")
     print("=" * 60)
     t0 = time.perf_counter()
-    r = evolutionary_correlation_clustering(g, seed=0, time_limit=5.0)
+    r = Decomposition.evolutionary_correlation_clustering(g, seed=0, time_limit=5.0)
     dt = time.perf_counter() - t0
     print(f"  edge_cut={r.edge_cut:>10,}  clusters={r.num_clusters:,}  ({dt:.3f}s)")
     print()
@@ -137,7 +132,7 @@ def main():
     print("=" * 60)
     for algo in ["two_approx", "dfs", "combined"]:
         t0 = time.perf_counter()
-        r = orient_edges(g, algorithm=algo)
+        r = Orientation.orient_edges(g, algorithm=algo)
         dt = time.perf_counter() - t0
         print(f"  algo={algo:12s}  max_out_degree={r.max_out_degree:>4}  ({dt:.3f}s)")
     print()

@@ -7,8 +7,6 @@ from typing import Sequence
 
 import numpy as np
 
-from chszlablib.graph import Graph
-
 
 @dataclass
 class StreamPartitionResult:
@@ -157,64 +155,3 @@ class HeiStreamPartitioner:
         self._node_map.clear()
 
 
-def stream_partition(
-    g: Graph,
-    k: int = 2,
-    imbalance: float = 3.0,
-    seed: int = 0,
-    max_buffer_size: int = 0,
-    batch_size: int = 0,
-    num_streams_passes: int = 1,
-    run_parallel: bool = False,
-    suppress_output: bool = True,
-) -> StreamPartitionResult:
-    """Partition a graph using HeiStream's streaming algorithm.
-
-    Convenience function that wraps :class:`HeiStreamPartitioner` for
-    graphs already loaded in memory.
-
-    Parameters
-    ----------
-    g : Graph
-        The input graph.
-    k : int
-        Number of partitions.
-    imbalance : float
-        Allowed imbalance in percent (e.g. 3.0 means 3%).
-    seed : int
-        Random seed.
-    max_buffer_size : int
-        Buffer size for BuffCut (0 = auto, 1 = direct Fennel).
-    batch_size : int
-        MLP batch size (0 = default).
-    num_streams_passes : int
-        Number of streaming passes.
-    run_parallel : bool
-        Use parallel pipeline.
-    suppress_output : bool
-        Suppress C++ output.
-
-    Returns
-    -------
-    StreamPartitionResult
-    """
-    from chszlablib._heistream import heistream_partition
-
-    g.finalize()
-    xadj = g.xadj.astype(np.int64)
-    adjncy = g.adjncy.astype(np.int64)
-
-    assignment = heistream_partition(
-        xadj,
-        adjncy,
-        k=k,
-        imbalance=imbalance,
-        seed=seed,
-        max_buffer_size=max_buffer_size,
-        batch_size=batch_size,
-        num_streams_passes=num_streams_passes,
-        run_parallel=run_parallel,
-        suppress_output=suppress_output,
-    )
-
-    return StreamPartitionResult(assignment=assignment)

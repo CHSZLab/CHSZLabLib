@@ -5,7 +5,7 @@ import os
 import numpy as np
 import pytest
 
-from chszlablib import Graph, partition, mincut, cluster, mwis
+from chszlablib import Graph, Decomposition, IndependenceProblems
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -39,22 +39,22 @@ def test_all_algorithms_on_same_graph():
     g = make_two_cliques_bridge()
 
     # Partition into 2 parts
-    pr = partition(g, num_parts=2, mode="fast")
+    pr = Decomposition.partition(g, num_parts=2, mode="fast")
     assert pr.edgecut >= 0
     assert len(pr.assignment) == 8
 
     # Minimum cut (should be 1 at the bridge)
-    mc = mincut(g, algorithm="noi")
+    mc = Decomposition.mincut(g, algorithm="noi")
     assert mc.cut_value == 1
     assert len(mc.partition) == 8
 
     # Clustering (should find 2 communities)
-    cr = cluster(g, time_limit=1.0)
+    cr = Decomposition.cluster(g, time_limit=1.0)
     assert cr.modularity > 0
     assert len(cr.assignment) == 8
 
     # MWIS
-    mr = mwis(g, time_limit=1.0, num_concurrent=1)
+    mr = IndependenceProblems.chils(g, time_limit=1.0, num_concurrent=1)
     assert mr.weight > 0
     # Verify independent set validity
     is_set = set(mr.vertices)
@@ -80,13 +80,13 @@ def test_metis_roundtrip_with_algorithm(tmp_path):
     g.to_metis(path)
     g2 = Graph.from_metis(path)
 
-    result = partition(g2, num_parts=2, mode="fast")
+    result = Decomposition.partition(g2, num_parts=2, mode="fast")
     assert result.edgecut >= 0
     assert len(result.assignment) == 4
 
 
 def test_large_kahip_example(kahip_example):
     """Partition the KaHIP example graph (32K nodes)."""
-    result = partition(kahip_example, num_parts=4, mode="fast")
+    result = Decomposition.partition(kahip_example, num_parts=4, mode="fast")
     assert result.edgecut > 0
     assert len(result.assignment) == kahip_example.num_nodes

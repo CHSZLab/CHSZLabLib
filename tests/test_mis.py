@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from chszlablib import Graph, redumis, online_mis, branch_reduce, mmwis_solver
+from chszlablib import Graph, IndependenceProblems
 
 
 # ---------------------------------------------------------------------------
@@ -63,19 +63,19 @@ def is_valid_independent_set(g, vertices):
 class TestReduMIS:
     def test_path_graph(self):
         g = make_path_graph(10)
-        r = redumis(g, time_limit=5.0, seed=0)
+        r = IndependenceProblems.redumis(g, time_limit=5.0, seed=0)
         assert r.size >= 5  # optimal = 5
         assert is_valid_independent_set(g, r.vertices)
 
     def test_complete_graph(self):
         g = make_complete_graph(6)
-        r = redumis(g, time_limit=5.0, seed=0)
+        r = IndependenceProblems.redumis(g, time_limit=5.0, seed=0)
         assert r.size == 1
         assert is_valid_independent_set(g, r.vertices)
 
     def test_cycle_graph(self):
         g = make_cycle_graph(8)
-        r = redumis(g, time_limit=5.0, seed=0)
+        r = IndependenceProblems.redumis(g, time_limit=5.0, seed=0)
         assert r.size >= 4  # optimal = 4
         assert is_valid_independent_set(g, r.vertices)
 
@@ -87,13 +87,13 @@ class TestReduMIS:
 class TestOnlineMIS:
     def test_path_graph(self):
         g = make_path_graph(10)
-        r = online_mis(g, time_limit=5.0, seed=0, ils_iterations=5000)
+        r = IndependenceProblems.online_mis(g, time_limit=5.0, seed=0, ils_iterations=5000)
         assert r.size >= 4  # should find near-optimal
         assert is_valid_independent_set(g, r.vertices)
 
     def test_complete_graph(self):
         g = make_complete_graph(6)
-        r = online_mis(g, time_limit=5.0, seed=0, ils_iterations=5000)
+        r = IndependenceProblems.online_mis(g, time_limit=5.0, seed=0, ils_iterations=5000)
         assert r.size == 1
         assert is_valid_independent_set(g, r.vertices)
 
@@ -107,7 +107,7 @@ class TestBranchReduce:
         # Path: 0-1-2-3-4 with weights [10, 1, 10, 1, 10]
         # Optimal MWIS = {0, 2, 4} with weight 30
         g = make_weighted_path(5, [10, 1, 10, 1, 10])
-        r = branch_reduce(g, time_limit=10.0, seed=0)
+        r = IndependenceProblems.branch_reduce(g, time_limit=10.0, seed=0)
         assert r.weight == 30
         assert r.size == 3
         assert is_valid_independent_set(g, r.vertices)
@@ -116,7 +116,7 @@ class TestBranchReduce:
         g = make_complete_graph(5)
         for i in range(5):
             g.set_node_weight(i, i + 1)
-        r = branch_reduce(g, time_limit=10.0, seed=0)
+        r = IndependenceProblems.branch_reduce(g, time_limit=10.0, seed=0)
         # Optimal: single heaviest vertex (weight 5)
         assert r.weight == 5
         assert r.size == 1
@@ -124,7 +124,7 @@ class TestBranchReduce:
 
     def test_unweighted(self):
         g = make_path_graph(8)
-        r = branch_reduce(g, time_limit=10.0, seed=0)
+        r = IndependenceProblems.branch_reduce(g, time_limit=10.0, seed=0)
         assert r.size >= 4  # optimal = 4
         assert is_valid_independent_set(g, r.vertices)
 
@@ -136,7 +136,7 @@ class TestBranchReduce:
 class TestMMWIS:
     def test_path_graph_weighted(self):
         g = make_weighted_path(5, [10, 1, 10, 1, 10])
-        r = mmwis_solver(g, time_limit=5.0, seed=0)
+        r = IndependenceProblems.mmwis(g, time_limit=5.0, seed=0)
         assert r.weight >= 20  # should find good solution, optimal = 30
         assert is_valid_independent_set(g, r.vertices)
 
@@ -144,6 +144,6 @@ class TestMMWIS:
         g = make_complete_graph(5)
         for i in range(5):
             g.set_node_weight(i, i + 1)
-        r = mmwis_solver(g, time_limit=5.0, seed=0)
+        r = IndependenceProblems.mmwis(g, time_limit=5.0, seed=0)
         assert r.size == 1
         assert is_valid_independent_set(g, r.vertices)

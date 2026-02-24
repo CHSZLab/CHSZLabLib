@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from chszlablib import Graph, motif_cluster
+from chszlablib import Graph, Decomposition
 
 
 # ---------------------------------------------------------------------------
@@ -62,14 +62,14 @@ class TestMotifClusterSocial:
 
     def test_triangle(self):
         g = make_triangle()
-        r = motif_cluster(g, seed_node=0, method="social",
+        r = Decomposition.motif_cluster(g, seed_node=0, method="social",
                           bfs_depths=[5], time_limit=10)
         assert r.cluster_nodes is not None
         assert r.motif_conductance >= 0
 
     def test_two_triangles(self):
         g = make_two_triangles_shared_edge()
-        r = motif_cluster(g, seed_node=0, method="social",
+        r = Decomposition.motif_cluster(g, seed_node=0, method="social",
                           bfs_depths=[5], time_limit=10)
         assert len(r.cluster_nodes) > 0
         assert r.motif_conductance >= 0
@@ -77,7 +77,7 @@ class TestMotifClusterSocial:
     def test_barbell_finds_clique(self):
         """Seed in first K4 should find cluster in that clique."""
         g = make_barbell()
-        r = motif_cluster(g, seed_node=0, method="social",
+        r = Decomposition.motif_cluster(g, seed_node=0, method="social",
                           bfs_depths=[5, 10], time_limit=10)
         assert len(r.cluster_nodes) > 0
         # Seed node should be in the cluster
@@ -85,7 +85,7 @@ class TestMotifClusterSocial:
 
     def test_default_bfs_depths(self):
         g = make_two_triangles_shared_edge()
-        r = motif_cluster(g, seed_node=0)
+        r = Decomposition.motif_cluster(g, seed_node=0)
         assert r.cluster_nodes is not None
 
 
@@ -97,21 +97,21 @@ class TestMotifClusterLMCHGP:
 
     def test_triangle(self):
         g = make_triangle()
-        r = motif_cluster(g, seed_node=0, method="lmchgp",
+        r = Decomposition.motif_cluster(g, seed_node=0, method="lmchgp",
                           bfs_depths=[5], time_limit=10)
         assert r.cluster_nodes is not None
         assert r.motif_conductance >= 0
 
     def test_two_triangles(self):
         g = make_two_triangles_shared_edge()
-        r = motif_cluster(g, seed_node=0, method="lmchgp",
+        r = Decomposition.motif_cluster(g, seed_node=0, method="lmchgp",
                           bfs_depths=[5], time_limit=10)
         assert len(r.cluster_nodes) > 0
         assert r.motif_conductance >= 0
 
     def test_barbell_finds_clique(self):
         g = make_barbell()
-        r = motif_cluster(g, seed_node=0, method="lmchgp",
+        r = Decomposition.motif_cluster(g, seed_node=0, method="lmchgp",
                           bfs_depths=[5, 10], time_limit=10)
         assert len(r.cluster_nodes) > 0
         assert 0 in r.cluster_nodes
@@ -126,4 +126,4 @@ class TestMotifClusterErrors:
     def test_invalid_method(self):
         g = make_triangle()
         with pytest.raises(ValueError, match="Unknown method"):
-            motif_cluster(g, seed_node=0, method="nonexistent")
+            Decomposition.motif_cluster(g, seed_node=0, method="nonexistent")

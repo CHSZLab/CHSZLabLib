@@ -3,8 +3,7 @@
 import numpy as np
 import pytest
 
-from chszlablib.graph import Graph
-from chszlablib.mwis import mwis, MWISResult
+from chszlablib import Graph, IndependenceProblems, MWISResult
 
 
 # ------------------------------------------------------------------
@@ -28,7 +27,7 @@ def make_path_weighted():
 
 def test_mwis_path():
     g = make_path_weighted()
-    result = mwis(g, time_limit=1.0, num_concurrent=1)
+    result = IndependenceProblems.chils(g, time_limit=1.0, num_concurrent=1)
     assert isinstance(result, MWISResult)
     assert result.weight == 20
     assert set(result.vertices) == {0, 2}
@@ -44,7 +43,7 @@ def test_mwis_independent_set_valid():
     g.add_edge(3, 4)
     g.finalize()
 
-    result = mwis(g, time_limit=1.0, num_concurrent=1)
+    result = IndependenceProblems.chils(g, time_limit=1.0, num_concurrent=1)
 
     # Verify independent set property: no two selected vertices are adjacent
     is_set = set(result.vertices)
@@ -58,6 +57,6 @@ def test_mwis_independent_set_valid():
 def test_mwis_single_node():
     g = Graph(num_nodes=1)
     g.set_node_weight(0, 42)
-    result = mwis(g, time_limit=1.0, num_concurrent=1)
+    result = IndependenceProblems.chils(g, time_limit=1.0, num_concurrent=1)
     assert result.weight == 42
     assert list(result.vertices) == [0]
