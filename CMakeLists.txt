@@ -875,3 +875,4 @@ install(TARGETS _scc_evo DESTINATION chszlablib)
 pybind11_add_module(_heiorient bindings/heiorient_binding.cpp)
 target_link_libraries(_heiorient PRIVATE heiorient)
 install(TARGETS _heiorient DESTINATION chszlablib)
+

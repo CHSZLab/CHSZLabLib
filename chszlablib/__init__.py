@@ -7,7 +7,6 @@ from chszlablib.mwis import mwis
 from chszlablib.mis import redumis, online_mis, branch_reduce, mmwis_solver
 from chszlablib.correlation_clustering import correlation_clustering, evolutionary_correlation_clustering
 from chszlablib.orientation import orient_edges
-from chszlablib.bmatching import bmatching, hypergraph_bmatching
 
 __all__ = [
     "Graph",
@@ -27,6 +26,4 @@ __all__ = [
     "correlation_clustering",
     "evolutionary_correlation_clustering",
     "orient_edges",
-    "bmatching",
-    "hypergraph_bmatching",
 ]
