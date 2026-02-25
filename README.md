@@ -9,6 +9,9 @@
   <img src="https://img.shields.io/badge/C%2B%2B17-pybind11-00599C?logo=cplusplus&logoColor=white" alt="C++17 / pybind11">
   <img src="https://img.shields.io/badge/build-CMake%20%2B%20scikit--build-064F8C?logo=cmake&logoColor=white" alt="CMake + scikit-build">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
+  <br>
+  <img src="https://img.shields.io/badge/Linux-x86__64-FCC624?logo=linux&logoColor=black" alt="Linux x86_64">
+  <img src="https://img.shields.io/badge/macOS-arm64-000000?logo=apple&logoColor=white" alt="macOS arm64">
 </p>
 
 <p align="center">
@@ -19,6 +22,12 @@
     Built for humans and AI agents.
   </em>
 </p>
+
+---
+
+> **For scientific studies:** If you use any of the algorithms in a research paper, please cite and refer to the **original repositories** listed in the [Integrated Libraries](#integrated-libraries) table below. Those repositories contain the full documentation, parameter spaces, and experimental setups used in the respective publications.
+
+> **For maximum performance:** The bundled C++ libraries are compiled with default settings for broad compatibility. For peak performance and access to every tuning knob, use the **latest main branch of the original repositories** directly (linked in the table below).
 
 ---
 
