@@ -8,6 +8,12 @@ import numpy as np
 
 from chszlablib.graph import Graph
 
+try:
+    from chszlablib._hypermis_ilp import solve as _hypermis_ilp_solve  # type: ignore[import-not-found]
+    _HYPERMIS_ILP_AVAILABLE = True
+except ImportError:
+    _HYPERMIS_ILP_AVAILABLE = False
+
 
 @dataclass
 class MISResult:
@@ -27,6 +33,27 @@ class MWISResult:
     vertices: np.ndarray
 
 
+@dataclass
+class HyperMISResult:
+    """Result of a maximum independent set computation on a hypergraph.
+
+    Given a hypergraph H = (V, E) where each hyperedge e contains two or
+    more vertices, find a maximum independent set I such that for every
+    hyperedge e with |e| >= 2, at most one vertex from e is in I.
+    """
+
+    size: int
+    """Number of vertices in the independent set."""
+    weight: int
+    """Total node weight of the selected vertices."""
+    vertices: np.ndarray
+    """1-D int array of vertex IDs in the independent set."""
+    offset: int
+    """Number of vertices determined during the reduction phase."""
+    reduction_time: float
+    """Wall-clock time spent on reductions (seconds)."""
+
+
 class IndependenceProblems:
     """Maximum independent set and maximum weight independent set solvers."""
 
@@ -42,7 +69,11 @@ class IndependenceProblems:
             "branch_reduce": "Maximum weight independent set, exact (KaMIS/Branch&Reduce)",
             "mmwis": "Maximum weight independent set, evolutionary (KaMIS/MMWIS)",
             "chils": "Maximum weight independent set, concurrent local search (CHILS)",
+            "hypermis": "Maximum independent set on hypergraphs, reduction-based (HyperMIS)",
         }
+
+    HYPERMIS_ILP_AVAILABLE: bool = _HYPERMIS_ILP_AVAILABLE
+    """Whether the optional Gurobi ILP solver is available for HyperMIS."""
 
     # --- KaMIS: Unweighted MIS ---
 
@@ -321,3 +352,74 @@ class IndependenceProblems:
             xadj, adjncy, weights, time_limit, num_concurrent, seed,
         )
         return MWISResult(size=len(vertices), weight=int(total_weight), vertices=vertices)
+
+    # --- HyperMIS: Independent set on hypergraphs ---
+
+    @staticmethod
+    def hypermis(
+        hg: "HyperGraph",
+        time_limit: float = 60.0,
+        seed: int = 0,
+        strong_reductions: bool = False,
+    ) -> HyperMISResult:
+        """Compute a maximum independent set on a hypergraph using HyperMIS reductions.
+
+        Given a hypergraph H = (V, E) where each hyperedge e contains two or
+        more vertices, find a maximum independent set I such that for every
+        hyperedge e with |e| >= 2, at most one vertex from e is in I.  This is
+        "strong" independence: every hyperedge may contribute at most one
+        vertex to I.
+
+        HyperMIS applies kernelization reduction rules (vertex domination,
+        edge domination, small-edge removal, unconfined vertices) to shrink
+        the instance.  Vertices provably in or out of any optimal solution
+        are fixed during reduction.
+
+        Parameters
+        ----------
+        hg : HyperGraph
+            Input hypergraph.
+        time_limit : float, optional
+            Wall-clock time budget for reductions in seconds (default 60.0).
+        seed : int, optional
+            Random seed for reproducibility (default 0).
+        strong_reductions : bool, optional
+            If ``True``, enable aggressive reduction rules (unconfined
+            vertices, larger edge-size threshold).  Slower but may reduce
+            the kernel further (default ``False``).
+
+        Returns
+        -------
+        HyperMISResult
+            ``size`` -- number of vertices in the independent set,
+            ``weight`` -- total node weight of selected vertices,
+            ``vertices`` -- 1-D int array of vertex IDs in the set,
+            ``offset`` -- number of vertices determined during reduction,
+            ``reduction_time`` -- wall-clock seconds spent on reductions.
+
+        Raises
+        ------
+        ValueError
+            If *time_limit* is negative.
+        """
+        from chszlablib._hypermis import reduce as _reduce
+
+        if time_limit < 0:
+            raise ValueError(f"time_limit must be >= 0, got {time_limit}")
+
+        hg.finalize()
+        eptr = hg.eptr.astype(np.int64, copy=False)
+        everts = hg.everts.astype(np.int32, copy=False)
+
+        offset, is_verts, reduction_time = _reduce(
+            eptr, everts, hg.num_nodes, time_limit, seed, strong_reductions,
+        )
+
+        weight = int(np.sum(hg.node_weights[is_verts])) if hg.node_weights is not None and len(is_verts) > 0 else len(is_verts)
+        return HyperMISResult(
+            size=len(is_verts),
+            weight=weight,
+            vertices=is_verts,
+            offset=offset,
+            reduction_time=reduction_time,
+        )

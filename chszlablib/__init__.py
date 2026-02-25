@@ -21,7 +21,7 @@ from chszlablib.decomposition import (
     MotifClusterResult,
     StreamPartitionResult,
 )
-from chszlablib.independence import IndependenceProblems, MISResult, MWISResult
+from chszlablib.independence import IndependenceProblems, MISResult, MWISResult, HyperMISResult
 from chszlablib.orientation import Orientation, EdgeOrientationResult
 from chszlablib.paths import PathProblems, LongestPathResult
 
@@ -108,6 +108,7 @@ def describe() -> str:
         "  MotifClusterResult      cluster_nodes, motif_conductance",
         "  MISResult               size, weight, vertices",
         "  MWISResult              size, weight, vertices",
+        "  HyperMISResult          size, weight, vertices, offset, reduction_time",
         "  EdgeOrientationResult   max_out_degree, out_degrees, edge_heads",
         "  LongestPathResult       length, path",
         "",
@@ -168,6 +169,7 @@ __all__ = [
     "StreamPartitionResult",
     "MISResult",
     "MWISResult",
+    "HyperMISResult",
     "EdgeOrientationResult",
     "LongestPathResult",
 ]
