@@ -211,6 +211,12 @@ set_target_properties(chils_static PROPERTIES C_STANDARD 17)
 
 if(OpenMP_C_FOUND)
     target_link_libraries(chils_static PUBLIC OpenMP::OpenMP_C)
+    if(MSVC)
+        # MSVC's default /openmp uses OpenMP 2.0 which rejects C99-style
+        # for-loop init inside `#pragma omp for` (error C3015).
+        # Override with /openmp:llvm which supports OpenMP 3.0+ and accepts it.
+        target_compile_options(chils_static PRIVATE /openmp:llvm)
+    endif()
 endif()
 
 # =============================================================================
@@ -816,6 +822,11 @@ target_include_directories(heiorient INTERFACE
 )
 target_compile_features(heiorient INTERFACE cxx_std_17)
 
+# --- Patch: MSVC rejects narrowing size_t → unsigned int inside brace init ---
+file(READ ${HEIORIENT_DIR}/edge_orientation/ds/smaller_graph.h _SRC)
+string(REPLACE "IndexType{out_s.size() - 1}" "IndexType{static_cast<IT>(out_s.size() - 1)}" _SRC "${_SRC}")
+file(WRITE ${HEIORIENT_DIR}/edge_orientation/ds/smaller_graph.h "${_SRC}")
+
 # =============================================================================
 # KaHIP Evolutionary (kaffpaE) — modified_kahip with pseudo-MPI shim
 # =============================================================================
@@ -1063,6 +1074,14 @@ FetchContent_Declare(
   GIT_TAG        master
 )
 FetchContent_MakeAvailable(readerwriterqueue)
+
+# --- Patch: MSVC doesn't support __attribute__((unused)) in sparsehash ---
+file(READ ${HEISTREAM_DIR}/extern/sparsehash/src/sparsehash/internal/hashtable-common.h _SRC)
+string(REPLACE
+    "__attribute__((unused)) typedef SparsehashCompileAssert<(bool(expr))> msg[bool(expr) ? 1 : -1]"
+    "typedef SparsehashCompileAssert<(bool(expr))> msg[bool(expr) ? 1 : -1]"
+    _SRC "${_SRC}")
+file(WRITE ${HEISTREAM_DIR}/extern/sparsehash/src/sparsehash/internal/hashtable-common.h "${_SRC}")
 
 # Build flatbuffers from HeiStream's bundled copy
 add_subdirectory(${HEISTREAM_DIR}/extern/flatbuffers
