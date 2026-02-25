@@ -153,7 +153,7 @@ print(f"Hypergraph IS size: {r.size}, vertices: {r.vertices}")
 | Find a node separator | `Decomposition.node_separator` | `num_parts`, `mode` |
 | Find a large independent set | `IndependenceProblems.redumis` | `time_limit` |
 | Find max-weight independent set | `IndependenceProblems.chils` | `time_limit`, `num_concurrent` |
-| Independent set on a hypergraph | `IndependenceProblems.hypermis` | `time_limit`, `strong_reductions` |
+| Independent set on a hypergraph | `IndependenceProblems.hypermis` | `time_limit`, `strong_reductions`, `use_ilp` |
 | Orient edges (min max out-degree) | `Orientation.orient_edges` | `algorithm` |
 | Find the longest simple path | `PathProblems.longest_path` | `start_vertex`, `target_vertex` |
 
@@ -236,7 +236,7 @@ g = hg.to_graph()
 - **Call `g.finalize()` before passing to algorithms** (or let property access auto-finalize).
 - **Mode strings are case-sensitive:** use `"eco"`, not `"Eco"` or `"ECO"`.
 - **Self-loops and duplicate edges raise `InvalidGraphError`.** Empty hyperedges raise `InvalidHyperGraphError`.
-- **NetworkX / SciPy are optional** — import errors give a helpful message.
+- **NetworkX / SciPy / gurobipy are optional** — import errors give a helpful message.
 - **`IndependenceProblems.hypermis()` takes a `HyperGraph`, not a `Graph`.**
 - **`PartitionResult.balance` is only set by `evolutionary_partition`.**
 - **Catch `CHSZLabLibError` to handle all library errors, or use specific subclasses (`InvalidModeError`, `InvalidGraphError`, `GraphNotFinalizedError`).**
@@ -267,6 +267,14 @@ The build script handles everything automatically:
 | C++ compiler | GCC or Clang with C++17 support |
 | CMake | >= 3.15 |
 | NumPy | >= 1.20 |
+
+**Optional dependencies:**
+
+| Package | Purpose |
+|:--------|:--------|
+| `networkx` | `Graph.from_networkx()` / `to_networkx()` conversions |
+| `scipy` | `Graph.from_scipy_sparse()` / `to_scipy_sparse()` conversions |
+| `gurobipy` | Exact ILP solver for `IndependenceProblems.hypermis(use_ilp=True)` — requires a [Gurobi license](https://www.gurobi.com/downloads/) |
 | OpenMP | Optional (enables parallelism in VieClus, CHILS, HeiStream) |
 
 ---
@@ -742,28 +750,35 @@ $$\max_{I \subseteq V} |I| \quad \text{subject to} \quad |I \cap e| \leq 1 \quad
 This is stricter than graph independence: every hyperedge may contribute **at most one** vertex to $I$. HyperMIS applies **kernelization reduction rules** (vertex domination, edge domination, small-edge removal, unconfined vertices) to shrink the instance. Vertices provably in or out of any optimal solution are fixed during reduction.
 
 ```python
-IndependenceProblems.hypermis(hg, time_limit=60.0, seed=0, strong_reductions=False) -> HyperMISResult
+IndependenceProblems.hypermis(hg, time_limit=60.0, seed=0, strong_reductions=False, use_ilp=False) -> HyperMISResult
 ```
 
 | Parameter | Type | Default | Description |
 |:----------|:-----|:--------|:------------|
 | `hg` | `HyperGraph` | — | Input hypergraph |
-| `time_limit` | `float` | `60.0` | Reduction time budget in seconds |
+| `time_limit` | `float` | `60.0` | Reduction time budget in seconds (also used as Gurobi time limit when `use_ilp=True`) |
 | `seed` | `int` | `0` | Random seed for reproducibility |
 | `strong_reductions` | `bool` | `False` | Enable aggressive reductions (unconfined vertices, larger edge thresholds) |
+| `use_ilp` | `bool` | `False` | Solve the remaining kernel exactly via ILP (requires `gurobipy`) |
 
-**Result: `HyperMISResult`** — `size` (int), `weight` (int), `vertices` (ndarray), `offset` (int — vertices fixed by reductions), `reduction_time` (float — seconds spent reducing).
+**Result: `HyperMISResult`** — `size` (int), `weight` (int), `vertices` (ndarray), `offset` (int — vertices fixed by reductions), `reduction_time` (float — seconds spent reducing), `is_optimal` (bool — `True` if the ILP proved optimality).
 
 ```python
 from chszlablib import HyperGraph, IndependenceProblems
 
 hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3, 4], [4, 5]])
+
+# Reduction-only (always available)
 result = IndependenceProblems.hypermis(hg, time_limit=10.0, strong_reductions=True)
 print(f"IS size: {result.size}, vertices: {result.vertices}")
 print(f"Reduction fixed {result.offset} vertices in {result.reduction_time:.3f}s")
+
+# Exact solve via ILP (requires: pip install gurobipy)
+result = IndependenceProblems.hypermis(hg, time_limit=10.0, use_ilp=True)
+print(f"IS size: {result.size}, optimal: {result.is_optimal}")
 ```
 
-> **Note:** The optional Gurobi ILP solver can extend HyperMIS with an exact solve phase on the reduced kernel. Install `gurobipy` via pip and provide a valid Gurobi license. Check availability at runtime with `IndependenceProblems.HYPERMIS_ILP_AVAILABLE`.
+> **Note:** The `use_ilp=True` pipeline runs C++ reductions first, then solves the (typically small) remaining kernel exactly via a `gurobipy` ILP formulation. Install with `pip install gurobipy` and provide a valid [Gurobi license](https://www.gurobi.com/downloads/). Check availability at runtime with `IndependenceProblems.HYPERMIS_ILP_AVAILABLE`.
 
 ---
 
