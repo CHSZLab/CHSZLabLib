@@ -1,4 +1,4 @@
-"""METIS graph file I/O for CHSZLabLib."""
+"""METIS graph and hMETIS hypergraph file I/O for CHSZLabLib."""
 
 from __future__ import annotations
 
@@ -189,3 +189,147 @@ def write_metis(graph: "Graph", path: Union[str, Path]) -> None:
                     parts.append(str(int(ew[j])))
 
             fh.write(" ".join(parts) + "\n")
+
+
+def read_hmetis(path: Union[str, Path]) -> "HyperGraph":
+    """Read a hypergraph from an hMETIS-format file.
+
+    hMETIS format overview::
+
+        c optional comment lines (start with c or %)
+        M N [W]
+        [edge_weight] v1 v2 v3 ...   (M lines, one per hyperedge)
+        [vertex_weight]               (N lines, only when W includes node weights)
+
+    ``W`` encodes which weights are present (two-digit flag):
+
+    - omitted or ``0``: no weights
+    - ``1``:  edge weights only (first token per edge line)
+    - ``10``: node weights only (N lines after edges)
+    - ``11``: both edge and node weights
+
+    Vertex IDs in the file are **1-indexed**; internally they are **0-indexed**.
+
+    Parameters
+    ----------
+    path : str or Path
+        Path to the hMETIS file.
+
+    Returns
+    -------
+    HyperGraph
+        A finalized :class:`~chszlablib.hypergraph.HyperGraph`.
+    """
+    from chszlablib.hypergraph import HyperGraph
+
+    path = Path(path)
+
+    with open(path, "r") as fh:
+        lines = fh.readlines()
+
+    # Collect non-comment, non-blank lines
+    data_lines: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped == "" or stripped.startswith("c") or stripped.startswith("%"):
+            continue
+        data_lines.append(stripped)
+
+    if not data_lines:
+        raise ValueError("hMETIS file is empty or contains only comments")
+
+    # Parse header: M N [W]
+    header = data_lines[0].split()
+    m = int(header[0])  # number of hyperedges
+    n = int(header[1])  # number of vertices
+    w = int(header[2]) if len(header) >= 3 else 0
+
+    has_edge_weights = w in (1, 11)
+    has_node_weights = w in (10, 11)
+
+    # Parse M edge lines
+    edges: list[list[int]] = []
+    edge_weights_list: list[int] = []
+
+    for i in range(1, m + 1):
+        tokens = list(map(int, data_lines[i].split()))
+        pos = 0
+
+        if has_edge_weights:
+            edge_weights_list.append(tokens[pos])
+            pos += 1
+
+        # Remaining tokens are 1-indexed vertex IDs
+        verts = [t - 1 for t in tokens[pos:]]
+        edges.append(verts)
+
+    # Parse N node weight lines (if present)
+    node_weights_list: list[int] | None = None
+    if has_node_weights:
+        node_weights_list = []
+        for i in range(m + 1, m + 1 + n):
+            node_weights_list.append(int(data_lines[i].strip()))
+
+    return HyperGraph.from_edge_list(
+        edges,
+        num_nodes=n,
+        node_weights=node_weights_list,
+        edge_weights=edge_weights_list if has_edge_weights else None,
+    )
+
+
+def write_hmetis(hypergraph: "HyperGraph", path: Union[str, Path]) -> None:
+    """Write a hypergraph to an hMETIS-format file.
+
+    Parameters
+    ----------
+    hypergraph : HyperGraph
+        The hypergraph to write.
+    path : str or Path
+        Output file path.
+    """
+    path = Path(path)
+
+    m = hypergraph.num_edges
+    n = hypergraph.num_nodes
+
+    # Determine weight format
+    has_node_weights = not np.all(hypergraph.node_weights == 1)
+    has_edge_weights = not np.all(hypergraph.edge_weights == 1)
+
+    if has_node_weights and has_edge_weights:
+        w = 11
+    elif has_node_weights:
+        w = 10
+    elif has_edge_weights:
+        w = 1
+    else:
+        w = 0
+
+    eptr = hypergraph.eptr
+    everts = hypergraph.everts
+    ew = hypergraph.edge_weights
+    nw = hypergraph.node_weights
+
+    with open(path, "w") as fh:
+        # Header
+        if w != 0:
+            fh.write(f"{m} {n} {w}\n")
+        else:
+            fh.write(f"{m} {n}\n")
+
+        # Edge lines: [edge_weight] v1 v2 ... (1-indexed)
+        for eid in range(m):
+            parts: list[str] = []
+            if has_edge_weights:
+                parts.append(str(int(ew[eid])))
+            start = int(eptr[eid])
+            end = int(eptr[eid + 1])
+            for j in range(start, end):
+                parts.append(str(int(everts[j]) + 1))  # 0-indexed -> 1-indexed
+            fh.write(" ".join(parts) + "\n")
+
+        # Node weight lines (one per vertex)
+        if has_node_weights:
+            for vid in range(n):
+                fh.write(f"{int(nw[vid])}\n")

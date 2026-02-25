@@ -603,3 +603,89 @@ class TestHyperGraphToGraph:
         g = hg.to_graph()
         assert g.num_nodes == 5
         assert g.num_edges == 10  # C(5,2)
+
+
+# ------------------------------------------------------------------
+# hMETIS I/O
+# ------------------------------------------------------------------
+
+class TestHMetisIO:
+    def test_write_read_roundtrip_unweighted(self, tmp_path):
+        hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3], [0, 3]])
+        path = str(tmp_path / "test.hgr")
+        hg.to_hmetis(path)
+        hg2 = HyperGraph.from_hmetis(path)
+        assert hg2.num_nodes == 4
+        assert hg2.num_edges == 3
+        np.testing.assert_array_equal(hg2.eptr, hg.eptr)
+        np.testing.assert_array_equal(hg2.everts, hg.everts)
+
+    def test_write_read_roundtrip_node_weights(self, tmp_path):
+        hg = HyperGraph.from_edge_list([[0, 1], [1, 2]], node_weights=[5, 3, 7])
+        path = str(tmp_path / "test_nw.hgr")
+        hg.to_hmetis(path)
+        hg2 = HyperGraph.from_hmetis(path)
+        np.testing.assert_array_equal(hg2.node_weights, [5, 3, 7])
+
+    def test_write_read_roundtrip_edge_weights(self, tmp_path):
+        hg = HyperGraph.from_edge_list([[0, 1], [1, 2]], edge_weights=[10, 20])
+        path = str(tmp_path / "test_ew.hgr")
+        hg.to_hmetis(path)
+        hg2 = HyperGraph.from_hmetis(path)
+        np.testing.assert_array_equal(hg2.edge_weights, [10, 20])
+
+    def test_write_read_roundtrip_both_weights(self, tmp_path):
+        hg = HyperGraph.from_edge_list(
+            [[0, 1], [1, 2]],
+            node_weights=[5, 3, 7],
+            edge_weights=[10, 20],
+        )
+        path = str(tmp_path / "test_bw.hgr")
+        hg.to_hmetis(path)
+        hg2 = HyperGraph.from_hmetis(path)
+        np.testing.assert_array_equal(hg2.node_weights, [5, 3, 7])
+        np.testing.assert_array_equal(hg2.edge_weights, [10, 20])
+
+    def test_read_hmetis_manual_unweighted(self, tmp_path):
+        path = str(tmp_path / "manual.hgr")
+        with open(path, "w") as f:
+            f.write("3 4\n")
+            f.write("1 2 3\n")
+            f.write("3 4\n")
+            f.write("1 4\n")
+        hg = HyperGraph.from_hmetis(path)
+        assert hg.num_nodes == 4
+        assert hg.num_edges == 3
+
+    def test_read_hmetis_edge_weights_fmt1(self, tmp_path):
+        path = str(tmp_path / "ew.hgr")
+        with open(path, "w") as f:
+            f.write("2 3 1\n")
+            f.write("5 1 2\n")
+            f.write("3 2 3\n")
+        hg = HyperGraph.from_hmetis(path)
+        np.testing.assert_array_equal(hg.edge_weights, [5, 3])
+
+    def test_read_hmetis_both_weights_fmt11(self, tmp_path):
+        path = str(tmp_path / "bw.hgr")
+        with open(path, "w") as f:
+            f.write("2 3 11\n")
+            f.write("5 1 2\n")
+            f.write("3 2 3\n")
+            f.write("10\n")
+            f.write("20\n")
+            f.write("30\n")
+        hg = HyperGraph.from_hmetis(path)
+        np.testing.assert_array_equal(hg.edge_weights, [5, 3])
+        np.testing.assert_array_equal(hg.node_weights, [10, 20, 30])
+
+    def test_comments_skipped(self, tmp_path):
+        path = str(tmp_path / "comments.hgr")
+        with open(path, "w") as f:
+            f.write("c This is a comment\n")
+            f.write("%% Another comment\n")
+            f.write("1 2\n")
+            f.write("1 2\n")
+        hg = HyperGraph.from_hmetis(path)
+        assert hg.num_nodes == 2
+        assert hg.num_edges == 1

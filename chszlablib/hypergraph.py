@@ -572,6 +572,48 @@ class HyperGraph:
         return g
 
     # ------------------------------------------------------------------
+    # hMETIS I/O convenience methods
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def from_hmetis(cls, path: str) -> HyperGraph:
+        """Read a hypergraph from an hMETIS-format file.
+
+        Parameters
+        ----------
+        path : str
+            Path to the hMETIS file.
+
+        Returns
+        -------
+        HyperGraph
+            A finalized hypergraph.
+
+        See Also
+        --------
+        chszlablib.io.read_hmetis : The underlying reader.
+        """
+        from chszlablib.io import read_hmetis
+
+        return read_hmetis(path)
+
+    def to_hmetis(self, path: str) -> None:
+        """Write this hypergraph to an hMETIS-format file.
+
+        Parameters
+        ----------
+        path : str
+            Output file path.
+
+        See Also
+        --------
+        chszlablib.io.write_hmetis : The underlying writer.
+        """
+        from chszlablib.io import write_hmetis
+
+        write_hmetis(self, path)
+
+    # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
 
