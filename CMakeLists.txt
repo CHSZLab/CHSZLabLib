@@ -1213,6 +1213,60 @@ target_include_directories(hypermis_static PUBLIC
 )
 target_compile_options(hypermis_static PRIVATE -w -O2)
 
+# =============================================================================
+# HeiCut  (Hypergraph Minimum Cut)
+# =============================================================================
+set(HEICUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/HeiCut)
+
+# Check for Gurobi (optional ILP solver)
+set(HEICUT_HAS_GUROBI OFF)
+if(DEFINED ENV{GUROBI_HOME})
+    set(GUROBI_HOME "$ENV{GUROBI_HOME}")
+    if(EXISTS "${GUROBI_HOME}/include/gurobi_c++.h")
+        set(HEICUT_HAS_GUROBI ON)
+    endif()
+endif()
+
+# HeiCut static library sources (no app/, no parse_parameters)
+set(HEICUT_SOURCES
+    ${HEICUT_DIR}/lib/solvers/submodular.cpp
+    ${HEICUT_DIR}/lib/coarsening/label_propagation.cpp
+    ${HEICUT_DIR}/lib/trimmer/trimmer.cpp
+    ${HEICUT_DIR}/lib/decomposition/core_decomposition.cpp
+    ${HEICUT_DIR}/lib/utils/random.cpp
+)
+
+# Conditionally include ILP and kernelizer sources when Gurobi is available
+if(HEICUT_HAS_GUROBI)
+    list(APPEND HEICUT_SOURCES
+        ${HEICUT_DIR}/lib/solvers/ilp.cpp
+        ${HEICUT_DIR}/lib/solvers/kernelizer.cpp
+    )
+endif()
+
+add_library(heicut_static STATIC ${HEICUT_SOURCES})
+target_include_directories(heicut_static PUBLIC
+    ${HEICUT_DIR}
+    ${HEICUT_DIR}/extern
+    ${HEICUT_DIR}/extern/kahip
+    ${HEICUT_DIR}/extern/mt-kahypar
+    ${HEICUT_DIR}/extern/mt-kahypar-library
+    ${HEICUT_DIR}/extern/kahypar-shared-resources
+    ${HEICUT_DIR}/extern/argtable3-3.2.2
+)
+target_compile_options(heicut_static PRIVATE -w -O2)
+# Sequential only (no SMHM_PARALLEL), release mode for assertions
+target_compile_definitions(heicut_static PRIVATE -DNDEBUG)
+
+if(HEICUT_HAS_GUROBI)
+    target_include_directories(heicut_static PRIVATE "${GUROBI_HOME}/include")
+    target_compile_definitions(heicut_static PRIVATE -DHEICUT_HAS_GUROBI)
+endif()
+
+# Link against libmtkahypar.so (pre-built shared library)
+set(HEICUT_MTKAHYPAR_LIB "${HEICUT_DIR}/extern/mt-kahypar-library/libmtkahypar.so")
+target_link_libraries(heicut_static PUBLIC ${HEICUT_MTKAHYPAR_LIB})
+
 
 # =============================================================================
 # Pybind11 modules
@@ -1316,4 +1370,26 @@ install(TARGETS _heistream DESTINATION chszlablib)
 pybind11_add_module(_hypermis bindings/hypermis_binding.cpp)
 target_link_libraries(_hypermis PRIVATE hypermis_static)
 install(TARGETS _hypermis DESTINATION chszlablib)
+
+# --- _heicut (Hypergraph Minimum Cut) ---
+pybind11_add_module(_heicut bindings/heicut_binding.cpp)
+target_link_libraries(_heicut PRIVATE heicut_static)
+target_compile_options(_heicut PRIVATE -w)
+target_compile_definitions(_heicut PRIVATE -DNDEBUG)
+if(HEICUT_HAS_GUROBI)
+    target_compile_definitions(_heicut PRIVATE -DHEICUT_HAS_GUROBI)
+    target_include_directories(_heicut PRIVATE "${GUROBI_HOME}/include")
+    # Find the Gurobi library (gurobi_c++ and gurobi<version>)
+    file(GLOB GUROBI_CXX_LIB "${GUROBI_HOME}/lib/libgurobi_c++.a")
+    file(GLOB GUROBI_LIB "${GUROBI_HOME}/lib/libgurobi*.so")
+    target_link_libraries(_heicut PRIVATE ${GUROBI_CXX_LIB} ${GUROBI_LIB})
+endif()
+# Set RPATH so libmtkahypar.so is found at runtime
+set_target_properties(_heicut PROPERTIES
+    BUILD_RPATH "${HEICUT_DIR}/extern/mt-kahypar-library"
+    INSTALL_RPATH "$ORIGIN"
+)
+install(TARGETS _heicut DESTINATION chszlablib)
+# Install libmtkahypar.so alongside the package for runtime
+install(FILES ${HEICUT_MTKAHYPAR_LIB} DESTINATION chszlablib)
 
