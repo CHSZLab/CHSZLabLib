@@ -291,6 +291,9 @@ set(KAMIS_ROOT_LIB_SOURCES
     ${KAMIS_DIR}/lib/mis/evolutionary/combine/cover_combine.cpp
     ${KAMIS_DIR}/lib/mis/evolutionary/combine/separator_combine.cpp
     ${KAMIS_DIR}/lib/mis/evolutionary/combine/multiway_combine.cpp
+    ${KAMIS_DIR}/lib/mis/kernel/ParFastKer/fast_reductions/src/full_reductions.cpp
+    ${KAMIS_DIR}/lib/mis/kernel/ParFastKer/fast_reductions/src/parallel_reductions.cpp
+    ${KAMIS_DIR}/lib/mis/kernel/ParFastKer/fast_reductions/src/MaximumMatching.cpp
     ${KAMIS_DIR}/lib/mis/kernel/ParFastKer/LinearTime/MIS_sigmod_pub/Graph.cpp
     ${KAMIS_DIR}/lib/mis/kernel/ParFastKer/LinearTime/MIS_sigmod_pub/Utility.cpp
     ${KAMIS_DIR}/extern/argtable3-3.0.3/argtable3.c
@@ -512,6 +515,12 @@ string(REPLACE
     "G.build_from_metis(status.remaining_nodes, reinterpret_cast<int*>(&xadj[0]), reinterpret_cast<int*>(&adjncy[0]))"
     _SRC "${_SRC}")
 file(WRITE ${_MMWIS_KERNEL_DIR}/branch_and_reduce_algorithm.cpp "${_SRC}")
+
+# --- MaximumMatching.cpp: missing omp.h include (clang needs explicit include) ---
+set(_PARFASTKER_SRC_DIR ${KAMIS_DIR}/lib/mis/kernel/ParFastKer/fast_reductions/src)
+file(READ ${_PARFASTKER_SRC_DIR}/MaximumMatching.cpp _SRC)
+string(REPLACE "#include <parallel/numeric>" "#include <omp.h>\n#include <parallel/numeric>" _SRC "${_SRC}")
+file(WRITE ${_PARFASTKER_SRC_DIR}/MaximumMatching.cpp "${_SRC}")
 
 # ---------------------------------------------------------------------------
 # kamis_mmwis_static — weighted MIS memetic evolutionary (MMWIS)
