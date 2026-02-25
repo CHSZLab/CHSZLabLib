@@ -19,6 +19,29 @@ namespace py = pybind11;
 extern hypergraph *hypergraph_init(NodeID n, NodeID m);
 extern void hypergraph_append_element(NodeID *l, NodeID *a, NodeID **A, NodeID v);
 
+// Configure HyperMIS global variables.
+// strong_reductions: enable unconfined vertex reductions + aggressive thresholds
+// heuristic: enable heuristic peeling when reductions stall (greedy, not exact)
+static void configure_hypermis(double time_limit, bool strong_reductions, bool heuristic) {
+    VERBOSE = 0;
+    TIME_KERNEL_SECONDS = static_cast<size_t>(time_limit);
+    HEURISTIC_RED = heuristic ? 1 : 0;
+    if (strong_reductions) {
+        UNCONFINED_REDUCE = 1;
+        NUM_REMOVED_EDGES = 1000000;
+        CONSTANT_UNCONFINED = 5;
+        ITERATIONS_UNCONFINED = 20000;
+        EDGE_SIZE = 5000;
+    } else {
+        UNCONFINED_REDUCE = 0;
+        REDUCE = 1;
+        NUM_REMOVED_EDGES = 20000;
+        ITERATIONS_UNCONFINED = 10000;
+        CONSTANT_UNCONFINED = 3;
+        EDGE_SIZE = 200;
+    }
+}
+
 // Build a hypergraph struct from edge-to-vertex CSR arrays
 static hypergraph* build_hypergraph_from_csr(
     py::array_t<int64_t, py::array::c_style> eptr,
@@ -61,7 +84,8 @@ py_hypermis_reduce_and_extract_kernel(
     int num_nodes,
     double time_limit,
     int seed,
-    bool strong_reductions)
+    bool strong_reductions,
+    bool heuristic)
 {
     // Suppress stdout/stderr
     std::streambuf *old_cout = std::cout.rdbuf();
@@ -70,25 +94,7 @@ py_hypermis_reduce_and_extract_kernel(
     std::cout.rdbuf(null_stream.rdbuf());
     std::cerr.rdbuf(null_stream.rdbuf());
 
-    // Configure globals
-    VERBOSE = 0;
-    TIME_KERNEL_SECONDS = static_cast<size_t>(time_limit);
-    if (strong_reductions) {
-        UNCONFINED_REDUCE = 1;
-        NUM_REMOVED_EDGES = 1000000;
-        CONSTANT_UNCONFINED = 5;
-        ITERATIONS_UNCONFINED = 20000;
-        EDGE_SIZE = 5000;
-        HEURISTIC_RED = 1;
-    } else {
-        UNCONFINED_REDUCE = 0;
-        REDUCE = 1;
-        HEURISTIC_RED = 0;
-        NUM_REMOVED_EDGES = 20000;
-        ITERATIONS_UNCONFINED = 10000;
-        CONSTANT_UNCONFINED = 3;
-        EDGE_SIZE = 200;
-    }
+    configure_hypermis(time_limit, strong_reductions, heuristic);
 
     // Build hypergraph from CSR
     hypergraph* g = build_hypergraph_from_csr(eptr, everts, num_nodes);
@@ -183,7 +189,8 @@ py_hypermis_reduce(
     int num_nodes,
     double time_limit,
     int seed,
-    bool strong_reductions)
+    bool strong_reductions,
+    bool heuristic)
 {
     // Suppress stdout/stderr
     std::streambuf *old_cout = std::cout.rdbuf();
@@ -192,25 +199,7 @@ py_hypermis_reduce(
     std::cout.rdbuf(null_stream.rdbuf());
     std::cerr.rdbuf(null_stream.rdbuf());
 
-    // Configure globals
-    VERBOSE = 0;
-    TIME_KERNEL_SECONDS = static_cast<size_t>(time_limit);
-    if (strong_reductions) {
-        UNCONFINED_REDUCE = 1;
-        NUM_REMOVED_EDGES = 1000000;
-        CONSTANT_UNCONFINED = 5;
-        ITERATIONS_UNCONFINED = 20000;
-        EDGE_SIZE = 5000;
-        HEURISTIC_RED = 1;
-    } else {
-        UNCONFINED_REDUCE = 0;
-        REDUCE = 1;
-        HEURISTIC_RED = 0;
-        NUM_REMOVED_EDGES = 20000;
-        ITERATIONS_UNCONFINED = 10000;
-        CONSTANT_UNCONFINED = 3;
-        EDGE_SIZE = 200;
-    }
+    configure_hypermis(time_limit, strong_reductions, heuristic);
 
     // Build hypergraph from CSR
     hypergraph* g = build_hypergraph_from_csr(eptr, everts, num_nodes);
@@ -263,6 +252,7 @@ PYBIND11_MODULE(_hypermis, m) {
           py::arg("num_nodes"),
           py::arg("time_limit"), py::arg("seed"),
           py::arg("strong_reductions"),
+          py::arg("heuristic"),
           R"doc(
           Run HyperMIS reduction rules on a hypergraph.
 
@@ -279,7 +269,9 @@ PYBIND11_MODULE(_hypermis, m) {
           seed : int
               Random seed.
           strong_reductions : bool
-              Enable aggressive reduction rules.
+              Enable aggressive reduction rules (unconfined vertices, larger thresholds).
+          heuristic : bool
+              Enable heuristic peeling when reductions stall (greedy, not exact).
 
           Returns
           -------
@@ -292,6 +284,7 @@ PYBIND11_MODULE(_hypermis, m) {
           py::arg("num_nodes"),
           py::arg("time_limit"), py::arg("seed"),
           py::arg("strong_reductions"),
+          py::arg("heuristic"),
           R"doc(
           Run HyperMIS reductions and extract the remaining kernel.
 
@@ -308,7 +301,9 @@ PYBIND11_MODULE(_hypermis, m) {
           seed : int
               Random seed.
           strong_reductions : bool
-              Enable aggressive reduction rules.
+              Enable aggressive reduction rules (unconfined vertices, larger thresholds).
+          heuristic : bool
+              Enable heuristic peeling when reductions stall (greedy, not exact).
 
           Returns
           -------

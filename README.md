@@ -153,7 +153,7 @@ print(f"Hypergraph IS size: {r.size}, vertices: {r.vertices}")
 | Find a node separator | `Decomposition.node_separator` | `num_parts`, `mode` |
 | Find a large independent set | `IndependenceProblems.redumis` | `time_limit` |
 | Find max-weight independent set | `IndependenceProblems.chils` | `time_limit`, `num_concurrent` |
-| Independent set on a hypergraph | `IndependenceProblems.hypermis` | `time_limit`, `strong_reductions`, `use_ilp` |
+| Independent set on a hypergraph | `IndependenceProblems.hypermis` | `method`, `time_limit`, `strong_reductions` |
 | Orient edges (min max out-degree) | `Orientation.orient_edges` | `algorithm` |
 | Find the longest simple path | `PathProblems.longest_path` | `start_vertex`, `target_vertex` |
 
@@ -177,7 +177,8 @@ Orientation.orient_edges(g, algorithm="combined")                       # edge o
 PathProblems.longest_path(g, start_vertex=0, target_vertex=5)           # longest s-t path
 
 hg = HyperGraph.from_edge_list([[0,1,2],[2,3,4],[4,5]])
-IndependenceProblems.hypermis(hg, time_limit=5.0)                       # hypergraph independent set
+IndependenceProblems.hypermis(hg)                                       # hypergraph IS (heuristic)
+IndependenceProblems.hypermis(hg, method="exact")                       # hypergraph IS (exact, needs gurobipy)
 ```
 
 ### Programmatic Introspection
@@ -674,7 +675,7 @@ Maximum independent set and maximum weight independent set solvers.
 | `branch_reduce` | Maximum weight independent set (exact) | KaMIS |
 | `mmwis` | Maximum weight independent set (evolutionary) | KaMIS |
 | `chils` | Maximum weight independent set (concurrent local search) | CHILS |
-| `hypermis` | Maximum independent set on hypergraphs (reductions) | HyperMIS |
+| `hypermis` | Maximum independent set on hypergraphs (heuristic or exact) | HyperMIS |
 
 #### `IndependenceProblems.redumis(g, ...)` — Maximum Independent Set (KaMIS)
 
@@ -747,19 +748,22 @@ print(f"Weight: {result.weight}, vertices: {result.vertices}")
 
 $$\max_{I \subseteq V} |I| \quad \text{subject to} \quad |I \cap e| \leq 1 \quad \text{for all } e \in E.$$
 
-This is stricter than graph independence: every hyperedge may contribute **at most one** vertex to $I$. HyperMIS applies **kernelization reduction rules** (vertex domination, edge domination, small-edge removal, unconfined vertices) to shrink the instance. Vertices provably in or out of any optimal solution are fixed during reduction.
+This is stricter than graph independence: every hyperedge may contribute **at most one** vertex to $I$. Two solving strategies are available:
+
+- **`"heuristic"`** (default) — kernelization reductions + greedy heuristic peeling in C++. Fast, but not provably optimal.
+- **`"exact"`** — kernelization reductions (no heuristic), then the remaining kernel is solved exactly via an ILP formulation using `gurobipy`. Requires `pip install gurobipy` and a valid [Gurobi license](https://www.gurobi.com/downloads/).
 
 ```python
-IndependenceProblems.hypermis(hg, time_limit=60.0, seed=0, strong_reductions=False, use_ilp=False) -> HyperMISResult
+IndependenceProblems.hypermis(hg, method="heuristic", time_limit=60.0, seed=0, strong_reductions=True) -> HyperMISResult
 ```
 
 | Parameter | Type | Default | Description |
 |:----------|:-----|:--------|:------------|
 | `hg` | `HyperGraph` | — | Input hypergraph |
-| `time_limit` | `float` | `60.0` | Reduction time budget in seconds (also used as Gurobi time limit when `use_ilp=True`) |
+| `method` | `"heuristic"` \| `"exact"` | `"heuristic"` | Solving strategy |
+| `time_limit` | `float` | `60.0` | Time budget in seconds (also used as Gurobi time limit for `"exact"`) |
 | `seed` | `int` | `0` | Random seed for reproducibility |
-| `strong_reductions` | `bool` | `False` | Enable aggressive reductions (unconfined vertices, larger edge thresholds) |
-| `use_ilp` | `bool` | `False` | Solve the remaining kernel exactly via ILP (requires `gurobipy`) |
+| `strong_reductions` | `bool` | `True` | Enable aggressive reductions (unconfined vertices, larger edge thresholds) |
 
 **Result: `HyperMISResult`** — `size` (int), `weight` (int), `vertices` (ndarray), `offset` (int — vertices fixed by reductions), `reduction_time` (float — seconds spent reducing), `is_optimal` (bool — `True` if the ILP proved optimality).
 
@@ -768,17 +772,16 @@ from chszlablib import HyperGraph, IndependenceProblems
 
 hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3, 4], [4, 5]])
 
-# Reduction-only (always available)
-result = IndependenceProblems.hypermis(hg, time_limit=10.0, strong_reductions=True)
+# Heuristic (always available, fast)
+result = IndependenceProblems.hypermis(hg, time_limit=10.0)
 print(f"IS size: {result.size}, vertices: {result.vertices}")
-print(f"Reduction fixed {result.offset} vertices in {result.reduction_time:.3f}s")
 
 # Exact solve via ILP (requires: pip install gurobipy)
-result = IndependenceProblems.hypermis(hg, time_limit=10.0, use_ilp=True)
+result = IndependenceProblems.hypermis(hg, method="exact", time_limit=10.0)
 print(f"IS size: {result.size}, optimal: {result.is_optimal}")
 ```
 
-> **Note:** The `use_ilp=True` pipeline runs C++ reductions first, then solves the (typically small) remaining kernel exactly via a `gurobipy` ILP formulation. Install with `pip install gurobipy` and provide a valid [Gurobi license](https://www.gurobi.com/downloads/). Check availability at runtime with `IndependenceProblems.HYPERMIS_ILP_AVAILABLE`.
+> **Note:** Check `IndependenceProblems.HYPERMIS_ILP_AVAILABLE` at runtime to see if `gurobipy` is installed. Valid methods are listed in `IndependenceProblems.HYPERMIS_METHODS`.
 
 ---
 
