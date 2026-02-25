@@ -209,14 +209,10 @@ add_library(chils_static STATIC
 target_include_directories(chils_static PUBLIC ${CHILS_DIR}/include)
 set_target_properties(chils_static PROPERTIES C_STANDARD 17)
 
-if(OpenMP_C_FOUND)
+if(OpenMP_C_FOUND AND NOT MSVC)
+    # MSVC's OpenMP 2.0 rejects C99-style for-loop init inside #pragma omp for
+    # (error C3015).  Skip OpenMP on MSVC; CHILS will run single-threaded.
     target_link_libraries(chils_static PUBLIC OpenMP::OpenMP_C)
-    if(MSVC)
-        # MSVC's default /openmp uses OpenMP 2.0 which rejects C99-style
-        # for-loop init inside `#pragma omp for` (error C3015).
-        # Override with /openmp:llvm which supports OpenMP 3.0+ and accepts it.
-        target_compile_options(chils_static PRIVATE /openmp:llvm)
-    endif()
 endif()
 
 # =============================================================================
@@ -822,9 +818,14 @@ target_include_directories(heiorient INTERFACE
 )
 target_compile_features(heiorient INTERFACE cxx_std_17)
 
-# --- Patch: MSVC rejects narrowing size_t → unsigned int inside brace init ---
+# --- Patch: MSVC rejects narrowing conversions inside brace init ---
 file(READ ${HEIORIENT_DIR}/edge_orientation/ds/smaller_graph.h _SRC)
-string(REPLACE "IndexType{out_s.size() - 1}" "IndexType{static_cast<IT>(out_s.size() - 1)}" _SRC "${_SRC}")
+string(REPLACE "IndexType start{_nodes_offset.size() - 1}"
+    "IndexType start(static_cast<IT>(_nodes_offset.size() - 1))" _SRC "${_SRC}")
+string(REPLACE "InsideArrayRefType{edge - flat_edge_info.data()}"
+    "InsideArrayRefType(static_cast<IARF>(edge - flat_edge_info.data()))" _SRC "${_SRC}" )
+string(REPLACE "IndexType{out_s.size() - 1}"
+    "IndexType(static_cast<IT>(out_s.size() - 1))" _SRC "${_SRC}")
 file(WRITE ${HEIORIENT_DIR}/edge_orientation/ds/smaller_graph.h "${_SRC}")
 
 # =============================================================================
@@ -1075,13 +1076,44 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(readerwriterqueue)
 
-# --- Patch: MSVC doesn't support __attribute__((unused)) in sparsehash ---
+# --- Patches: Windows / MSVC compatibility for HeiStream ---
+# sparsehash: __attribute__((unused)) not supported on MSVC
 file(READ ${HEISTREAM_DIR}/extern/sparsehash/src/sparsehash/internal/hashtable-common.h _SRC)
 string(REPLACE
     "__attribute__((unused)) typedef SparsehashCompileAssert<(bool(expr))> msg[bool(expr) ? 1 : -1]"
     "typedef SparsehashCompileAssert<(bool(expr))> msg[bool(expr) ? 1 : -1]"
     _SRC "${_SRC}")
 file(WRITE ${HEISTREAM_DIR}/extern/sparsehash/src/sparsehash/internal/hashtable-common.h "${_SRC}")
+
+# timer.h: sys/resource.h, sys/time.h, unistd.h are Unix-only
+file(READ ${HEISTREAM_DIR}/lib/tools/timer.h _SRC)
+string(REPLACE
+    "#include <sys/resource.h>\n#include <sys/time.h>\n#include <unistd.h>"
+    "#ifdef _WIN32\n#include <windows.h>\n#else\n#include <sys/resource.h>\n#include <sys/time.h>\n#include <unistd.h>\n#endif"
+    _SRC "${_SRC}")
+string(REPLACE
+    "        struct timeval tp;\n        gettimeofday(&tp, nullptr);\n        return double(tp.tv_sec) + tp.tv_usec / 1000000.;"
+    "#ifdef _WIN32\n        LARGE_INTEGER freq, cnt;\n        QueryPerformanceFrequency(&freq);\n        QueryPerformanceCounter(&cnt);\n        return double(cnt.QuadPart) / double(freq.QuadPart);\n#else\n        struct timeval tp;\n        gettimeofday(&tp, nullptr);\n        return double(tp.tv_sec) + tp.tv_usec / 1000000.;\n#endif"
+    _SRC "${_SRC}")
+file(WRITE ${HEISTREAM_DIR}/lib/tools/timer.h "${_SRC}")
+
+# complete_boundary.h: execinfo.h is Unix-only (unused include)
+file(READ ${HEISTREAM_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/complete_boundary.h _SRC)
+string(REPLACE "#include <execinfo.h>" "#ifndef _WIN32\n#include <execinfo.h>\n#endif" _SRC "${_SRC}")
+file(WRITE ${HEISTREAM_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/complete_boundary.h "${_SRC}")
+
+# maxNodeHeap.h: execinfo.h is Unix-only (unused include)
+file(READ ${HEISTREAM_DIR}/lib/data_structure/priority_queues/maxNodeHeap.h _SRC)
+string(REPLACE "#include <execinfo.h>" "#ifndef _WIN32\n#include <execinfo.h>\n#endif" _SRC "${_SRC}")
+file(WRITE ${HEISTREAM_DIR}/lib/data_structure/priority_queues/maxNodeHeap.h "${_SRC}")
+
+# compare_rating.h: std::binary_function removed in C++17
+file(READ ${HEISTREAM_DIR}/lib/partition/coarsening/matching/gpa/compare_rating.h _SRC)
+string(REPLACE
+    "class compare_rating : public std::binary_function<EdgeRatingType, EdgeRatingType, bool> {"
+    "class compare_rating {"
+    _SRC "${_SRC}")
+file(WRITE ${HEISTREAM_DIR}/lib/partition/coarsening/matching/gpa/compare_rating.h "${_SRC}")
 
 # Build flatbuffers from HeiStream's bundled copy
 add_subdirectory(${HEISTREAM_DIR}/extern/flatbuffers
