@@ -8,6 +8,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(pybind11 CONFIG REQUIRED)
 find_package(OpenMP)
 
+# Several bundled C++ libraries use APIs removed in C++17 (std::random_shuffle,
+# std::binary_function, std::unary_function). On Apple Clang with libc++ these
+# are hard errors. Re-enable them globally.
+add_compile_definitions(
+    _LIBCPP_ENABLE_CXX17_REMOVED_RANDOM_SHUFFLE
+    _LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION
+)
+
 # =============================================================================
 # MQLib  (for fpt-max-cut; must come BEFORE the global -include cstdint
 # workaround which breaks MQLib's older C++ code)
@@ -21,10 +29,6 @@ target_include_directories(mqlib_static PUBLIC ${MQLIB_DIR}/include)
 target_compile_options(mqlib_static PRIVATE -w -O2
     "SHELL:-include cstdint"
     "SHELL:-include limits"
-)
-# MQLib uses std::random_shuffle, removed in C++17 by libc++ (Apple Clang)
-target_compile_definitions(mqlib_static PRIVATE
-    _LIBCPP_ENABLE_CXX17_REMOVED_RANDOM_SHUFFLE
 )
 
 # Fix missing <cstdint> includes in older tlx/VieCut headers on newer compilers
