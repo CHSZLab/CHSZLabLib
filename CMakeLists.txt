@@ -1194,6 +1194,40 @@ if(OpenMP_CXX_FOUND)
 endif()
 
 # =============================================================================
+# HyperMIS  (Maximum Independent Set on Hypergraphs)
+# =============================================================================
+set(HYPERMIS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/HyperMIS)
+
+set(HYPERMIS_SOURCES
+    ${HYPERMIS_DIR}/src/config.cpp
+    ${HYPERMIS_DIR}/src/hypergraph.cpp
+    ${HYPERMIS_DIR}/src/graph.cpp
+    ${HYPERMIS_DIR}/src/reductions.cpp
+    ${HYPERMIS_DIR}/src/MIS_algorithm.cpp
+)
+
+add_library(hypermis_static STATIC ${HYPERMIS_SOURCES})
+target_include_directories(hypermis_static PUBLIC
+    ${HYPERMIS_DIR}/include
+    ${HYPERMIS_DIR}/include/datastructure
+)
+target_compile_options(hypermis_static PRIVATE -w -O2)
+
+# Optional: Gurobi for ILP solver
+find_library(GUROBI_CXX_LIB gurobi_c++ PATHS ENV GUROBI_HOME PATH_SUFFIXES lib)
+find_library(GUROBI_LIB NAMES gurobi120 gurobi110 gurobi100 PATHS ENV GUROBI_HOME PATH_SUFFIXES lib)
+if(GUROBI_CXX_LIB AND GUROBI_LIB)
+    set(HYPERMIS_HAS_GUROBI ON)
+    message(STATUS "HyperMIS: Gurobi found, ILP solver will be built")
+    add_library(hypermis_ilp_static STATIC ${HYPERMIS_DIR}/src/ILP_solver.cpp)
+    target_link_libraries(hypermis_ilp_static PUBLIC hypermis_static ${GUROBI_CXX_LIB} ${GUROBI_LIB})
+    target_include_directories(hypermis_ilp_static PUBLIC $ENV{GUROBI_HOME}/include)
+else()
+    set(HYPERMIS_HAS_GUROBI OFF)
+    message(STATUS "HyperMIS: Gurobi not found, ILP solver will NOT be built")
+endif()
+
+# =============================================================================
 # Pybind11 modules
 # =============================================================================
 
@@ -1290,3 +1324,15 @@ install(TARGETS _motif DESTINATION chszlablib)
 pybind11_add_module(_heistream bindings/heistream_binding.cpp)
 target_link_libraries(_heistream PRIVATE heistream_static)
 install(TARGETS _heistream DESTINATION chszlablib)
+
+# --- _hypermis (HyperMIS reductions, always built) ---
+pybind11_add_module(_hypermis bindings/hypermis_binding.cpp)
+target_link_libraries(_hypermis PRIVATE hypermis_static)
+install(TARGETS _hypermis DESTINATION chszlablib)
+
+# --- _hypermis_ilp (HyperMIS ILP solver, Gurobi required) ---
+if(HYPERMIS_HAS_GUROBI)
+    pybind11_add_module(_hypermis_ilp bindings/hypermis_ilp_binding.cpp)
+    target_link_libraries(_hypermis_ilp PRIVATE hypermis_ilp_static)
+    install(TARGETS _hypermis_ilp DESTINATION chszlablib)
+endif()

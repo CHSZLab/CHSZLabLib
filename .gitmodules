@@ -35,3 +35,6 @@
 [submodule "HeiStream"]
 	path = external_repositories/HeiStream
 	url = https://github.com/KaHIP/HeiStream.git
+[submodule "external_repositories/HyperMIS"]
+	path = external_repositories/HyperMIS
+	url = https://github.com/KarlsruheMIS/HyperMIS
