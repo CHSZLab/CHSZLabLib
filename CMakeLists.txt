@@ -10,10 +10,15 @@ find_package(OpenMP)
 
 # Apple Clang's -Xclang -fopenmp does not implicitly include omp.h (unlike GCC).
 # Add the OpenMP include directory globally so transitive includes work.
-if(OpenMP_CXX_FOUND)
-    get_target_property(_omp_inc OpenMP::OpenMP_CXX INTERFACE_INCLUDE_DIRECTORIES)
-    if(_omp_inc)
-        include_directories(SYSTEM ${_omp_inc})
+if(OpenMP_CXX_FOUND AND OpenMP_CXX_INCLUDE_DIRS)
+    include_directories(SYSTEM ${OpenMP_CXX_INCLUDE_DIRS})
+elseif(OpenMP_CXX_FOUND AND APPLE)
+    # Homebrew libomp on Apple Silicon
+    find_path(_OMP_INCLUDE_DIR omp.h
+        PATHS /opt/homebrew/opt/libomp/include /usr/local/opt/libomp/include
+        NO_DEFAULT_PATH)
+    if(_OMP_INCLUDE_DIR)
+        include_directories(SYSTEM ${_OMP_INCLUDE_DIR})
     endif()
 endif()
 
