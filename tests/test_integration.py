@@ -5,7 +5,7 @@ import os
 import numpy as np
 import pytest
 
-from chszlablib import Graph, Decomposition, IndependenceProblems
+from chszlablib import Graph, HyperGraph, Decomposition, IndependenceProblems
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -83,6 +83,40 @@ def test_metis_roundtrip_with_algorithm(tmp_path):
     result = Decomposition.partition(g2, num_parts=2, mode="fast")
     assert result.edgecut >= 0
     assert len(result.assignment) == 4
+
+
+def test_hypergraph_to_graph_then_mis():
+    """Build hypergraph, run HyperMIS, expand to graph, run graph MIS."""
+    hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3, 4], [4, 5]])
+
+    # HyperMIS on the hypergraph
+    hr = IndependenceProblems.hypermis(hg, time_limit=5.0)
+    assert hr.size >= 1
+    hyper_selected = set(hr.vertices.tolist())
+    for eid in range(hg.num_edges):
+        s, e = hg.eptr[eid], hg.eptr[eid + 1]
+        assert len(hyper_selected & set(hg.everts[s:e].tolist())) <= 1
+
+    # Expand to graph and run graph MIS
+    g = hg.to_graph()
+    gr = IndependenceProblems.redumis(g, time_limit=2.0)
+    assert gr.size >= 1
+    graph_selected = set(gr.vertices.tolist())
+    g.finalize()
+    for u in graph_selected:
+        for idx in range(g.xadj[u], g.xadj[u + 1]):
+            assert g.adjncy[idx] not in graph_selected
+
+
+def test_hmetis_roundtrip_with_hypermis(tmp_path):
+    """Save hypergraph to hMETIS, reload, run HyperMIS."""
+    hg = HyperGraph.from_edge_list([[0, 1], [1, 2], [2, 3, 4]])
+    path = str(tmp_path / "test.hgr")
+    hg.to_hmetis(path)
+    hg2 = HyperGraph.from_hmetis(path)
+    result = IndependenceProblems.hypermis(hg2, time_limit=5.0)
+    assert result.size >= 1
+    assert len(result.vertices) == result.size
 
 
 def test_large_kahip_example(kahip_example):
