@@ -17,7 +17,9 @@ add_compile_definitions(
 )
 # KaMIS's bundled KaHIP uses `using namespace __gnu_cxx;` which doesn't exist
 # on Apple Clang. Force-include a header that provides an empty namespace.
+# Also provide shims for GCC-only headers like <parallel/numeric>.
 add_compile_options("SHELL:-include ${CMAKE_CURRENT_SOURCE_DIR}/cmake/compat_gnu_cxx.h")
+include_directories(BEFORE SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # =============================================================================
 # MQLib  (for fpt-max-cut; must come BEFORE the global -include cstdint

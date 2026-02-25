@@ -1,0 +1,12 @@
+/* Shim for GCC's <parallel/numeric> on non-GCC compilers. */
+#ifndef COMPAT_PARALLEL_NUMERIC_H
+#define COMPAT_PARALLEL_NUMERIC_H
+#if defined(__GNUC__) && !defined(__clang__)
+#include_next <parallel/numeric>
+#else
+#include <numeric>
+namespace __gnu_parallel {
+    using std::partial_sum;
+}
+#endif
+#endif
