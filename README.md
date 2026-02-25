@@ -13,8 +13,8 @@
 
 <p align="center">
   <em>
-    11 C++ algorithm libraries.&nbsp;
-    One <code>Graph</code> object.&nbsp;
+    12 C++ algorithm libraries.&nbsp;
+    <code>Graph</code> and <code>HyperGraph</code> objects.&nbsp;
     Zero-copy NumPy arrays.&nbsp;
     Built for humans and AI agents.
   </em>
@@ -26,7 +26,7 @@
 
 The [Algorithm Engineering Group](https://ae.ifi.uni-heidelberg.de/) at Heidelberg University develops high-performance C++ algorithms for a wide range of combinatorial optimization problems on graphs — graph partitioning, minimum and maximum cuts, community detection, independent sets, edge orientation, longest paths, and more. These solvers represent the state of the art in their respective domains.
 
-**CHSZLabLib wraps 11 of these libraries into a single, easy-to-use Python interface.** One `Graph` object, consistent method signatures, typed result objects, and zero-copy NumPy arrays — designed to be productive for end users and fully discoverable by AI agents (LLMs).
+**CHSZLabLib wraps 12 of these libraries into a single, easy-to-use Python interface.** `Graph` and `HyperGraph` objects, consistent method signatures, typed result objects, and zero-copy NumPy arrays — designed to be productive for end users and fully discoverable by AI agents (LLMs).
 
 For full algorithmic control (custom parameter tuning, every possible knob), use the underlying C/C++ repositories directly. This library prioritizes **convenience and a unified interface**.
 
@@ -40,6 +40,7 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 - [Agent Quick Reference](#agent-quick-reference)
 - [Installation](#installation)
 - [Graph Construction](#graph-construction)
+- [HyperGraph Construction](#hypergraph-construction)
 - [API Reference](#api-reference)
   - [Decomposition](#decomposition)
   - [IndependenceProblems](#independenceproblems)
@@ -74,6 +75,7 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 |:--------|:-------|:-----------|
 | [KaMIS](https://github.com/KarlsruheMIS/KaMIS) | Independent set | ReduMIS, OnlineMIS, Branch&Reduce, MMWIS |
 | [CHILS](https://github.com/KennethLangedal/CHILS) | Weighted independent set | Concurrent heuristic independent local search |
+| [HyperMIS](https://github.com/KarlsruheMIS/HyperMIS) | Hypergraph independent set | Kernelization reductions (+ optional ILP via Gurobi) |
 
 **Orientation** — Edge orientation for minimum maximum out-degree.
 
@@ -118,6 +120,13 @@ print(f"Max out-degree: {eo.max_out_degree}")
 # Streaming partitioning
 sp = Decomposition.stream_partition(g, k=3, imbalance=3.0)
 print(f"Stream assignment: {sp.assignment}")
+
+# --- Hypergraph independent set ---
+from chszlablib import HyperGraph
+
+hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3, 4], [4, 5]])
+r = IndependenceProblems.hypermis(hg, time_limit=5.0)
+print(f"Hypergraph IS size: {r.size}, vertices: {r.vertices}")
 ```
 
 ---
@@ -144,13 +153,14 @@ print(f"Stream assignment: {sp.assignment}")
 | Find a node separator | `Decomposition.node_separator` | `num_parts`, `mode` |
 | Find a large independent set | `IndependenceProblems.redumis` | `time_limit` |
 | Find max-weight independent set | `IndependenceProblems.chils` | `time_limit`, `num_concurrent` |
+| Independent set on a hypergraph | `IndependenceProblems.hypermis` | `time_limit`, `strong_reductions` |
 | Orient edges (min max out-degree) | `Orientation.orient_edges` | `algorithm` |
 | Find the longest simple path | `PathProblems.longest_path` | `start_vertex`, `target_vertex` |
 
 ### One-Liner Recipes
 
 ```python
-from chszlablib import Graph, Decomposition, IndependenceProblems, Orientation, PathProblems
+from chszlablib import Graph, HyperGraph, Decomposition, IndependenceProblems, Orientation, PathProblems
 
 g = Graph.from_edge_list([(0,1),(1,2),(2,0),(2,3),(3,4),(4,5),(5,3)])
 
@@ -165,6 +175,9 @@ IndependenceProblems.redumis(g, time_limit=5.0)                         # max in
 IndependenceProblems.chils(g, time_limit=5.0)                           # max weight independent set
 Orientation.orient_edges(g, algorithm="combined")                       # edge orientation
 PathProblems.longest_path(g, start_vertex=0, target_vertex=5)           # longest s-t path
+
+hg = HyperGraph.from_edge_list([[0,1,2],[2,3,4],[4,5]])
+IndependenceProblems.hypermis(hg, time_limit=5.0)                       # hypergraph independent set
 ```
 
 ### Programmatic Introspection
@@ -203,12 +216,28 @@ g.to_scipy_sparse()  # convert back
 g = Graph.from_metis("graph.metis")
 ```
 
+### HyperGraph Construction Shortcuts
+
+```python
+from chszlablib import HyperGraph
+
+# From edge list (each edge is a list of vertices)
+hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3, 4]])
+
+# From hMETIS file
+hg = HyperGraph.from_hmetis("hypergraph.hgr")
+
+# Convert to regular graph (clique expansion)
+g = hg.to_graph()
+```
+
 ### Common Pitfalls
 
 - **Call `g.finalize()` before passing to algorithms** (or let property access auto-finalize).
 - **Mode strings are case-sensitive:** use `"eco"`, not `"Eco"` or `"ECO"`.
-- **Self-loops and duplicate edges raise `InvalidGraphError`.**
+- **Self-loops and duplicate edges raise `InvalidGraphError`.** Empty hyperedges raise `InvalidHyperGraphError`.
 - **NetworkX / SciPy are optional** — import errors give a helpful message.
+- **`IndependenceProblems.hypermis()` takes a `HyperGraph`, not a `Graph`.**
 - **`PartitionResult.balance` is only set by `evolutionary_partition`.**
 - **Catch `CHSZLabLibError` to handle all library errors, or use specific subclasses (`InvalidModeError`, `InvalidGraphError`, `GraphNotFinalizedError`).**
 
@@ -327,9 +356,60 @@ A = g.to_scipy_sparse()
 
 ---
 
+## HyperGraph Construction
+
+For algorithms that operate on hypergraphs (edges connecting two or more vertices), use the `HyperGraph` class. It stores data in **dual CSR** format — both vertex-to-edge and edge-to-vertex adjacency arrays.
+
+### Builder API (edge-by-edge)
+
+```python
+from chszlablib import HyperGraph
+
+hg = HyperGraph(num_nodes=5, num_edges=2)
+hg.set_edge(0, [0, 1, 2])       # hyperedge 0 contains vertices {0, 1, 2}
+hg.set_edge(1, [2, 3, 4])       # hyperedge 1 contains vertices {2, 3, 4}
+hg.set_node_weight(0, 10)
+hg.set_edge_weight(1, 5)
+hg.finalize()  # converts to dual CSR; auto-called on first property access
+
+print(hg.num_nodes)       # 5
+print(hg.num_edges)       # 2
+print(hg.eptr, hg.everts) # edge-to-vertex CSR
+print(hg.vptr, hg.vedges) # vertex-to-edge CSR
+```
+
+### From edge list
+
+```python
+hg = HyperGraph.from_edge_list(
+    [[0, 1, 2], [2, 3, 4], [4, 5]],
+    node_weights=np.array([1, 2, 3, 4, 5, 6]),  # optional
+)
+```
+
+### From hMETIS file
+
+```python
+from chszlablib import HyperGraph, read_hmetis
+
+hg = HyperGraph.from_hmetis("mesh.hgr")       # class method
+hg = read_hmetis("mesh.hgr")                   # module function (equivalent)
+hg.to_hmetis("output.hgr")                     # write back
+```
+
+### Clique expansion (HyperGraph → Graph)
+
+Convert a hypergraph to a regular graph by replacing each hyperedge with a clique over its vertices:
+
+```python
+g = hg.to_graph()  # returns a Graph; can be used with any graph algorithm
+```
+
+---
+
 ## API Reference
 
-The library organizes algorithms into four namespace classes. Each class is a pure namespace (no instantiation) with static methods. Every method takes a `Graph` and returns a typed dataclass with NumPy arrays.
+The library organizes algorithms into four namespace classes. Each class is a pure namespace (no instantiation) with static methods. Methods take a `Graph` (or `HyperGraph` where noted) and return a typed dataclass with NumPy arrays.
 
 ---
 
@@ -586,6 +666,7 @@ Maximum independent set and maximum weight independent set solvers.
 | `branch_reduce` | Maximum weight independent set (exact) | KaMIS |
 | `mmwis` | Maximum weight independent set (evolutionary) | KaMIS |
 | `chils` | Maximum weight independent set (concurrent local search) | CHILS |
+| `hypermis` | Maximum independent set on hypergraphs (reductions) | HyperMIS |
 
 #### `IndependenceProblems.redumis(g, ...)` — Maximum Independent Set (KaMIS)
 
@@ -651,6 +732,38 @@ for i in range(5):
 result = IndependenceProblems.chils(g, time_limit=5.0, num_concurrent=8)
 print(f"Weight: {result.weight}, vertices: {result.vertices}")
 ```
+
+#### `IndependenceProblems.hypermis(hg, ...)` — Maximum Independent Set on Hypergraphs (HyperMIS)
+
+**Problem.** Given a hypergraph $H = (V, E)$ where each hyperedge $e \in E$ contains two or more vertices, find a **strongly independent set** $I \subseteq V$ of maximum cardinality, i.e.,
+
+$$\max_{I \subseteq V} |I| \quad \text{subject to} \quad |I \cap e| \leq 1 \quad \text{for all } e \in E.$$
+
+This is stricter than graph independence: every hyperedge may contribute **at most one** vertex to $I$. HyperMIS applies **kernelization reduction rules** (vertex domination, edge domination, small-edge removal, unconfined vertices) to shrink the instance. Vertices provably in or out of any optimal solution are fixed during reduction.
+
+```python
+IndependenceProblems.hypermis(hg, time_limit=60.0, seed=0, strong_reductions=False) -> HyperMISResult
+```
+
+| Parameter | Type | Default | Description |
+|:----------|:-----|:--------|:------------|
+| `hg` | `HyperGraph` | — | Input hypergraph |
+| `time_limit` | `float` | `60.0` | Reduction time budget in seconds |
+| `seed` | `int` | `0` | Random seed for reproducibility |
+| `strong_reductions` | `bool` | `False` | Enable aggressive reductions (unconfined vertices, larger edge thresholds) |
+
+**Result: `HyperMISResult`** — `size` (int), `weight` (int), `vertices` (ndarray), `offset` (int — vertices fixed by reductions), `reduction_time` (float — seconds spent reducing).
+
+```python
+from chszlablib import HyperGraph, IndependenceProblems
+
+hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3, 4], [4, 5]])
+result = IndependenceProblems.hypermis(hg, time_limit=10.0, strong_reductions=True)
+print(f"IS size: {result.size}, vertices: {result.vertices}")
+print(f"Reduction fixed {result.offset} vertices in {result.reduction_time:.3f}s")
+```
+
+> **Note:** The optional Gurobi ILP solver can extend HyperMIS with an exact solve phase on the reduced kernel. Install `gurobipy` via pip and provide a valid Gurobi license. Check availability at runtime with `IndependenceProblems.HYPERMIS_ILP_AVAILABLE`.
 
 ---
 
@@ -783,17 +896,22 @@ perm = order.ordering
 
 ## I/O
 
-Read and write graphs in [METIS format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf):
+Read and write graphs in [METIS format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf) and hypergraphs in [hMETIS format](http://glaros.dtc.umn.edu/gkhome/metis/hmetis/overview):
 
 ```python
-from chszlablib import read_metis, write_metis
+from chszlablib import read_metis, write_metis, read_hmetis, write_hmetis
 
+# METIS (graphs)
 g = read_metis("input.graph")
 write_metis(g, "output.graph")
-
-# Equivalent via Graph methods
-g = Graph.from_metis("input.graph")
+g = Graph.from_metis("input.graph")     # equivalent class method
 g.to_metis("output.graph")
+
+# hMETIS (hypergraphs)
+hg = read_hmetis("input.hgr")
+write_hmetis(hg, "output.hgr")
+hg = HyperGraph.from_hmetis("input.hgr")  # equivalent class method
+hg.to_hmetis("output.hgr")
 ```
 
 ---
@@ -814,11 +932,13 @@ CHSZLabLib/
 ├── chszlablib/                  # Python package
 │   ├── __init__.py              # Public API exports
 │   ├── graph.py                 # Graph class (CSR backend)
+│   ├── hypergraph.py            # HyperGraph class (dual CSR backend)
 │   ├── decomposition.py         # Decomposition namespace + HeiStreamPartitioner
-│   ├── independence.py          # IndependenceProblems namespace (MIS, MWIS)
+│   ├── independence.py          # IndependenceProblems namespace (MIS, MWIS, HyperMIS)
 │   ├── orientation.py           # Orientation namespace (edge orientation)
 │   ├── paths.py                 # PathProblems namespace (longest path)
-│   └── io.py                    # METIS file I/O
+│   ├── exceptions.py            # Custom exception hierarchy
+│   └── io.py                    # METIS + hMETIS file I/O
 ├── bindings/                    # pybind11 C++ bindings
 ├── tests/                       # pytest suite
 ├── external_repositories/       # Git submodules (algorithm libraries)
@@ -827,6 +947,7 @@ CHSZLabLib/
 │   ├── VieClus/                 # Clustering
 │   ├── CHILS/                   # Weighted independent set
 │   ├── KaMIS/                   # Independent set algorithms
+│   ├── HyperMIS/                # Hypergraph independent set
 │   ├── SCC/                     # Correlation clustering
 │   ├── HeiOrient/               # Edge orientation
 │   ├── HeiStream/               # Streaming partitioning
@@ -951,6 +1072,17 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
 }
 ```
 
+### HyperMIS (Hypergraph Independent Set)
+
+```bibtex
+@software{grossmann2026hypermis,
+  title   = {HyperMIS: Hypergraph Maximum Independent Sets},
+  author  = {Ernestine Gro{\ss}mann and Christian Schulz},
+  year    = {2026},
+  url     = {https://github.com/KarlsruheMIS/HyperMIS}
+}
+```
+
 ### SCC (Correlation Clustering)
 
 ```bibtex
@@ -1023,7 +1155,7 @@ This library would not be possible without the original algorithm implementation
 - **Marcelo Fonseca Faraj** — SCC, HeiStream, HeidelbergMotifClustering, KaHIP
 - **Kai Fieger** — KaLP
 - **Alexander Gellner** — KaMIS
-- **Ernestine Großmann** — CHILS, KaMIS (MMWIS)
+- **Ernestine Großmann** — CHILS, HyperMIS, KaMIS (MMWIS)
 - **Felix Hausberger** — SCC
 - **Monika Henzinger** — VieCut, VieClus
 - **Alexandra Henzinger** — KaHIP
