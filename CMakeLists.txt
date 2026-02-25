@@ -8,6 +8,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(pybind11 CONFIG REQUIRED)
 find_package(OpenMP)
 
+# Apple Clang's -Xclang -fopenmp does not implicitly include omp.h (unlike GCC).
+# Force-include it so KaMIS sources that use omp_get_wtime() etc. without
+# an explicit #include <omp.h> still compile.
+if(OpenMP_CXX_FOUND)
+    add_compile_options("SHELL:-include omp.h")
+endif()
+
 # Several bundled C++ libraries use APIs removed in C++17 (std::random_shuffle,
 # std::binary_function, std::unary_function). On Apple Clang with libc++ these
 # are hard errors. Re-enable them globally.
