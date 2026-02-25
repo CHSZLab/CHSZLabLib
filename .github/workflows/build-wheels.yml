@@ -30,7 +30,8 @@ jobs:
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_ENVIRONMENT: "CXX=g++ CMAKE_ARGS=-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
           CIBW_TEST_REQUIRES: pytest
-          CIBW_TEST_COMMAND: pytest {project}/tests -v
+          CIBW_TEST_COMMAND: >-
+            cp -r {project}/tests /tmp/_cibw_tests && pytest /tmp/_cibw_tests -v && rm -rf /tmp/_cibw_tests
           CIBW_REPAIR_WHEEL_COMMAND: >-
             auditwheel repair -w {dest_dir} {wheel}
 
@@ -62,7 +63,8 @@ jobs:
             OpenMP_ROOT=/opt/homebrew/opt/libomp
             CMAKE_ARGS="-DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DOpenMP_ROOT=/opt/homebrew/opt/libomp"
           CIBW_TEST_REQUIRES: pytest
-          CIBW_TEST_COMMAND: pytest {project}/tests -v
+          CIBW_TEST_COMMAND: >-
+            cp -r {project}/tests /tmp/_cibw_tests && pytest /tmp/_cibw_tests -v && rm -rf /tmp/_cibw_tests
           CIBW_REPAIR_WHEEL_COMMAND: >-
             delocate-wheel --require-archs arm64 -w {dest_dir} {wheel}
 
@@ -110,7 +112,8 @@ jobs:
           CIBW_BUILD: "${{ matrix.python-version }}-win_amd64"
           CIBW_ENVIRONMENT: "CMAKE_ARGS=-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
           CIBW_TEST_REQUIRES: pytest
-          CIBW_TEST_COMMAND: pytest {project}/tests -v
+          CIBW_TEST_COMMAND: >-
+            xcopy /s /i {project}\tests %TEMP%\_cibw_tests >nul && pytest %TEMP%\_cibw_tests -v && rmdir /s /q %TEMP%\_cibw_tests
 
       - uses: actions/upload-artifact@v4
         with:
