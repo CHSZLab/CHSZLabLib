@@ -321,6 +321,257 @@ class HyperGraph:
         return self._edge_weights
 
     # ------------------------------------------------------------------
+    # Class methods (batch constructors)
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def from_edge_list(
+        cls,
+        edges: list[list[int]],
+        num_nodes: int | None = None,
+        node_weights: list[int] | np.ndarray | None = None,
+        edge_weights: list[int] | np.ndarray | None = None,
+    ) -> HyperGraph:
+        """Construct a HyperGraph from a list of hyperedges.
+
+        Parameters
+        ----------
+        edges : list of list of int
+            Each inner list is a hyperedge containing vertex IDs.
+        num_nodes : int or None
+            Number of vertices. If ``None``, inferred as
+            ``max(vertex ID) + 1``.
+        node_weights : array-like, shape (num_nodes,), optional
+            Vertex weights. If ``None``, all weights default to 1.
+        edge_weights : array-like, shape (num_edges,), optional
+            Hyperedge weights. If ``None``, all weights default to 1.
+
+        Returns
+        -------
+        HyperGraph
+            A finalized hypergraph.
+        """
+        m = len(edges)
+
+        if num_nodes is None:
+            if m == 0:
+                num_nodes = 0
+            else:
+                max_id = max(
+                    (v for edge in edges for v in edge),
+                    default=-1,
+                )
+                num_nodes = max_id + 1
+
+        hg = cls(num_nodes=num_nodes, num_edges=m)
+
+        for eid, verts in enumerate(edges):
+            hg.set_edge(eid, verts)
+
+        if node_weights is not None:
+            nw = np.asarray(node_weights)
+            for i in range(len(nw)):
+                hg.set_node_weight(i, int(nw[i]))
+
+        if edge_weights is not None:
+            ew = np.asarray(edge_weights)
+            for i in range(len(ew)):
+                hg.set_edge_weight(i, int(ew[i]))
+
+        hg.finalize()
+        return hg
+
+    @classmethod
+    def from_dual_csr(
+        cls,
+        vptr: np.ndarray,
+        vedges: np.ndarray,
+        eptr: np.ndarray,
+        everts: np.ndarray,
+        node_weights: np.ndarray | None = None,
+        edge_weights: np.ndarray | None = None,
+    ) -> HyperGraph:
+        """Construct a HyperGraph directly from dual CSR arrays.
+
+        Parameters
+        ----------
+        vptr : array-like, shape (n+1,)
+            Vertex-to-edge index pointer array.
+        vedges : array-like
+            Vertex-to-edge array (concatenated edge IDs per vertex).
+        eptr : array-like, shape (m+1,)
+            Edge-to-vertex index pointer array.
+        everts : array-like
+            Edge-to-vertex array (concatenated vertex IDs per edge).
+        node_weights : array-like, shape (n,), optional
+            Vertex weights (default: all ones).
+        edge_weights : array-like, shape (m,), optional
+            Hyperedge weights (default: all ones).
+
+        Returns
+        -------
+        HyperGraph
+            A finalized hypergraph.
+
+        Raises
+        ------
+        InvalidHyperGraphError
+            If the CSR arrays are structurally invalid.
+        """
+        eptr = np.asarray(eptr, dtype=np.int64)
+        everts = np.asarray(everts, dtype=np.int32)
+        vptr = np.asarray(vptr, dtype=np.int64)
+        vedges = np.asarray(vedges, dtype=np.int32)
+
+        # Validate eptr
+        if eptr.ndim != 1 or len(eptr) < 1:
+            raise InvalidHyperGraphError(
+                f"eptr must be a 1-D array of length >= 1, "
+                f"got shape {eptr.shape}"
+            )
+        if eptr[0] != 0:
+            raise InvalidHyperGraphError(
+                f"eptr[0] must be 0, got {eptr[0]}"
+            )
+        if eptr[-1] != len(everts):
+            raise InvalidHyperGraphError(
+                f"eptr[-1] must equal len(everts) ({len(everts)}), "
+                f"got {eptr[-1]}"
+            )
+        if not np.all(np.diff(eptr) >= 0):
+            raise InvalidHyperGraphError(
+                "eptr must be monotonically non-decreasing"
+            )
+
+        # Validate vptr
+        if vptr.ndim != 1 or len(vptr) < 1:
+            raise InvalidHyperGraphError(
+                f"vptr must be a 1-D array of length >= 1, "
+                f"got shape {vptr.shape}"
+            )
+        if vptr[0] != 0:
+            raise InvalidHyperGraphError(
+                f"vptr[0] must be 0, got {vptr[0]}"
+            )
+        if vptr[-1] != len(vedges):
+            raise InvalidHyperGraphError(
+                f"vptr[-1] must equal len(vedges) ({len(vedges)}), "
+                f"got {vptr[-1]}"
+            )
+        if not np.all(np.diff(vptr) >= 0):
+            raise InvalidHyperGraphError(
+                "vptr must be monotonically non-decreasing"
+            )
+
+        n = len(vptr) - 1
+        m = len(eptr) - 1
+
+        # Validate bounds on everts
+        if len(everts) > 0:
+            if np.any(everts < 0) or np.any(everts >= n):
+                raise InvalidHyperGraphError(
+                    f"everts values must be in [0, {n}), "
+                    f"got range [{everts.min()}, {everts.max()}]"
+                )
+
+        # Validate bounds on vedges
+        if len(vedges) > 0:
+            if np.any(vedges < 0) or np.any(vedges >= m):
+                raise InvalidHyperGraphError(
+                    f"vedges values must be in [0, {m}), "
+                    f"got range [{vedges.min()}, {vedges.max()}]"
+                )
+
+        # Validate weights shapes
+        if node_weights is not None:
+            nw = np.asarray(node_weights)
+            if nw.shape != (n,):
+                raise InvalidHyperGraphError(
+                    f"node_weights must have shape ({n},), got {nw.shape}"
+                )
+
+        if edge_weights is not None:
+            ew = np.asarray(edge_weights)
+            if ew.shape != (m,):
+                raise InvalidHyperGraphError(
+                    f"edge_weights must have shape ({m},), got {ew.shape}"
+                )
+
+        # Build the object bypassing __init__
+        hg = cls.__new__(cls)
+        hg._num_nodes = n
+        hg._num_edges = m
+        hg._finalized = True
+
+        # Builder state (empty, already finalized)
+        hg._edge_contents = []
+        hg._edge_vertex_sets = []
+        hg._node_weight_map = {}
+        hg._edge_weight_map = {}
+
+        # CSR state
+        hg._vptr = vptr
+        hg._vedges = vedges
+        hg._eptr = eptr
+        hg._everts = everts
+
+        if node_weights is not None:
+            hg._node_weights = np.asarray(node_weights, dtype=np.int64)
+        else:
+            hg._node_weights = np.ones(n, dtype=np.int64)
+
+        if edge_weights is not None:
+            hg._edge_weights = np.asarray(edge_weights, dtype=np.int64)
+        else:
+            hg._edge_weights = np.ones(m, dtype=np.int64)
+
+        return hg
+
+    # ------------------------------------------------------------------
+    # Conversion
+    # ------------------------------------------------------------------
+
+    def to_graph(self) -> "Graph":
+        """Convert this hypergraph to a graph via clique expansion.
+
+        Each hyperedge is expanded into a clique: for a hyperedge containing
+        vertices {v1, v2, ..., vk}, edges (vi, vj) are added for all i < j.
+        Duplicate edges from overlapping hyperedges are added only once.
+        Node weights are preserved; edge weights are set to 1.
+
+        Returns
+        -------
+        Graph
+            A finalized graph.
+        """
+        from chszlablib.graph import Graph
+
+        self.finalize()
+        g = Graph(self._num_nodes)
+
+        # Copy node weights
+        for i in range(self._num_nodes):
+            w = int(self._node_weights[i])
+            if w != 1:
+                g.set_node_weight(i, w)
+
+        # Clique expansion
+        seen: set[tuple[int, int]] = set()
+        for e in range(self._num_edges):
+            start = int(self._eptr[e])
+            end = int(self._eptr[e + 1])
+            verts = sorted(int(v) for v in self._everts[start:end])
+            for i in range(len(verts)):
+                for j in range(i + 1, len(verts)):
+                    key = (verts[i], verts[j])
+                    if key not in seen:
+                        seen.add(key)
+                        g.add_edge(verts[i], verts[j])
+
+        g.finalize()
+        return g
+
+    # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
 

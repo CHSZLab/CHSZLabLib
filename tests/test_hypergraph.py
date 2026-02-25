@@ -470,3 +470,136 @@ class TestEdgeCases:
         assert hg.num_nodes == 5
         assert hg.num_edges == 3
         assert hg._finalized is False
+
+
+# ------------------------------------------------------------------
+# from_edge_list
+# ------------------------------------------------------------------
+
+class TestHyperGraphFromEdgeList:
+    def test_basic(self):
+        hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3]])
+        assert hg.num_nodes == 4
+        assert hg.num_edges == 2
+        np.testing.assert_array_equal(hg.eptr, [0, 3, 5])
+
+    def test_explicit_num_nodes(self):
+        hg = HyperGraph.from_edge_list([[0, 1]], num_nodes=10)
+        assert hg.num_nodes == 10
+
+    def test_infer_num_nodes(self):
+        hg = HyperGraph.from_edge_list([[0, 5], [3, 7]])
+        assert hg.num_nodes == 8
+
+    def test_empty_edge_list(self):
+        hg = HyperGraph.from_edge_list([], num_nodes=0)
+        assert hg.num_nodes == 0
+        assert hg.num_edges == 0
+
+    def test_with_node_weights(self):
+        hg = HyperGraph.from_edge_list([[0, 1], [1, 2]], node_weights=[5, 3, 7])
+        np.testing.assert_array_equal(hg.node_weights, [5, 3, 7])
+
+    def test_with_edge_weights(self):
+        hg = HyperGraph.from_edge_list([[0, 1], [1, 2]], edge_weights=[10, 20])
+        np.testing.assert_array_equal(hg.edge_weights, [10, 20])
+
+
+# ------------------------------------------------------------------
+# from_dual_csr
+# ------------------------------------------------------------------
+
+class TestHyperGraphFromDualCSR:
+    def test_basic(self):
+        eptr = np.array([0, 2, 4], dtype=np.int64)
+        everts = np.array([0, 1, 1, 2], dtype=np.int32)
+        vptr = np.array([0, 1, 3, 4], dtype=np.int64)
+        vedges = np.array([0, 0, 1, 1], dtype=np.int32)
+        hg = HyperGraph.from_dual_csr(vptr, vedges, eptr, everts)
+        assert hg.num_nodes == 3
+        assert hg.num_edges == 2
+
+    def test_with_weights(self):
+        eptr = np.array([0, 2], dtype=np.int64)
+        everts = np.array([0, 1], dtype=np.int32)
+        vptr = np.array([0, 1, 2], dtype=np.int64)
+        vedges = np.array([0, 0], dtype=np.int32)
+        nw = np.array([5, 10], dtype=np.int64)
+        ew = np.array([3], dtype=np.int64)
+        hg = HyperGraph.from_dual_csr(vptr, vedges, eptr, everts,
+                                       node_weights=nw, edge_weights=ew)
+        np.testing.assert_array_equal(hg.node_weights, [5, 10])
+        np.testing.assert_array_equal(hg.edge_weights, [3])
+
+    def test_invalid_eptr_start(self):
+        eptr = np.array([1, 2], dtype=np.int64)
+        everts = np.array([0], dtype=np.int32)
+        vptr = np.array([0, 1], dtype=np.int64)
+        vedges = np.array([0], dtype=np.int32)
+        with pytest.raises(InvalidHyperGraphError):
+            HyperGraph.from_dual_csr(vptr, vedges, eptr, everts)
+
+    def test_invalid_eptr_end(self):
+        eptr = np.array([0, 5], dtype=np.int64)  # eptr[-1] != len(everts)
+        everts = np.array([0, 1], dtype=np.int32)
+        vptr = np.array([0, 1, 2], dtype=np.int64)
+        vedges = np.array([0, 0], dtype=np.int32)
+        with pytest.raises(InvalidHyperGraphError):
+            HyperGraph.from_dual_csr(vptr, vedges, eptr, everts)
+
+
+# ------------------------------------------------------------------
+# to_graph (clique expansion)
+# ------------------------------------------------------------------
+
+from chszlablib import Graph
+
+
+class TestHyperGraphToGraph:
+    def test_single_triangle_edge(self):
+        """Edge {0,1,2} becomes triangle with 3 edges."""
+        hg = HyperGraph.from_edge_list([[0, 1, 2]])
+        g = hg.to_graph()
+        assert isinstance(g, Graph)
+        assert g.num_nodes == 3
+        assert g.num_edges == 3
+
+    def test_two_size2_edges(self):
+        """Edges {0,1} and {1,2}: path graph with 2 edges."""
+        hg = HyperGraph.from_edge_list([[0, 1], [1, 2]])
+        g = hg.to_graph()
+        assert g.num_nodes == 3
+        assert g.num_edges == 2
+
+    def test_overlapping_edges_deduplication(self):
+        """Edges {0,1,2} and {1,2,3}: shared edge 1-2 counted once."""
+        hg = HyperGraph.from_edge_list([[0, 1, 2], [1, 2, 3]])
+        g = hg.to_graph()
+        assert g.num_nodes == 4
+        # {0,1,2}: 0-1, 0-2, 1-2. {1,2,3}: 1-2(dup), 1-3, 2-3. = 5 unique
+        assert g.num_edges == 5
+
+    def test_single_vertex_edge(self):
+        """Edge with 1 vertex produces no graph edges."""
+        hg = HyperGraph.from_edge_list([[0], [0, 1]])
+        g = hg.to_graph()
+        assert g.num_nodes == 2
+        assert g.num_edges == 1
+
+    def test_preserves_node_weights(self):
+        hg = HyperGraph.from_edge_list([[0, 1]], node_weights=[5, 10])
+        g = hg.to_graph()
+        np.testing.assert_array_equal(g.node_weights, [5, 10])
+
+    def test_empty_hypergraph(self):
+        hg = HyperGraph.from_edge_list([], num_nodes=3)
+        g = hg.to_graph()
+        assert g.num_nodes == 3
+        assert g.num_edges == 0
+
+    def test_large_edge_produces_complete_graph(self):
+        """A single hyperedge with 5 vertices produces K5 with 10 edges."""
+        hg = HyperGraph.from_edge_list([[0, 1, 2, 3, 4]])
+        g = hg.to_graph()
+        assert g.num_nodes == 5
+        assert g.num_edges == 10  # C(5,2)
