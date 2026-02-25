@@ -18,5 +18,9 @@ class InvalidGraphError(CHSZLabLibError, ValueError):
     """Raised when a graph has invalid structure (bad CSR, out-of-bounds nodes)."""
 
 
+class InvalidHyperGraphError(CHSZLabLibError, ValueError):
+    """Raised when a hypergraph has invalid structure."""
+
+
 class GraphNotFinalizedError(CHSZLabLibError, RuntimeError):
     """Raised when an operation requires a finalized graph but it is not."""
