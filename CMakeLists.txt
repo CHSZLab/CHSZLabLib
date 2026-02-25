@@ -15,6 +15,9 @@ add_compile_definitions(
     _LIBCPP_ENABLE_CXX17_REMOVED_RANDOM_SHUFFLE
     _LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION
 )
+# KaMIS's bundled KaHIP uses `using namespace __gnu_cxx;` which doesn't exist
+# on Apple Clang. Force-include a header that provides an empty namespace.
+add_compile_options("SHELL:-include ${CMAKE_CURRENT_SOURCE_DIR}/cmake/compat_gnu_cxx.h")
 
 # =============================================================================
 # MQLib  (for fpt-max-cut; must come BEFORE the global -include cstdint
