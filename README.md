@@ -13,7 +13,7 @@
 
 <p align="center">
   <em>
-    13 C++ algorithm libraries.&nbsp;
+    11 C++ algorithm libraries.&nbsp;
     <code>Graph</code> and <code>HyperGraph</code> objects.&nbsp;
     Zero-copy NumPy arrays.&nbsp;
     Built for humans and AI agents.
@@ -24,9 +24,9 @@
 
 ## About
 
-The [Algorithm Engineering Group](https://ae.ifi.uni-heidelberg.de/) at Heidelberg University develops high-performance C++ algorithms for a wide range of combinatorial optimization problems on graphs — graph partitioning, minimum and maximum cuts, community detection, independent sets, edge orientation, longest paths, and more. These solvers represent the state of the art in their respective domains.
+The [Algorithm Engineering Group](https://ae.ifi.uni-heidelberg.de/) at Heidelberg University develops high-performance C++ algorithms for a wide range of combinatorial optimization problems on graphs — graph partitioning, minimum and maximum cuts, community detection, independent sets, edge orientation, and more. These solvers represent the state of the art in their respective domains.
 
-**CHSZLabLib wraps 13 of these libraries into a single, easy-to-use Python interface.** `Graph` and `HyperGraph` objects, consistent method signatures, typed result objects, and zero-copy NumPy arrays — designed to be productive for end users and fully discoverable by AI agents (LLMs).
+**CHSZLabLib wraps 11 of these libraries into a single, easy-to-use Python interface.** `Graph` and `HyperGraph` objects, consistent method signatures, typed result objects, and zero-copy NumPy arrays — designed to be productive for end users and fully discoverable by AI agents (LLMs).
 
 For full algorithmic control (custom parameter tuning, every possible knob), use the underlying C/C++ repositories directly. This library prioritizes **convenience and a unified interface**.
 
@@ -45,7 +45,6 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
   - [Decomposition](#decomposition)
   - [IndependenceProblems](#independenceproblems)
   - [Orientation](#orientation)
-  - [PathProblems](#pathproblems)
 - [Use Cases & Examples](#use-cases--examples)
 - [I/O](#io)
 - [Running Tests](#running-tests)
@@ -68,7 +67,6 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 | [VieClus](https://github.com/VieClus/VieClus) | Community detection | Modularity-maximizing evolutionary clustering |
 | [SCC](https://github.com/ScalableCorrelationClustering/ScalableCorrelationClustering) | Correlation clustering | Label propagation + evolutionary on signed graphs |
 | [HeidelbergMotifClustering](https://github.com/LocalClustering/HeidelbergMotifClustering) | Local clustering | Triangle-motif-based flow and partitioning methods |
-| [HeiCut](https://github.com/HeiCut/HeiCut) | Hypergraph minimum cut | Kernelization, submodular, trimming, ILP solvers |
 
 **IndependenceProblems** — Maximum independent set and maximum weight independent set.
 
@@ -84,18 +82,12 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 |:--------|:-------|:-----------|
 | [HeiOrient](https://github.com/KaHIP/HeiOrient) | Edge orientation | 2-approx greedy, DFS local search, Eager Path Search |
 
-**PathProblems** — Path-based graph optimization.
-
-| Library | Domain | Algorithms |
-|:--------|:-------|:-----------|
-| [KaLP](https://github.com/KarlsruheLongestPaths/KaLP) | Longest paths | Partitioning-aided longest simple path solver |
-
 ---
 
 ## Quick Start
 
 ```python
-from chszlablib import Graph, Decomposition, IndependenceProblems, Orientation, PathProblems
+from chszlablib import Graph, Decomposition, IndependenceProblems, Orientation
 
 # Build a small graph
 g = Graph(num_nodes=6)
@@ -128,10 +120,6 @@ from chszlablib import HyperGraph
 hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3, 4], [4, 5]])
 r = IndependenceProblems.hypermis(hg, time_limit=5.0)
 print(f"Hypergraph IS size: {r.size}, vertices: {r.vertices}")
-
-# --- Hypergraph minimum cut ---
-mc = Decomposition.hypermincut(hg, method="kernelizer")
-print(f"Hypergraph min-cut: {mc.cut_value}")
 ```
 
 ---
@@ -153,7 +141,6 @@ print(f"Hypergraph min-cut: {mc.cut_value}")
 | Maximize the cut between two sets | `Decomposition.maxcut` | `method` |
 | Cluster a signed graph | `Decomposition.correlation_clustering` | `seed`, `time_limit` |
 | Find a local community around a node | `Decomposition.motif_cluster` | `seed_node`, `method` |
-| Minimum cut of a hypergraph | `Decomposition.hypermincut` | `method`, `time_limit` |
 | Partition a streaming graph | `Decomposition.stream_partition` | `k`, `imbalance` |
 | Compute a fill-reducing ordering | `Decomposition.node_ordering` | `mode` |
 | Find a node separator | `Decomposition.node_separator` | `num_parts`, `mode` |
@@ -161,12 +148,11 @@ print(f"Hypergraph min-cut: {mc.cut_value}")
 | Find max-weight independent set | `IndependenceProblems.chils` | `time_limit`, `num_concurrent` |
 | Independent set on a hypergraph | `IndependenceProblems.hypermis` | `method`, `time_limit`, `strong_reductions` |
 | Orient edges (min max out-degree) | `Orientation.orient_edges` | `algorithm` |
-| Find the longest simple path | `PathProblems.longest_path` | `start_vertex`, `target_vertex` |
 
 ### One-Liner Recipes
 
 ```python
-from chszlablib import Graph, HyperGraph, Decomposition, IndependenceProblems, Orientation, PathProblems
+from chszlablib import Graph, HyperGraph, Decomposition, IndependenceProblems, Orientation
 
 g = Graph.from_edge_list([(0,1),(1,2),(2,0),(2,3),(3,4),(4,5),(5,3)])
 
@@ -180,12 +166,10 @@ Decomposition.stream_partition(g, k=2, imbalance=3.0)                   # stream
 IndependenceProblems.redumis(g, time_limit=5.0)                         # max independent set
 IndependenceProblems.chils(g, time_limit=5.0)                           # max weight independent set
 Orientation.orient_edges(g, algorithm="combined")                       # edge orientation
-PathProblems.longest_path(g, start_vertex=0, target_vertex=5)           # longest s-t path
 
 hg = HyperGraph.from_edge_list([[0,1,2],[2,3,4],[4,5]])
 IndependenceProblems.hypermis(hg)                                       # hypergraph IS (heuristic)
 IndependenceProblems.hypermis(hg, method="exact")                       # hypergraph IS (exact, needs gurobipy)
-Decomposition.hypermincut(hg, method="kernelizer")                      # hypergraph minimum cut
 ```
 
 ### Programmatic Introspection
@@ -196,7 +180,6 @@ from chszlablib import Decomposition
 # Discover all valid modes for partitioning
 Decomposition.PARTITION_MODES     # ("fast", "eco", "strong", "fastsocial", ...)
 Decomposition.MINCUT_ALGORITHMS   # ("viecut", "vc", "noi", "ks", ...)
-Decomposition.HYPERMINCUT_METHODS # ("kernelizer", "submodular", "ilp", "trimmer")
 
 # List all methods with descriptions
 Decomposition.available_methods()
@@ -246,7 +229,7 @@ g = hg.to_graph()
 - **Mode strings are case-sensitive:** use `"eco"`, not `"Eco"` or `"ECO"`.
 - **Self-loops and duplicate edges raise `InvalidGraphError`.** Empty hyperedges raise `InvalidHyperGraphError`.
 - **NetworkX / SciPy / gurobipy are optional** — import errors give a helpful message.
-- **`IndependenceProblems.hypermis()` takes a `HyperGraph`, not a `Graph`.** Same for `Decomposition.hypermincut()`.
+- **`IndependenceProblems.hypermis()` takes a `HyperGraph`, not a `Graph`.**
 - **`PartitionResult.balance` is only set by `evolutionary_partition`.**
 - **Catch `CHSZLabLibError` to handle all library errors, or use specific subclasses (`InvalidModeError`, `InvalidGraphError`, `GraphNotFinalizedError`).**
 
@@ -283,7 +266,7 @@ The build script handles everything automatically:
 |:--------|:--------|
 | `networkx` | `Graph.from_networkx()` / `to_networkx()` conversions |
 | `scipy` | `Graph.from_scipy_sparse()` / `to_scipy_sparse()` conversions |
-| `gurobipy` | Exact ILP solver for `IndependenceProblems.hypermis(method="exact")` and `Decomposition.hypermincut(method="ilp")` — requires a [Gurobi license](https://www.gurobi.com/downloads/) |
+| `gurobipy` | Exact ILP solver for `IndependenceProblems.hypermis(method="exact")` — requires a [Gurobi license](https://www.gurobi.com/downloads/) |
 | OpenMP | Optional (enables parallelism in VieClus, CHILS, HeiStream) |
 
 ---
@@ -448,7 +431,6 @@ Graph decomposition: partitioning, cuts, clustering, and community detection.
 | `correlation_clustering` | Correlation clustering | SCC |
 | `evolutionary_correlation_clustering` | Correlation clustering (evolutionary) | SCC |
 | `motif_cluster` | Local motif clustering | HeidelbergMotifClustering |
-| `hypermincut` | Hypergraph minimum cut | HeiCut |
 
 #### `Decomposition.partition(g, ...)` — Balanced Graph Partitioning (KaHIP)
 
@@ -671,43 +653,6 @@ Decomposition.motif_cluster(g, seed_node, method="social", bfs_depths=None,
 
 **Result: `MotifClusterResult`** — `cluster_nodes` (ndarray), `motif_conductance` (float).
 
-#### `Decomposition.hypermincut(hg, ...)` — Hypergraph Minimum Cut (HeiCut)
-
-**Problem.** Given a hypergraph $H = (V, \mathcal{E})$ with hyperedge weights $w : \mathcal{E} \to \mathbb{R}_{\geq 0}$, find a partition of $V$ into two non-empty sets $S$ and $\bar{S} = V \setminus S$ that minimizes the **hypergraph cut weight**
-
-$$\lambda(H) = \min_{\emptyset \neq S \subset V} \sum_{\substack{e \in \mathcal{E} \\ e \cap S \neq \emptyset \\ e \cap \bar{S} \neq \emptyset}} w(e).$$
-
-A hyperedge $e$ is *cut* if it has vertices on both sides of the partition. The minimum cut value equals the **hypergraph edge connectivity**. HeiCut provides four solving strategies: kernelization with LP tightening (best general-purpose), submodular function minimization, trimming (unweighted only), and ILP (requires `gurobipy`).
-
-```python
-Decomposition.hypermincut(hg, method="kernelizer", time_limit=300.0, seed=0, num_threads=1) -> HyperMincutResult
-```
-
-| Parameter | Type | Default | Description |
-|:----------|:-----|:--------|:------------|
-| `hg` | `HyperGraph` | — | Input hypergraph |
-| `method` | `str` | `"kernelizer"` | Solver method |
-| `time_limit` | `float` | `300.0` | Time limit in seconds (ILP only) |
-| `seed` | `int` | `0` | Random seed for reproducibility |
-| `num_threads` | `int` | `1` | Number of threads |
-
-| Method | Identifier | Characteristics |
-|:-------|:-----------|:----------------|
-| Kernelizer | `"kernelizer"` | Kernelization + LP tightening; best general-purpose |
-| Submodular | `"submodular"` | Submodular function minimization |
-| Trimmer | `"trimmer"` | Trimming-based; unweighted only |
-| ILP | `"ilp"` | Integer linear programming; requires `gurobipy` |
-
-**Result: `HyperMincutResult`** — `cut_value` (int), `time` (float), `method` (str).
-
-```python
-from chszlablib import HyperGraph, Decomposition
-
-hg = HyperGraph.from_edge_list([[0, 1], [1, 2], [2, 3]])
-r = Decomposition.hypermincut(hg, method="kernelizer")
-print(f"Hypergraph min-cut: {r.cut_value}")
-```
-
 ---
 
 ### IndependenceProblems
@@ -865,42 +810,6 @@ Orientation.orient_edges(g, algorithm="combined", seed=0, eager_size=100) -> Edg
 
 ---
 
-### PathProblems
-
-Path-based graph optimization.
-
-| Method | Problem | Library |
-|:-------|:--------|:--------|
-| `longest_path` | Longest simple path | KaLP |
-
-#### `PathProblems.longest_path(g, ...)` — Longest Simple Path (KaLP)
-
-**Problem.** Given an undirected graph $G = (V, E)$ with edge weights $\omega : E \to \mathbb{R}_{\geq 0}$ and two designated vertices $s, t \in V$, find a simple (vertex-disjoint) path $P = (s = v_0, v_1, \dotsc, v_\ell = t)$ that maximizes
-
-$$\sum_{i=0}^{\ell-1} \omega(\lbrace v_i, v_{i+1} \rbrace).$$
-
-For unweighted graphs, this reduces to finding the path with the most edges. The problem is NP-hard; KaLP uses **graph partitioning** to decompose the search space into blocks, then applies dynamic programming within and across blocks to find long paths efficiently.
-
-```python
-PathProblems.longest_path(g, start_vertex=0, target_vertex=-1, partition_config="eco",
-                          block_size=10, number_of_threads=1) -> LongestPathResult
-```
-
-**Result: `LongestPathResult`** — `length` (int), `path` (ndarray).
-
-```python
-from chszlablib import Graph, PathProblems
-
-g = Graph(num_nodes=6)
-for u, v in [(0,1), (1,2), (2,3), (3,4), (4,5), (0,5)]:
-    g.add_edge(u, v)
-
-result = PathProblems.longest_path(g, start_vertex=0, target_vertex=5)
-print(f"Longest path length: {result.length}, path: {result.path}")
-```
-
----
-
 ## Use Cases & Examples
 
 ### Distributed Computing: Domain Decomposition
@@ -1000,7 +909,6 @@ CHSZLabLib/
 │   ├── decomposition.py         # Decomposition namespace + HeiStreamPartitioner
 │   ├── independence.py          # IndependenceProblems namespace (MIS, MWIS, HyperMIS)
 │   ├── orientation.py           # Orientation namespace (edge orientation)
-│   ├── paths.py                 # PathProblems namespace (longest path)
 │   ├── exceptions.py            # Custom exception hierarchy
 │   └── io.py                    # METIS + hMETIS file I/O
 ├── bindings/                    # pybind11 C++ bindings
@@ -1012,11 +920,9 @@ CHSZLabLib/
 │   ├── CHILS/                   # Weighted independent set
 │   ├── KaMIS/                   # Independent set algorithms
 │   ├── HyperMIS/                # Hypergraph independent set
-│   ├── HeiCut/                  # Hypergraph minimum cut
 │   ├── SCC/                     # Correlation clustering
 │   ├── HeiOrient/               # Edge orientation
 │   ├── HeiStream/               # Streaming partitioning
-│   ├── KaLP/                    # Longest paths
 │   ├── fpt-max-cut/             # Maximum cut
 │   └── HeidelbergMotifClustering/ # Motif clustering
 ├── CMakeLists.txt               # Top-level CMake configuration
@@ -1148,17 +1054,6 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
 }
 ```
 
-### HeiCut (Hypergraph Minimum Cut)
-
-```bibtex
-@software{heicut2026,
-  title   = {HeiCut: Hypergraph Minimum Cut Algorithms},
-  author  = {Christian Schulz},
-  year    = {2026},
-  url     = {https://github.com/HeiCut/HeiCut}
-}
-```
-
 ### SCC (Correlation Clustering)
 
 ```bibtex
@@ -1179,19 +1074,6 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
   journal = {ACM Journal of Experimental Algorithmics},
   year    = {2022},
   doi     = {10.1145/3546911}
-}
-```
-
-### KaLP (Longest Path)
-
-```bibtex
-@inproceedings{fieger2019finding,
-  title     = {Finding Optimal Longest Paths by Dynamic Programming in Parallel},
-  author    = {Kai Fieger and Tom{\'a}s Balyo and Christian Schulz and Dominik Schreiber},
-  booktitle = {Proceedings of the 12th Annual Symposium on Combinatorial Search (SOCS'19)},
-  pages     = {61--69},
-  year      = {2019},
-  publisher = {AAAI Press}
 }
 ```
 
@@ -1224,12 +1106,10 @@ CHSZLabLib is developed by **Christian Schulz** at Heidelberg University.
 This library would not be possible without the original algorithm implementations and research contributions from the following people:
 
 - **Yaroslav Akhremtsev** — KaHIP
-- **Tomás Balyo** — KaLP
 - **Sonja Biedermann** — VieClus
 - **Adil Chhabra** — HeiStream, HeidelbergMotifClustering, KaHIP
 - **Jakob Dahlum** — KaMIS
 - **Marcelo Fonseca Faraj** — SCC, HeiStream, HeidelbergMotifClustering, KaHIP
-- **Kai Fieger** — KaLP
 - **Alexander Gellner** — KaMIS
 - **Ernestine Großmann** — CHILS, HyperMIS, KaMIS (MMWIS)
 - **Felix Hausberger** — SCC
@@ -1242,7 +1122,6 @@ This library would not be possible without the original algorithm implementation
 - **Alexander Noe** — VieCut, KaHIP
 - **Peter Sanders** — KaHIP, KaMIS
 - **Sebastian Schlag** — KaHIP
-- **Dominik Schreiber** — KaLP
 - **Christian Schulz** — All libraries
 - **Bernhard Schuster** — VieClus
 - **Daniel Seemaier** — KaHIP, HeiStream

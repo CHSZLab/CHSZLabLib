@@ -853,119 +853,6 @@ if(Threads_FOUND)
 endif()
 
 # =============================================================================
-# KaLP  (Karlsruhe Longest Paths — built manually, bundles its own KaHIP copy)
-# =============================================================================
-set(KALP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/KaLP)
-
-set(KALP_KAFFPA_SOURCES
-    ${KALP_DIR}/extern/KaHIP/lib/data_structure/graph_hierarchy.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/algorithms/strongly_connected_components.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/algorithms/topological_sort.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/algorithms/push_relabel.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/io/graph_io.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/tools/quality_metrics.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/tools/random_functions.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/tools/graph_extractor.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/tools/misc.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/tools/partition_snapshooter.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/graph_partitioner.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/w_cycles/wcycle_partitioner.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/coarsening/coarsening.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/coarsening/contraction.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/coarsening/edge_rating/edge_ratings.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/coarsening/matching/matching.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/coarsening/matching/random_matching.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/coarsening/matching/gpa/path.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/coarsening/matching/gpa/gpa_matching.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/coarsening/matching/gpa/path_set.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/coarsening/clustering/node_ordering.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/coarsening/clustering/size_constraint_label_propagation.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/initial_partitioning/initial_partitioning.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/initial_partitioning/initial_partitioner.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/initial_partitioning/initial_partition_bipartition.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/initial_partitioning/initial_refinement/initial_refinement.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/initial_partitioning/bipartition.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/initial_partitioning/initial_node_separator.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/uncoarsening.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/separator/area_bfs.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/separator/vertex_separator_algorithm.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/separator/vertex_separator_flow_solver.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/cycle_improvements/greedy_neg_cycle.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/cycle_improvements/problem_factory.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/cycle_improvements/augmented_Qgraph.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/mixed_refinement.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/label_propagation_refinement/label_propagation_refinement.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/refinement.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/quotient_graph_refinement/2way_fm_refinement/two_way_fm.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement/two_way_flow_refinement.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement/boundary_bfs.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement/flow_solving_kernel/cut_flow_problem_solver.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement/most_balanced_minimum_cuts/most_balanced_minimum_cuts.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/quotient_graph_refinement/quotient_graph_refinement.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/quotient_graph_refinement/complete_boundary.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/quotient_graph_refinement/partial_boundary.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/quotient_graph_refinement/quotient_graph_scheduling/quotient_graph_scheduling.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/quotient_graph_refinement/quotient_graph_scheduling/simple_quotient_graph_scheduler.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/quotient_graph_refinement/quotient_graph_scheduling/active_block_quotient_graph_scheduler.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/kway_graph_refinement/kway_graph_refinement.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/kway_graph_refinement/kway_graph_refinement_core.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/kway_graph_refinement/kway_graph_refinement_commons.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/cycle_improvements/augmented_Qgraph_fabric.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/cycle_improvements/advanced_models.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/kway_graph_refinement/multitry_kway_fm.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/node_separators/greedy_ns_local_search.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/node_separators/fm_ns_local_search.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/node_separators/localized_fm_ns_local_search.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/algorithms/cycle_search.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/cycle_improvements/cycle_refinement.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/parallel_mh/galinier_combine/gal_combine.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/parallel_mh/galinier_combine/construct_partition.cpp
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/tabu_search/tabu_search.cpp
-)
-
-add_library(kalp_static STATIC
-    ${KALP_DIR}/lib/partitioning/partitioning.cpp
-    ${KALP_DIR}/lib/data_structure/undirected_graph.cpp
-    ${KALP_DIR}/lib/io/graph_io.cpp
-    ${KALP_DIR}/lib/LPDP/QueryManager.cpp
-    ${KALP_DIR}/lib/LPDP/Block.cpp
-    ${KALP_DIR}/lib/LPDP/BaseGraphSearch.cpp
-    ${KALP_DIR}/lib/LPDP/BlockGraphSearch.cpp
-    ${KALP_DIR}/extern/argtable3-3.2.2/argtable3.c
-    ${KALP_KAFFPA_SOURCES}
-)
-
-target_include_directories(kalp_static PUBLIC
-    ${KALP_DIR}/extern/tbb2019_20181203oss/include  # bundled TBB headers (must come before system)
-    ${KALP_DIR}
-    ${KALP_DIR}/lib
-    ${KALP_DIR}/lib/tools
-    ${KALP_DIR}/lib/partitioning
-    ${KALP_DIR}/lib/data_structure
-    ${KALP_DIR}/lib/LPDP
-    ${KALP_DIR}/extern/KaHIP/app     # KaHIP configuration.h (before KaLP app/)
-    ${KALP_DIR}/extern/KaHIP/lib
-    ${KALP_DIR}/extern/KaHIP/lib/tools
-    ${KALP_DIR}/extern/KaHIP/lib/partition
-    ${KALP_DIR}/extern/KaHIP/lib/io
-    ${KALP_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement
-    ${KALP_DIR}/app                   # KaLP's own config.h, parse_parameters.h
-    ${KALP_DIR}/extern/argtable3-3.2.2
-)
-
-target_compile_options(kalp_static PRIVATE -w)
-target_compile_definitions(kalp_static PRIVATE -DNDEBUG)
-
-if(OpenMP_CXX_FOUND)
-    target_link_libraries(kalp_static PUBLIC OpenMP::OpenMP_CXX)
-endif()
-
-# Link against KaLP's bundled TBB 2019 (ABI-compatible with bundled headers)
-set(KALP_TBB_LIB_DIR ${KALP_DIR}/extern/tbb2019_20181203oss/lib/intel64/gcc4.7)
-target_link_libraries(kalp_static PUBLIC ${KALP_TBB_LIB_DIR}/libtbb.so.2)
-target_link_directories(kalp_static PUBLIC ${KALP_TBB_LIB_DIR})
-
-# =============================================================================
 # HeidelbergMotifClustering  (SOCIAL + LMCHGP local motif clustering)
 # =============================================================================
 set(MOTIF_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/HeidelbergMotifClustering/SOCIAL)
@@ -1213,60 +1100,6 @@ target_include_directories(hypermis_static PUBLIC
 )
 target_compile_options(hypermis_static PRIVATE -w -O2)
 
-# =============================================================================
-# HeiCut  (Hypergraph Minimum Cut)
-# =============================================================================
-set(HEICUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/HeiCut)
-
-# Check for Gurobi (optional ILP solver)
-set(HEICUT_HAS_GUROBI OFF)
-if(DEFINED ENV{GUROBI_HOME})
-    set(GUROBI_HOME "$ENV{GUROBI_HOME}")
-    if(EXISTS "${GUROBI_HOME}/include/gurobi_c++.h")
-        set(HEICUT_HAS_GUROBI ON)
-    endif()
-endif()
-
-# HeiCut static library sources (no app/, no parse_parameters)
-set(HEICUT_SOURCES
-    ${HEICUT_DIR}/lib/solvers/submodular.cpp
-    ${HEICUT_DIR}/lib/coarsening/label_propagation.cpp
-    ${HEICUT_DIR}/lib/trimmer/trimmer.cpp
-    ${HEICUT_DIR}/lib/decomposition/core_decomposition.cpp
-    ${HEICUT_DIR}/lib/utils/random.cpp
-)
-
-# Conditionally include ILP and kernelizer sources when Gurobi is available
-if(HEICUT_HAS_GUROBI)
-    list(APPEND HEICUT_SOURCES
-        ${HEICUT_DIR}/lib/solvers/ilp.cpp
-        ${HEICUT_DIR}/lib/solvers/kernelizer.cpp
-    )
-endif()
-
-add_library(heicut_static STATIC ${HEICUT_SOURCES})
-target_include_directories(heicut_static PUBLIC
-    ${HEICUT_DIR}
-    ${HEICUT_DIR}/extern
-    ${HEICUT_DIR}/extern/kahip
-    ${HEICUT_DIR}/extern/mt-kahypar
-    ${HEICUT_DIR}/extern/mt-kahypar-library
-    ${HEICUT_DIR}/extern/kahypar-shared-resources
-    ${HEICUT_DIR}/extern/argtable3-3.2.2
-)
-target_compile_options(heicut_static PRIVATE -w -O2)
-# Sequential only (no SMHM_PARALLEL), release mode for assertions
-target_compile_definitions(heicut_static PRIVATE -DNDEBUG)
-
-if(HEICUT_HAS_GUROBI)
-    target_include_directories(heicut_static PRIVATE "${GUROBI_HOME}/include")
-    target_compile_definitions(heicut_static PRIVATE -DHEICUT_HAS_GUROBI)
-endif()
-
-# Link against libmtkahypar.so (pre-built shared library)
-set(HEICUT_MTKAHYPAR_LIB "${HEICUT_DIR}/extern/mt-kahypar-library/libmtkahypar.so")
-target_link_libraries(heicut_static PUBLIC ${HEICUT_MTKAHYPAR_LIB})
-
 
 # =============================================================================
 # Pybind11 modules
@@ -1341,15 +1174,6 @@ pybind11_add_module(_maxcut bindings/maxcut_binding.cpp)
 target_link_libraries(_maxcut PRIVATE fpt_maxcut_static)
 install(TARGETS _maxcut DESTINATION chszlablib)
 
-# --- _kalp (Longest Paths) ---
-pybind11_add_module(_kalp bindings/kalp_binding.cpp)
-target_link_libraries(_kalp PRIVATE kalp_static)
-set_target_properties(_kalp PROPERTIES
-    BUILD_RPATH "${KALP_TBB_LIB_DIR}"
-    INSTALL_RPATH "${KALP_TBB_LIB_DIR}"
-)
-install(TARGETS _kalp DESTINATION chszlablib)
-
 # --- _motif (Motif Clustering: SOCIAL + LMCHGP) ---
 pybind11_add_module(_motif bindings/motif_binding.cpp)
 target_link_libraries(_motif PRIVATE motif_static)
@@ -1370,26 +1194,4 @@ install(TARGETS _heistream DESTINATION chszlablib)
 pybind11_add_module(_hypermis bindings/hypermis_binding.cpp)
 target_link_libraries(_hypermis PRIVATE hypermis_static)
 install(TARGETS _hypermis DESTINATION chszlablib)
-
-# --- _heicut (Hypergraph Minimum Cut) ---
-pybind11_add_module(_heicut bindings/heicut_binding.cpp)
-target_link_libraries(_heicut PRIVATE heicut_static)
-target_compile_options(_heicut PRIVATE -w)
-target_compile_definitions(_heicut PRIVATE -DNDEBUG)
-if(HEICUT_HAS_GUROBI)
-    target_compile_definitions(_heicut PRIVATE -DHEICUT_HAS_GUROBI)
-    target_include_directories(_heicut PRIVATE "${GUROBI_HOME}/include")
-    # Find the Gurobi library (gurobi_c++ and gurobi<version>)
-    file(GLOB GUROBI_CXX_LIB "${GUROBI_HOME}/lib/libgurobi_c++.a")
-    file(GLOB GUROBI_LIB "${GUROBI_HOME}/lib/libgurobi*.so")
-    target_link_libraries(_heicut PRIVATE ${GUROBI_CXX_LIB} ${GUROBI_LIB})
-endif()
-# Set RPATH so libmtkahypar.so is found at runtime
-set_target_properties(_heicut PROPERTIES
-    BUILD_RPATH "${HEICUT_DIR}/extern/mt-kahypar-library"
-    INSTALL_RPATH "$ORIGIN"
-)
-install(TARGETS _heicut DESTINATION chszlablib)
-# Install libmtkahypar.so alongside the package for runtime
-install(FILES ${HEICUT_MTKAHYPAR_LIB} DESTINATION chszlablib)
 

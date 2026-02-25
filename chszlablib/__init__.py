@@ -20,11 +20,9 @@ from chszlablib.decomposition import (
     MaxCutResult,
     MotifClusterResult,
     StreamPartitionResult,
-    HyperMincutResult,
 )
 from chszlablib.independence import IndependenceProblems, MISResult, MWISResult, HyperMISResult
 from chszlablib.orientation import Orientation, EdgeOrientationResult
-from chszlablib.paths import PathProblems, LongestPathResult
 
 def describe() -> str:
     """Return a structured overview of the CHSZLabLib API.
@@ -75,7 +73,6 @@ def describe() -> str:
         (Decomposition, "DECOMPOSITION"),
         (IndependenceProblems, "INDEPENDENCE PROBLEMS"),
         (Orientation, "ORIENTATION"),
-        (PathProblems, "PATH PROBLEMS"),
     ]
 
     for cls, title in namespaces:
@@ -107,12 +104,10 @@ def describe() -> str:
         "  ClusterResult           modularity, num_clusters, assignment",
         "  CorrelationClusteringResult  edge_cut, num_clusters, assignment",
         "  MotifClusterResult      cluster_nodes, motif_conductance",
-        "  HyperMincutResult       cut_value, time, method",
         "  MISResult               size, weight, vertices",
         "  MWISResult              size, weight, vertices",
         "  HyperMISResult          size, weight, vertices, offset, reduction_time",
         "  EdgeOrientationResult   max_out_degree, out_degrees, edge_heads",
-        "  LongestPathResult       length, path",
         "",
         "EXCEPTIONS",
         "-" * 48,
@@ -158,7 +153,6 @@ __all__ = [
     "HeiStreamPartitioner",
     "IndependenceProblems",
     "Orientation",
-    "PathProblems",
     # Result dataclasses
     "PartitionResult",
     "SeparatorResult",
@@ -169,10 +163,8 @@ __all__ = [
     "MaxCutResult",
     "MotifClusterResult",
     "StreamPartitionResult",
-    "HyperMincutResult",
     "MISResult",
     "MWISResult",
     "HyperMISResult",
     "EdgeOrientationResult",
-    "LongestPathResult",
 ]

@@ -26,9 +26,6 @@
 [submodule "fpt-max-cut"]
 	path = external_repositories/fpt-max-cut
 	url = https://github.com/DataReductionMaxCut/fpt-max-cut.git
-[submodule "KaLP"]
-	path = external_repositories/KaLP
-	url = https://github.com/KarlsruheLongestPaths/KaLP.git
 [submodule "HeidelbergMotifClustering"]
 	path = external_repositories/HeidelbergMotifClustering
 	url = https://github.com/LocalClustering/HeidelbergMotifClustering.git
@@ -38,6 +35,3 @@
 [submodule "external_repositories/HyperMIS"]
 	path = external_repositories/HyperMIS
 	url = https://github.com/KarlsruheMIS/HyperMIS
-[submodule "external_repositories/HeiCut"]
-	path = external_repositories/HeiCut
-	url = https://github.com/HeiCut/HeiCut.git
