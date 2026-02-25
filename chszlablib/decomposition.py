@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, Sequence
+from typing import TYPE_CHECKING, Literal, Sequence
 
 import numpy as np
 
 from chszlablib.exceptions import InvalidModeError
 from chszlablib.graph import Graph
+
+if TYPE_CHECKING:
+    from chszlablib.hypergraph import HyperGraph
 
 # ---------------------------------------------------------------------------
 # Mode maps
@@ -154,6 +157,18 @@ class StreamPartitionResult:
     """Partition assignment for each node (0-indexed)."""
 
 
+@dataclass
+class HyperMincutResult:
+    """Result of a hypergraph minimum cut computation."""
+
+    cut_value: int
+    """The minimum cut value (total weight of cut hyperedges)."""
+    time: float
+    """Computation time in seconds."""
+    method: str
+    """Solver method used."""
+
+
 # ---------------------------------------------------------------------------
 # Decomposition namespace
 # ---------------------------------------------------------------------------
@@ -184,6 +199,9 @@ class Decomposition:
     MOTIF_METHODS: tuple[str, ...] = ("social", "lmchgp")
     """Valid methods for :meth:`motif_cluster`."""
 
+    HYPERMINCUT_METHODS: tuple[str, ...] = ("kernelizer", "submodular", "ilp", "trimmer")
+    """Valid methods for :meth:`hypermincut`."""
+
     def __new__(cls):
         raise TypeError(f"{cls.__name__} is a namespace and cannot be instantiated")
 
@@ -205,6 +223,7 @@ class Decomposition:
             "correlation_clustering": "Correlation clustering on signed graphs (SCC)",
             "evolutionary_correlation_clustering": "Evolutionary correlation clustering (SCC)",
             "motif_cluster": "Local motif clustering (HeidelbergMotifClustering)",
+            "hypermincut": "Exact hypergraph minimum cut (HeiCut)",
         }
 
     # --- KaHIP: Graph Partitioning ---
@@ -1099,6 +1118,178 @@ class Decomposition:
             cluster_nodes=cluster_nodes,
             motif_conductance=float(conductance),
         )
+
+    # --- HeiCut: Hypergraph Minimum Cut ---
+
+    @staticmethod
+    def hypermincut(
+        hg: "HyperGraph",
+        method: Literal["kernelizer", "submodular", "ilp", "trimmer"] = "kernelizer",
+        time_limit: float = 300.0,
+        seed: int = 0,
+        num_threads: int = 1,
+    ) -> HyperMincutResult:
+        r"""Compute an exact minimum cut of a hypergraph using HeiCut.
+
+        Given a hypergraph :math:`H = (V, \mathcal{E})` with hyperedge weights
+        :math:`w : \mathcal{E} \to \mathbb{R}_{\geq 0}`, find a partition of
+        :math:`V` into two non-empty sets :math:`S` and
+        :math:`\bar{S} = V \setminus S` that minimizes the **hypergraph cut
+        weight**
+
+        .. math::
+
+            \lambda(H) = \min_{\emptyset \neq S \subset V}
+            \sum_{\substack{e \in \mathcal{E} \\ e \cap S \neq \emptyset \\
+            e \cap \bar{S} \neq \emptyset}} w(e).
+
+        A hyperedge :math:`e` is *cut* if it has vertices on both sides of the
+        partition. The minimum cut value equals the **hypergraph edge
+        connectivity**.
+
+        Four solving strategies are available:
+
+        - **``"kernelizer"``** (default) -- kernelization reductions with LP
+          relaxation tightening. Best general-purpose method.
+        - **``"submodular"``** -- submodular function minimization approach.
+        - **``"trimmer"``** -- trimming-based algorithm (unweighted only; edge
+          weights are ignored).
+        - **``"ilp"``** -- integer linear programming formulation. Requires
+          `gurobipy` (either via the C++ binding or a pure-Python fallback).
+
+        Parameters
+        ----------
+        hg : HyperGraph
+            Input hypergraph (at least 2 vertices).
+        method : str
+            Solver method. One of ``"kernelizer"``, ``"submodular"``,
+            ``"ilp"``, ``"trimmer"``.
+        time_limit : float
+            Time limit in seconds (used by the ILP solver; other methods run
+            to completion).
+        seed : int
+            Random seed for reproducibility.
+        num_threads : int
+            Number of threads for the solver.
+
+        Returns
+        -------
+        HyperMincutResult
+            ``cut_value`` (int) -- weight of the minimum cut.
+            ``time`` (float) -- computation time in seconds.
+            ``method`` (str) -- solver method used.
+
+        Raises
+        ------
+        InvalidModeError
+            If ``method`` is not recognized.
+        ImportError
+            If ``method="ilp"`` and neither the C++ Gurobi binding nor
+            ``gurobipy`` is available.
+
+        Examples
+        --------
+        >>> from chszlablib import HyperGraph, Decomposition
+        >>> hg = HyperGraph.from_edge_list([[0, 1], [1, 2], [2, 3]])
+        >>> r = Decomposition.hypermincut(hg)
+        >>> print(f"Min-cut: {r.cut_value}")
+        """
+        if method not in Decomposition.HYPERMINCUT_METHODS:
+            raise InvalidModeError(
+                f"Unknown method {method!r}. "
+                f"Choose from: {', '.join(Decomposition.HYPERMINCUT_METHODS)}"
+            )
+
+        hg.finalize()
+
+        if method == "kernelizer":
+            from chszlablib._heicut import kernelizer
+
+            cut_value, elapsed = kernelizer(
+                hg.eptr, hg.everts,
+                hg.edge_weights.astype(np.int32),
+                hg.num_nodes,
+                ordering_type="tight",
+                lp_iterations=0,
+                seed=seed,
+                num_threads=num_threads,
+            )
+            return HyperMincutResult(
+                cut_value=int(cut_value), time=elapsed, method="kernelizer",
+            )
+
+        elif method == "submodular":
+            from chszlablib._heicut import submodular
+
+            cut_value, elapsed = submodular(
+                hg.eptr, hg.everts,
+                hg.edge_weights.astype(np.int32),
+                hg.num_nodes,
+                ordering_type="tight",
+                seed=seed,
+                num_threads=num_threads,
+            )
+            return HyperMincutResult(
+                cut_value=int(cut_value), time=elapsed, method="submodular",
+            )
+
+        elif method == "trimmer":
+            from chszlablib._heicut import trimmer
+
+            cut_value, elapsed = trimmer(
+                hg.eptr, hg.everts,
+                hg.num_nodes,
+                ordering_type="tight",
+                seed=seed,
+                num_threads=num_threads,
+            )
+            return HyperMincutResult(
+                cut_value=int(cut_value), time=elapsed, method="trimmer",
+            )
+
+        else:  # ilp
+            # Try C++ Gurobi binding first, then pure-Python fallback
+            try:
+                from chszlablib._heicut import HAS_GUROBI
+
+                if HAS_GUROBI:
+                    from chszlablib._heicut import ilp
+
+                    cut_value, elapsed, _is_optimal = ilp(
+                        hg.eptr, hg.everts,
+                        hg.edge_weights.astype(np.int32),
+                        hg.num_nodes,
+                        ilp_timeout=time_limit,
+                        seed=seed,
+                        num_threads=num_threads,
+                    )
+                    return HyperMincutResult(
+                        cut_value=int(cut_value), time=elapsed, method="ilp",
+                    )
+            except (ImportError, RuntimeError):
+                # ImportError: _heicut not built; RuntimeError: Gurobi
+                # license expired or other C++ runtime failure.
+                # Fall through to the pure-Python fallback.
+                pass
+
+            # Pure-Python fallback via gurobipy
+            try:
+                from chszlablib._gurobi_hypermincut_ilp import solve_hypermincut_ilp
+
+                cut_value, elapsed = solve_hypermincut_ilp(
+                    hg.eptr, hg.everts,
+                    hg.edge_weights,
+                    hg.num_nodes,
+                    time_limit=time_limit,
+                )
+                return HyperMincutResult(
+                    cut_value=int(cut_value), time=elapsed, method="ilp",
+                )
+            except ImportError:
+                raise ImportError(
+                    "method='ilp' requires gurobipy. "
+                    "Install it with: pip install gurobipy"
+                )
 
 
 # ---------------------------------------------------------------------------

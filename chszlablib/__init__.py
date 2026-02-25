@@ -20,6 +20,7 @@ from chszlablib.decomposition import (
     MaxCutResult,
     MotifClusterResult,
     StreamPartitionResult,
+    HyperMincutResult,
 )
 from chszlablib.independence import IndependenceProblems, MISResult, MWISResult, HyperMISResult
 from chszlablib.orientation import Orientation, EdgeOrientationResult
@@ -106,6 +107,7 @@ def describe() -> str:
         "  ClusterResult           modularity, num_clusters, assignment",
         "  CorrelationClusteringResult  edge_cut, num_clusters, assignment",
         "  MotifClusterResult      cluster_nodes, motif_conductance",
+        "  HyperMincutResult       cut_value, time, method",
         "  MISResult               size, weight, vertices",
         "  MWISResult              size, weight, vertices",
         "  HyperMISResult          size, weight, vertices, offset, reduction_time",
@@ -167,6 +169,7 @@ __all__ = [
     "MaxCutResult",
     "MotifClusterResult",
     "StreamPartitionResult",
+    "HyperMincutResult",
     "MISResult",
     "MWISResult",
     "HyperMISResult",
