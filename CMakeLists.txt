@@ -24,8 +24,15 @@ add_compile_definitions(
 # KaMIS's bundled KaHIP uses `using namespace __gnu_cxx;` which doesn't exist
 # on Apple Clang. Force-include a header that provides an empty namespace.
 # Also provide shims for GCC-only headers like <parallel/numeric>.
-add_compile_options("SHELL:-include ${CMAKE_CURRENT_SOURCE_DIR}/cmake/compat_gnu_cxx.h")
+if(NOT MSVC)
+    add_compile_options("SHELL:-include ${CMAKE_CURRENT_SOURCE_DIR}/cmake/compat_gnu_cxx.h")
+endif()
 include_directories(BEFORE SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
+# MSVC compatibility: enable alternative operator tokens and suppress warnings.
+if(MSVC)
+    add_compile_options(/FIiso646.h /W0 /permissive-)
+endif()
 
 # =============================================================================
 # MQLib  (for fpt-max-cut; must come BEFORE the global -include cstdint
@@ -37,13 +44,21 @@ file(GLOB_RECURSE MQLIB_SOURCES ${MQLIB_DIR}/src/*.cpp)
 list(FILTER MQLIB_SOURCES EXCLUDE REGEX "main\\.cpp$")
 add_library(mqlib_static STATIC ${MQLIB_SOURCES})
 target_include_directories(mqlib_static PUBLIC ${MQLIB_DIR}/include)
-target_compile_options(mqlib_static PRIVATE -w -O2
-    "SHELL:-include cstdint"
-    "SHELL:-include limits"
-)
+if(MSVC)
+    target_compile_options(mqlib_static PRIVATE /FIcstdint /FIlimits)
+else()
+    target_compile_options(mqlib_static PRIVATE -w -O2
+        "SHELL:-include cstdint"
+        "SHELL:-include limits"
+    )
+endif()
 
 # Fix missing <cstdint> includes in older tlx/VieCut headers on newer compilers
-add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-include;cstdint>")
+if(NOT MSVC)
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-include;cstdint>")
+else()
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/FIcstdint>")
+endif()
 
 # =============================================================================
 # KaHIP  (provides kahip_static target)
@@ -337,7 +352,7 @@ target_include_directories(kamis_redumis_static PUBLIC
 )
 
 target_compile_definitions(kamis_redumis_static PRIVATE OMIS)
-target_compile_options(kamis_redumis_static PRIVATE -w -fpermissive)
+target_compile_options(kamis_redumis_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -fpermissive>)
 
 if(OpenMP_CXX_FOUND)
     target_link_libraries(kamis_redumis_static PUBLIC OpenMP::OpenMP_CXX)
@@ -460,7 +475,7 @@ target_include_directories(kamis_wmis_static PUBLIC
     ${KAMIS_WMIS_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement
 )
 
-target_compile_options(kamis_wmis_static PRIVATE -w -fpermissive)
+target_compile_options(kamis_wmis_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -fpermissive>)
 
 if(OpenMP_CXX_FOUND)
     target_link_libraries(kamis_wmis_static PUBLIC OpenMP::OpenMP_CXX)
@@ -683,7 +698,7 @@ target_include_directories(kamis_mmwis_static PUBLIC
     ${KAMIS_MMWIS_DIR}/extern/struction/lib/data_structure
 )
 
-target_compile_options(kamis_mmwis_static PRIVATE -w -fpermissive)
+target_compile_options(kamis_mmwis_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -fpermissive>)
 
 if(OpenMP_CXX_FOUND)
     target_link_libraries(kamis_mmwis_static PUBLIC OpenMP::OpenMP_CXX)
@@ -729,7 +744,7 @@ target_include_directories(scc_static PUBLIC
     ${SCC_DIR}/lib/tools
 )
 
-target_compile_options(scc_static PRIVATE -w -fpermissive)
+target_compile_options(scc_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -fpermissive>)
 
 if(OpenMP_CXX_FOUND)
     target_link_libraries(scc_static PUBLIC OpenMP::OpenMP_CXX)
@@ -783,7 +798,7 @@ target_include_directories(scc_evo_static PUBLIC
     ${SCC_DIR}/lib/tools
 )
 
-target_compile_options(scc_evo_static PRIVATE -w -fpermissive)
+target_compile_options(scc_evo_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -fpermissive>)
 
 if(OpenMP_CXX_FOUND)
     target_link_libraries(scc_evo_static PUBLIC OpenMP::OpenMP_CXX)
@@ -892,7 +907,7 @@ target_include_directories(kahipe_static PUBLIC
 )
 
 target_compile_definitions(kahipe_static PRIVATE -DMODE_KAFFPA)
-target_compile_options(kahipe_static PRIVATE -w)
+target_compile_options(kahipe_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>)
 
 if(OpenMP_CXX_FOUND)
     target_link_libraries(kahipe_static PUBLIC OpenMP::OpenMP_CXX)
@@ -917,7 +932,7 @@ target_include_directories(fpt_maxcut_static PUBLIC
     ${MQLIB_DIR}/include                             # MQLib headers
 )
 target_link_libraries(fpt_maxcut_static PUBLIC mqlib_static)
-target_compile_options(fpt_maxcut_static PRIVATE -w -fpermissive)
+target_compile_options(fpt_maxcut_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -fpermissive>)
 target_compile_definitions(fpt_maxcut_static PRIVATE NDEBUG)
 if(OpenMP_CXX_FOUND)
     target_link_libraries(fpt_maxcut_static PUBLIC OpenMP::OpenMP_CXX)
@@ -1023,7 +1038,7 @@ target_include_directories(motif_static PUBLIC
     ${MOTIF_DIR}/lib/tools
 )
 
-target_compile_options(motif_static PRIVATE -w -fpermissive)
+target_compile_options(motif_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -fpermissive>)
 target_compile_definitions(motif_static PRIVATE
     -DNDEBUG
     -DMODE64BITEDGES
@@ -1148,7 +1163,7 @@ target_compile_definitions(heistream_static PUBLIC
     -DPOINTER64=1
     -DMODE_STREAMPARTITION
 )
-target_compile_options(heistream_static PRIVATE -w -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc)
+target_compile_options(heistream_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc>)
 target_link_libraries(heistream_static PUBLIC flatbuffers readerwriterqueue)
 
 if(OpenMP_CXX_FOUND)
@@ -1178,7 +1193,7 @@ target_include_directories(hypermis_static PUBLIC
     ${HYPERMIS_DIR}/include
     ${HYPERMIS_DIR}/include/datastructure
 )
-target_compile_options(hypermis_static PRIVATE -w -O2)
+target_compile_options(hypermis_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -O2>)
 
 
 # =============================================================================
@@ -1247,7 +1262,7 @@ install(TARGETS _scc_evo DESTINATION chszlablib)
 # --- _heiorient (Edge Orientation) ---
 pybind11_add_module(_heiorient bindings/heiorient_binding.cpp)
 target_link_libraries(_heiorient PRIVATE heiorient)
-target_compile_options(_heiorient PRIVATE -Wno-c++11-narrowing)
+target_compile_options(_heiorient PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wno-c++11-narrowing>)
 install(TARGETS _heiorient DESTINATION chszlablib)
 
 # --- _maxcut (FPT Max-Cut) ---
