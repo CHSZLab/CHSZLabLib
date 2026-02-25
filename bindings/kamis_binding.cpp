@@ -12,7 +12,6 @@
 #include "graph_io.h"
 #include "reduction_evolution.h"
 #include "mis/kernel/branch_and_reduce_algorithm.h"
-#include "mis/kernel/ParFastKer/fast_reductions/src/full_reductions.h"
 #include "ils/online_ils.h"
 
 namespace py = pybind11;
@@ -84,7 +83,7 @@ static std::tuple<int, py::array_t<int>>
 py_redumis(py::array_t<int, py::array::c_style> xadj,
            py::array_t<int, py::array::c_style> adjncy,
            py::array_t<int, py::array::c_style> vwgt,
-           double time_limit, int seed, bool full_kernelization) {
+           double time_limit, int seed) {
 
     graph_access G;
     build_graph(G, xadj, adjncy, vwgt);
@@ -93,7 +92,7 @@ py_redumis(py::array_t<int, py::array::c_style> xadj,
     init_standard_config(mis_config);
     mis_config.time_limit = time_limit;
     mis_config.seed = seed;
-    mis_config.fullKernelization = full_kernelization;
+    mis_config.fullKernelization = true;
 
     mis_log::instance()->restart_total_timer();
     mis_log::instance()->set_config(mis_config);
@@ -109,13 +108,8 @@ py_redumis(py::array_t<int, py::array::c_style> xadj,
     std::vector<bool> independent_set(G.number_of_nodes(), false);
     std::vector<NodeID> best_nodes;
 
-    if (full_kernelization) {
-        reduction_evolution<branch_and_reduce_algorithm> evo;
-        evo.perform_mis_search(mis_config, G, independent_set, best_nodes);
-    } else {
-        reduction_evolution<full_reductions> evo;
-        evo.perform_mis_search(mis_config, G, independent_set, best_nodes);
-    }
+    reduction_evolution<branch_and_reduce_algorithm> evo;
+    evo.perform_mis_search(mis_config, G, independent_set, best_nodes);
 
     std::cout.rdbuf(old_cout);
     std::cerr.rdbuf(old_cerr);
@@ -200,7 +194,6 @@ PYBIND11_MODULE(_kamis, m) {
     m.def("redumis", &py_redumis,
           py::arg("xadj"), py::arg("adjncy"), py::arg("vwgt"),
           py::arg("time_limit"), py::arg("seed"),
-          py::arg("full_kernelization"),
           R"doc(
           Run ReduMIS evolutionary maximum independent set algorithm.
 

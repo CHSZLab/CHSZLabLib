@@ -89,7 +89,6 @@ class IndependenceProblems:
         g: Graph,
         time_limit: float = 10.0,
         seed: int = 0,
-        full_kernelization: bool = False,
     ) -> MISResult:
         """Compute a maximum independent set using the ReduMIS evolutionary algorithm.
 
@@ -111,9 +110,6 @@ class IndependenceProblems:
             Wall-clock time budget in seconds (default 10.0).
         seed : int, optional
             Random seed for reproducibility (default 0).
-        full_kernelization : bool, optional
-            If ``True``, apply the full set of reduction rules before
-            starting the evolutionary search (default ``False``).
 
         Returns
         -------
@@ -137,8 +133,7 @@ class IndependenceProblems:
         adjncy = g.adjncy.astype(np.int32, copy=False)
         vwgt = g.node_weights.astype(np.int32, copy=False) if g.node_weights is not None else np.array([], dtype=np.int32)
 
-        is_size, is_verts = _redumis(xadj, adjncy, vwgt, time_limit, seed,
-                                     full_kernelization)
+        is_size, is_verts = _redumis(xadj, adjncy, vwgt, time_limit, seed)
         weight = int(np.sum(g.node_weights[is_verts])) if g.node_weights is not None and len(is_verts) > 0 else is_size
         return MISResult(size=is_size, weight=weight, vertices=is_verts)
 

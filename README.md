@@ -677,7 +677,7 @@ $$\max_{I \subseteq V} |I| \quad \text{subject to} \quad \lbrace u, v \rbrace \n
 The maximum independent set problem is NP-hard and hard to approximate. ReduMIS combines **graph reduction rules** (crown, LP, domination, twin) that provably simplify the instance with an **evolutionary algorithm** that operates on the reduced kernel.
 
 ```python
-IndependenceProblems.redumis(g, time_limit=10.0, seed=0, full_kernelization=False) -> MISResult
+IndependenceProblems.redumis(g, time_limit=10.0, seed=0) -> MISResult
 ```
 
 #### `IndependenceProblems.online_mis(g, ...)` — Maximum Independent Set via Local Search (KaMIS)

@@ -8,18 +8,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(pybind11 CONFIG REQUIRED)
 find_package(OpenMP)
 
-# Apple Clang's -Xclang -fopenmp does not implicitly include omp.h (unlike GCC).
-# Add the OpenMP include directory globally so transitive includes work.
+# On macOS with Homebrew libomp, CMake's FindOpenMP may not populate
+# OpenMP_CXX_INCLUDE_DIRS.  Propagate it when available.
 if(OpenMP_CXX_FOUND AND OpenMP_CXX_INCLUDE_DIRS)
     include_directories(SYSTEM ${OpenMP_CXX_INCLUDE_DIRS})
-elseif(OpenMP_CXX_FOUND AND APPLE)
-    # Homebrew libomp on Apple Silicon
-    find_path(_OMP_INCLUDE_DIR omp.h
-        PATHS /opt/homebrew/opt/libomp/include /usr/local/opt/libomp/include
-        NO_DEFAULT_PATH)
-    if(_OMP_INCLUDE_DIR)
-        include_directories(SYSTEM ${_OMP_INCLUDE_DIR})
-    endif()
 endif()
 
 # Several bundled C++ libraries use APIs removed in C++17 (std::random_shuffle,
@@ -299,9 +291,6 @@ set(KAMIS_ROOT_LIB_SOURCES
     ${KAMIS_DIR}/lib/mis/evolutionary/combine/cover_combine.cpp
     ${KAMIS_DIR}/lib/mis/evolutionary/combine/separator_combine.cpp
     ${KAMIS_DIR}/lib/mis/evolutionary/combine/multiway_combine.cpp
-    ${KAMIS_DIR}/lib/mis/kernel/ParFastKer/fast_reductions/src/full_reductions.cpp
-    ${KAMIS_DIR}/lib/mis/kernel/ParFastKer/fast_reductions/src/MaximumMatching.cpp
-    ${KAMIS_DIR}/lib/mis/kernel/ParFastKer/fast_reductions/src/parallel_reductions.cpp
     ${KAMIS_DIR}/lib/mis/kernel/ParFastKer/LinearTime/MIS_sigmod_pub/Graph.cpp
     ${KAMIS_DIR}/lib/mis/kernel/ParFastKer/LinearTime/MIS_sigmod_pub/Utility.cpp
     ${KAMIS_DIR}/extern/argtable3-3.0.3/argtable3.c
@@ -473,6 +462,56 @@ target_compile_options(kamis_wmis_static PRIVATE -w -fpermissive)
 if(OpenMP_CXX_FOUND)
     target_link_libraries(kamis_wmis_static PUBLIC OpenMP::OpenMP_CXX)
 endif()
+
+# ---------------------------------------------------------------------------
+# Clang compatibility patches for KaMIS MMWIS struction sources.
+# GCC allows explicit template instantiations after `using namespace X;`
+# but Clang requires them inside `namespace X { ... }`.
+# Also fix int*/unsigned int* mismatch in build_from_metis call.
+# Patches are idempotent (string(REPLACE) is a no-op if pattern not found).
+# ---------------------------------------------------------------------------
+set(_STRUCTION_DIR ${KAMIS_DIR}/mmwis/extern/struction/lib/mis/kernel)
+set(_MMWIS_KERNEL_DIR ${KAMIS_DIR}/mmwis/lib/mis/kernel)
+
+# --- struction_reductions.cpp: wrap each instantiation line individually ---
+file(READ ${_STRUCTION_DIR}/struction_reductions.cpp _SRC)
+# Wrap each template instantiation in its own namespace block
+string(REPLACE "template class iterative_struction<" "namespace struction { template class iterative_struction<" _SRC "${_SRC}")
+string(REPLACE "template class blow_up_struction<"    "namespace struction { template class blow_up_struction<"    _SRC "${_SRC}")
+# Close the namespace at end of each line (after the semicolon)
+string(REGEX REPLACE "(namespace struction \\{ template class [^;]+;)" "\\1 }" _SRC "${_SRC}")
+file(WRITE ${_STRUCTION_DIR}/struction_reductions.cpp "${_SRC}")
+
+# --- extended_struction.cpp ---
+file(READ ${_STRUCTION_DIR}/extended_struction.cpp _SRC)
+string(REPLACE "template class extended_struction<" "namespace struction { template class extended_struction<" _SRC "${_SRC}")
+string(REGEX REPLACE "(namespace struction \\{ template class [^;]+;)" "\\1 }" _SRC "${_SRC}")
+file(WRITE ${_STRUCTION_DIR}/extended_struction.cpp "${_SRC}")
+
+# --- original_struction.cpp ---
+file(READ ${_STRUCTION_DIR}/original_struction.cpp _SRC)
+string(REPLACE "template class original_struction<" "namespace struction { template class original_struction<" _SRC "${_SRC}")
+string(REGEX REPLACE "(namespace struction \\{ template class [^;]+;)" "\\1 }" _SRC "${_SRC}")
+file(WRITE ${_STRUCTION_DIR}/original_struction.cpp "${_SRC}")
+
+# --- reduction_evolution.cpp: namespace + default argument redefinition ---
+set(_MMWIS_EVO_DIR ${KAMIS_DIR}/mmwis/lib/mis/evolutionary)
+file(READ ${_MMWIS_EVO_DIR}/reduction_evolution.cpp _SRC)
+# Clang rejects default arg redefinition in definition when already in declaration
+string(REPLACE "bool recursive = false," "bool recursive," _SRC "${_SRC}")
+string(REPLACE
+    "template class reduction_evolution<branch_and_reduce_algorithm>;"
+    "namespace mmwis { template class reduction_evolution<branch_and_reduce_algorithm>; }"
+    _SRC "${_SRC}")
+file(WRITE ${_MMWIS_EVO_DIR}/reduction_evolution.cpp "${_SRC}")
+
+# --- branch_and_reduce_algorithm.cpp: int*/unsigned int* mismatch ---
+file(READ ${_MMWIS_KERNEL_DIR}/branch_and_reduce_algorithm.cpp _SRC)
+string(REPLACE
+    "G.build_from_metis(status.remaining_nodes, &xadj[0], &adjncy[0])"
+    "G.build_from_metis(status.remaining_nodes, reinterpret_cast<int*>(&xadj[0]), reinterpret_cast<int*>(&adjncy[0]))"
+    _SRC "${_SRC}")
+file(WRITE ${_MMWIS_KERNEL_DIR}/branch_and_reduce_algorithm.cpp "${_SRC}")
 
 # ---------------------------------------------------------------------------
 # kamis_mmwis_static — weighted MIS memetic evolutionary (MMWIS)
@@ -1194,6 +1233,7 @@ install(TARGETS _scc_evo DESTINATION chszlablib)
 # --- _heiorient (Edge Orientation) ---
 pybind11_add_module(_heiorient bindings/heiorient_binding.cpp)
 target_link_libraries(_heiorient PRIVATE heiorient)
+target_compile_options(_heiorient PRIVATE -Wno-c++11-narrowing)
 install(TARGETS _heiorient DESTINATION chszlablib)
 
 # --- _maxcut (FPT Max-Cut) ---
