@@ -1160,6 +1160,11 @@ endif()
 # =============================================================================
 set(HYPERMIS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/HyperMIS)
 
+# --- hypergraph.cpp: fgetc_unlocked is glibc-only, use getc on other platforms ---
+file(READ ${HYPERMIS_DIR}/src/hypergraph.cpp _SRC)
+string(REPLACE "fgetc_unlocked" "getc" _SRC "${_SRC}")
+file(WRITE ${HYPERMIS_DIR}/src/hypergraph.cpp "${_SRC}")
+
 set(HYPERMIS_SOURCES
     ${HYPERMIS_DIR}/src/config.cpp
     ${HYPERMIS_DIR}/src/hypergraph.cpp
