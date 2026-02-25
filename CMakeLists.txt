@@ -9,10 +9,12 @@ find_package(pybind11 CONFIG REQUIRED)
 find_package(OpenMP)
 
 # Apple Clang's -Xclang -fopenmp does not implicitly include omp.h (unlike GCC).
-# Force-include it so KaMIS sources that use omp_get_wtime() etc. without
-# an explicit #include <omp.h> still compile.
+# Add the OpenMP include directory globally so transitive includes work.
 if(OpenMP_CXX_FOUND)
-    add_compile_options("SHELL:-include omp.h")
+    get_target_property(_omp_inc OpenMP::OpenMP_CXX INTERFACE_INCLUDE_DIRECTORIES)
+    if(_omp_inc)
+        include_directories(SYSTEM ${_omp_inc})
+    endif()
 endif()
 
 # Several bundled C++ libraries use APIs removed in C++17 (std::random_shuffle,
