@@ -6,6 +6,11 @@ on:
       - "v*"
   workflow_dispatch:
 
+env:
+  # VieCut's bundled tlx uses cmake_minimum_required(VERSION 2.8) which
+  # CMake 4.x rejects. This env var tells CMake to accept older policies.
+  CMAKE_ARGS: "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+
 jobs:
   build-linux:
     name: Linux ${{ matrix.python-version }}
@@ -23,7 +28,7 @@ jobs:
         env:
           CIBW_BUILD: "${{ matrix.python-version }}-manylinux_x86_64"
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
-          CIBW_ENVIRONMENT: "CXX=g++"
+          CIBW_ENVIRONMENT: "CXX=g++ CMAKE_ARGS=-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
           CIBW_REPAIR_WHEEL_COMMAND: >-
             auditwheel repair -w {dest_dir} {wheel}
 
@@ -47,7 +52,7 @@ jobs:
       - uses: pypa/cibuildwheel@v2.22
         env:
           CIBW_BUILD: "${{ matrix.python-version }}-macosx_arm64"
-          CIBW_ENVIRONMENT: "CXX=clang++ MACOSX_DEPLOYMENT_TARGET=14.0"
+          CIBW_ENVIRONMENT: "CXX=clang++ MACOSX_DEPLOYMENT_TARGET=14.0 CMAKE_ARGS=-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
           CIBW_BEFORE_ALL: "brew install libomp"
           CIBW_REPAIR_WHEEL_COMMAND: >-
             delocate-wheel --require-archs arm64 -w {dest_dir} {wheel}
@@ -67,13 +72,34 @@ jobs:
     steps:
       - run: git config --global core.longpaths true
 
+      # Shallow clone without recursive submodules, then selectively init
+      # only the ones needed for the build. HeidelbergMotifClustering has
+      # deeply nested submodules with paths that exceed Windows limits.
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: false
+
+      - name: Init submodules (skip deeply nested ones)
+        shell: bash
+        run: |
+          git submodule update --init external_repositories/KaHIP
+          git submodule update --init external_repositories/VieClus
+          git submodule update --init --recursive external_repositories/VieCut
+          git submodule update --init external_repositories/CHILS
+          git submodule update --init --recursive external_repositories/KaMIS
+          git submodule update --init --recursive external_repositories/SCC
+          git submodule update --init external_repositories/HeiOrient
+          git submodule update --init --recursive external_repositories/fpt-max-cut
+          git submodule update --init external_repositories/HeiStream
+          git submodule update --init --recursive external_repositories/HeiStream
+          git submodule update --init external_repositories/HyperMIS
+          # HeidelbergMotifClustering: only top level, skip experimental_data/ submodules
+          git submodule update --init external_repositories/HeidelbergMotifClustering
 
       - uses: pypa/cibuildwheel@v2.22
         env:
           CIBW_BUILD: "${{ matrix.python-version }}-win_amd64"
+          CIBW_ENVIRONMENT: "CMAKE_ARGS=-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
 
       - uses: actions/upload-artifact@v4
         with:
