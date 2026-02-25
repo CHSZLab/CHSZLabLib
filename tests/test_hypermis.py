@@ -5,17 +5,20 @@ import pytest
 
 from chszlablib import HyperGraph, IndependenceProblems, HyperMISResult
 
+_has_gurobipy = IndependenceProblems.HYPERMIS_ILP_AVAILABLE
+
 
 class TestHyperMISResult:
     """Verify the HyperMISResult dataclass."""
 
     def test_fields(self):
         r = HyperMISResult(size=2, weight=5, vertices=np.array([0, 3]),
-                           offset=2, reduction_time=0.01)
+                           offset=2, reduction_time=0.01, is_optimal=False)
         assert r.size == 2
         assert r.weight == 5
         assert r.offset == 2
         assert r.reduction_time == 0.01
+        assert r.is_optimal is False
         np.testing.assert_array_equal(r.vertices, [0, 3])
 
 
@@ -105,3 +108,59 @@ class TestHyperMISILPAvailable:
     def test_attribute_exists(self):
         assert hasattr(IndependenceProblems, "HYPERMIS_ILP_AVAILABLE")
         assert isinstance(IndependenceProblems.HYPERMIS_ILP_AVAILABLE, bool)
+
+
+class TestHyperMISILP:
+    """Tests for the ILP path (use_ilp=True)."""
+
+    def test_use_ilp_without_gurobi(self, monkeypatch):
+        """use_ilp=True raises ImportError when gurobipy is not available."""
+        import chszlablib.independence as mod
+        monkeypatch.setattr(mod, "_HYPERMIS_ILP_AVAILABLE", False)
+        hg = HyperGraph.from_edge_list([[0, 1], [2, 3]])
+        with pytest.raises(ImportError, match="gurobipy"):
+            IndependenceProblems.hypermis(hg, use_ilp=True)
+
+    def test_is_optimal_field_reduction_only(self):
+        """Reduction-only mode sets is_optimal=False."""
+        hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3]])
+        result = IndependenceProblems.hypermis(hg, time_limit=5.0)
+        assert result.is_optimal is False
+
+    @pytest.mark.skipif(not _has_gurobipy, reason="gurobipy not installed")
+    def test_ilp_small_hypergraph(self):
+        """ILP solves a small hypergraph and returns a valid IS."""
+        hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3], [4, 5]])
+        result = IndependenceProblems.hypermis(hg, time_limit=10.0, use_ilp=True)
+        assert isinstance(result, HyperMISResult)
+        assert result.size >= 1
+        assert len(result.vertices) == result.size
+        # Verify independence
+        selected = set(result.vertices.tolist())
+        for eid in range(hg.num_edges):
+            start, end = hg.eptr[eid], hg.eptr[eid + 1]
+            edge_verts = set(hg.everts[start:end].tolist())
+            assert len(selected & edge_verts) <= 1, (
+                f"Edge {eid} has >1 selected vertex: {selected & edge_verts}"
+            )
+
+    @pytest.mark.skipif(not _has_gurobipy, reason="gurobipy not installed")
+    def test_ilp_is_optimal(self):
+        """ILP on a trivially small instance should be optimal."""
+        # Single edge {0,1} — optimal IS is size 1
+        hg = HyperGraph.from_edge_list([[0, 1]])
+        result = IndependenceProblems.hypermis(hg, time_limit=10.0, use_ilp=True)
+        assert result.is_optimal is True
+        assert result.size == 1
+
+    @pytest.mark.skipif(not _has_gurobipy, reason="gurobipy not installed")
+    def test_ilp_disjoint_edges(self):
+        """ILP on disjoint edges picks one vertex per edge."""
+        hg = HyperGraph.from_edge_list([[0, 1], [2, 3], [4, 5]])
+        result = IndependenceProblems.hypermis(hg, time_limit=10.0, use_ilp=True)
+        assert result.size >= 3  # one per disjoint edge
+        selected = set(result.vertices.tolist())
+        for eid in range(hg.num_edges):
+            start, end = hg.eptr[eid], hg.eptr[eid + 1]
+            edge_verts = set(hg.everts[start:end].tolist())
+            assert len(selected & edge_verts) <= 1

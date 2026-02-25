@@ -9,8 +9,9 @@ import numpy as np
 from chszlablib.graph import Graph
 
 try:
-    from chszlablib._hypermis_ilp import solve as _hypermis_ilp_solve  # type: ignore[import-not-found]
+    import gurobipy as _gp  # noqa: F401
     _HYPERMIS_ILP_AVAILABLE = True
+    del _gp
 except ImportError:
     _HYPERMIS_ILP_AVAILABLE = False
 
@@ -52,6 +53,8 @@ class HyperMISResult:
     """Number of vertices determined during the reduction phase."""
     reduction_time: float
     """Wall-clock time spent on reductions (seconds)."""
+    is_optimal: bool
+    """Whether the solution is provably optimal (requires ILP solver)."""
 
 
 class IndependenceProblems:
@@ -361,6 +364,7 @@ class IndependenceProblems:
         time_limit: float = 60.0,
         seed: int = 0,
         strong_reductions: bool = False,
+        use_ilp: bool = False,
     ) -> HyperMISResult:
         """Compute a maximum independent set on a hypergraph using HyperMIS reductions.
 
@@ -375,18 +379,27 @@ class IndependenceProblems:
         the instance.  Vertices provably in or out of any optimal solution
         are fixed during reduction.
 
+        When ``use_ilp=True``, the remaining kernel after reductions is solved
+        exactly via an ILP formulation using ``gurobipy``.  This requires the
+        ``gurobipy`` package and a valid Gurobi license.
+
         Parameters
         ----------
         hg : HyperGraph
             Input hypergraph.
         time_limit : float, optional
             Wall-clock time budget for reductions in seconds (default 60.0).
+            When ``use_ilp=True``, also used as the Gurobi time limit.
         seed : int, optional
             Random seed for reproducibility (default 0).
         strong_reductions : bool, optional
             If ``True``, enable aggressive reduction rules (unconfined
             vertices, larger edge-size threshold).  Slower but may reduce
             the kernel further (default ``False``).
+        use_ilp : bool, optional
+            If ``True``, solve the remaining kernel exactly via ILP using
+            ``gurobipy`` (default ``False``).  Requires ``gurobipy`` to be
+            installed; raises ``ImportError`` otherwise.
 
         Returns
         -------
@@ -395,26 +408,71 @@ class IndependenceProblems:
             ``weight`` -- total node weight of selected vertices,
             ``vertices`` -- 1-D int array of vertex IDs in the set,
             ``offset`` -- number of vertices determined during reduction,
-            ``reduction_time`` -- wall-clock seconds spent on reductions.
+            ``reduction_time`` -- wall-clock seconds spent on reductions,
+            ``is_optimal`` -- ``True`` if the ILP proved optimality.
 
         Raises
         ------
         ValueError
             If *time_limit* is negative.
+        ImportError
+            If ``use_ilp=True`` but ``gurobipy`` is not installed.
         """
-        from chszlablib._hypermis import reduce as _reduce
-
         if time_limit < 0:
             raise ValueError(f"time_limit must be >= 0, got {time_limit}")
+
+        if use_ilp and not _HYPERMIS_ILP_AVAILABLE:
+            raise ImportError(
+                "gurobipy is required for use_ilp=True. "
+                "Install it with: pip install gurobipy"
+            )
 
         hg.finalize()
         eptr = hg.eptr.astype(np.int64, copy=False)
         everts = hg.everts.astype(np.int32, copy=False)
 
-        offset, is_verts, reduction_time = _reduce(
+        if not use_ilp:
+            from chszlablib._hypermis import reduce as _reduce
+
+            offset, is_verts, reduction_time = _reduce(
+                eptr, everts, hg.num_nodes, time_limit, seed, strong_reductions,
+            )
+
+            weight = int(np.sum(hg.node_weights[is_verts])) if hg.node_weights is not None and len(is_verts) > 0 else len(is_verts)
+            return HyperMISResult(
+                size=len(is_verts),
+                weight=weight,
+                vertices=is_verts,
+                offset=offset,
+                reduction_time=reduction_time,
+                is_optimal=False,
+            )
+
+        # ILP path: reduce, extract kernel, solve ILP, remap
+        from chszlablib._hypermis import reduce_and_extract_kernel as _reduce_kernel
+        from chszlablib._gurobi_ilp import solve_hypermis_ilp
+
+        (offset, fixed_verts, kernel_eptr, kernel_everts,
+         kernel_num_nodes, remap, reduction_time) = _reduce_kernel(
             eptr, everts, hg.num_nodes, time_limit, seed, strong_reductions,
         )
 
+        # Start with reduction-fixed vertices
+        all_verts = list(fixed_verts)
+
+        if kernel_num_nodes > 0:
+            # Solve ILP on the kernel
+            ilp_verts, is_optimal = solve_hypermis_ilp(
+                kernel_eptr, kernel_everts, kernel_num_nodes, time_limit,
+            )
+            # Remap kernel vertex IDs back to original IDs
+            for kv in ilp_verts:
+                all_verts.append(int(remap[kv]))
+        else:
+            # Reductions solved everything
+            is_optimal = True
+
+        is_verts = np.array(sorted(all_verts), dtype=np.int32)
         weight = int(np.sum(hg.node_weights[is_verts])) if hg.node_weights is not None and len(is_verts) > 0 else len(is_verts)
         return HyperMISResult(
             size=len(is_verts),
@@ -422,4 +480,5 @@ class IndependenceProblems:
             vertices=is_verts,
             offset=offset,
             reduction_time=reduction_time,
+            is_optimal=is_optimal,
         )
