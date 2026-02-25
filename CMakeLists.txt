@@ -22,6 +22,10 @@ target_compile_options(mqlib_static PRIVATE -w -O2
     "SHELL:-include cstdint"
     "SHELL:-include limits"
 )
+# MQLib uses std::random_shuffle, removed in C++17 by libc++ (Apple Clang)
+target_compile_definitions(mqlib_static PRIVATE
+    _LIBCPP_ENABLE_CXX17_REMOVED_RANDOM_SHUFFLE
+)
 
 # Fix missing <cstdint> includes in older tlx/VieCut headers on newer compilers
 add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-include;cstdint>")

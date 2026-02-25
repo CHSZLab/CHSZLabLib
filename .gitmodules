@@ -1,18 +1,18 @@
 [submodule "KaHIP"]
 	path = external_repositories/KaHIP
-	url = git@github.com:KaHIP/KaHIP.git
+	url = https://github.com/KaHIP/KaHIP.git
 	branch = master
 [submodule "VieClus"]
 	path = external_repositories/VieClus
-	url = git@github.com:VieClus/VieClus.git
+	url = https://github.com/VieClus/VieClus.git
 	branch = master
 [submodule "VieCut"]
 	path = external_repositories/VieCut
-	url = git@github.com:VieCut/VieCut.git
+	url = https://github.com/VieCut/VieCut.git
 	branch = master
 [submodule "CHILS"]
 	path = external_repositories/CHILS
-	url = git@github.com:KarlsruheMIS/CHILS.git
+	url = https://github.com/KarlsruheMIS/CHILS.git
 	branch = main
 [submodule "KaMIS"]
 	path = external_repositories/KaMIS
