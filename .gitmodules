@@ -38,3 +38,6 @@
 [submodule "external_repositories/HyperMIS"]
 	path = external_repositories/HyperMIS
 	url = https://github.com/KarlsruheMIS/HyperMIS
+[submodule "external_repositories/HeiCut"]
+	path = external_repositories/HeiCut
+	url = https://github.com/HeiCut/HeiCut.git
