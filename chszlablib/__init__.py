@@ -2,10 +2,12 @@ from chszlablib.exceptions import (
     CHSZLabLibError,
     InvalidModeError,
     InvalidGraphError,
+    InvalidHyperGraphError,
     GraphNotFinalizedError,
 )
 from chszlablib.graph import Graph
-from chszlablib.io import read_metis, write_metis
+from chszlablib.hypergraph import HyperGraph
+from chszlablib.io import read_metis, write_metis, read_hmetis, write_hmetis
 from chszlablib.decomposition import (
     Decomposition,
     HeiStreamPartitioner,
@@ -53,6 +55,18 @@ def describe() -> str:
         "  g.to_metis(path)             Write METIS file",
         "  g.to_networkx()              Convert to networkx.Graph",
         "  g.to_scipy_sparse()          Convert to scipy CSR array",
+        "",
+        "HYPERGRAPH CONSTRUCTION",
+        "-" * 48,
+        "  HyperGraph(n, m)             Build edge-by-edge, then .finalize()",
+        "  HyperGraph.from_edge_list(edges)  From [[v1,v2,...], ...]",
+        "  HyperGraph.from_dual_csr(...)     From dual CSR arrays",
+        "  HyperGraph.from_hmetis(path)      From hMETIS file",
+        "",
+        "HYPERGRAPH EXPORT",
+        "-" * 48,
+        "  hg.to_hmetis(path)           Write hMETIS file",
+        "  hg.to_graph()                Clique expansion to Graph",
         "",
     ]
 
@@ -102,6 +116,7 @@ def describe() -> str:
         "  CHSZLabLibError         Base exception (catch-all)",
         "  InvalidModeError        Bad mode/algorithm string (is-a ValueError)",
         "  InvalidGraphError       Bad graph structure    (is-a ValueError)",
+        "  InvalidHyperGraphError  Bad hypergraph structure (is-a ValueError)",
         "  GraphNotFinalizedError  Graph not finalized    (is-a RuntimeError)",
         "",
         "QUICK EXAMPLE",
@@ -126,11 +141,15 @@ __all__ = [
     "CHSZLabLibError",
     "InvalidModeError",
     "InvalidGraphError",
+    "InvalidHyperGraphError",
     "GraphNotFinalizedError",
     # Core
     "Graph",
+    "HyperGraph",
     "read_metis",
     "write_metis",
+    "read_hmetis",
+    "write_hmetis",
     # Namespace classes
     "Decomposition",
     "HeiStreamPartitioner",
