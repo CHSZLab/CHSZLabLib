@@ -44,7 +44,7 @@ The [Algorithm Engineering Group Heidelberg](https://ae.ifi.uni-heidelberg.de/) 
 
 For full algorithmic control (custom parameter tuning, every possible knob), use the underlying C/C++ repositories directly. This library prioritizes **convenience and a unified interface**.
 
-### Group Members
+### Group Members (Heavy Contributors)
 
 **Current:**
 - Adil Chhabra (PhD Student)
