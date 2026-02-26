@@ -3,6 +3,9 @@
 #include <pybind11/stl.h>
 #include <sstream>
 #include <iostream>
+#include <cstdio>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "vieclus_interface.h"
 
@@ -28,12 +31,15 @@ py_cluster(py::array_t<int, py::array::c_style> vwgt,
     double modularity = 0.0;
     int num_clusters = 0;
 
-    // Suppress C++ stdout/stderr
-    std::streambuf *old_cout = std::cout.rdbuf();
-    std::streambuf *old_cerr = std::cerr.rdbuf();
-    std::ostringstream null_stream;
-    std::cout.rdbuf(null_stream.rdbuf());
-    std::cerr.rdbuf(null_stream.rdbuf());
+    // Suppress stdout/stderr at fd level
+    fflush(stdout);
+    fflush(stderr);
+    int old_stdout = dup(STDOUT_FILENO);
+    int old_stderr = dup(STDERR_FILENO);
+    int devnull = open("/dev/null", O_WRONLY);
+    dup2(devnull, STDOUT_FILENO);
+    dup2(devnull, STDERR_FILENO);
+    close(devnull);
 
     vieclus_clustering(&n, vwgt_ptr, xadj.mutable_data(),
                        adjcwgt_ptr, adjncy.mutable_data(),
@@ -41,8 +47,12 @@ py_cluster(py::array_t<int, py::array::c_style> vwgt,
                        time_limit, cluster_upperbound,
                        &modularity, &num_clusters, clustering.mutable_data());
 
-    std::cout.rdbuf(old_cout);
-    std::cerr.rdbuf(old_cerr);
+    fflush(stdout);
+    fflush(stderr);
+    dup2(old_stdout, STDOUT_FILENO);
+    dup2(old_stderr, STDERR_FILENO);
+    close(old_stdout);
+    close(old_stderr);
 
     return std::make_tuple(modularity, num_clusters, clustering);
 }

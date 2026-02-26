@@ -7,6 +7,9 @@
 #include <stdexcept>
 #include <sstream>
 #include <iostream>
+#include <cstdio>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "algorithms/global_mincut/algorithms.h"
 #include "algorithms/global_mincut/minimum_cut.h"
@@ -66,20 +69,27 @@ py_minimum_cut(py::array_t<int32_t, py::array::c_style> xadj,
     cfg->seed = static_cast<size_t>(seed);
     random_functions::setSeed(seed);
 
-    // Suppress C++ stdout/stderr
-    std::streambuf *old_cout = std::cout.rdbuf();
-    std::streambuf *old_cerr = std::cerr.rdbuf();
-    std::ostringstream null_stream;
-    std::cout.rdbuf(null_stream.rdbuf());
-    std::cerr.rdbuf(null_stream.rdbuf());
+    // Suppress stdout/stderr at fd level
+    fflush(stdout);
+    fflush(stderr);
+    int old_stdout = dup(STDOUT_FILENO);
+    int old_stderr = dup(STDERR_FILENO);
+    int devnull = open("/dev/null", O_WRONLY);
+    dup2(devnull, STDOUT_FILENO);
+    dup2(devnull, STDERR_FILENO);
+    close(devnull);
 
     // Select and run algorithm
     minimum_cut* mc = selectMincutAlgorithm<mutableGraphPtr>(algorithm);
     EdgeWeight cut_value = mc->perform_minimum_cut(G);
     delete mc;
 
-    std::cout.rdbuf(old_cout);
-    std::cerr.rdbuf(old_cerr);
+    fflush(stdout);
+    fflush(stderr);
+    dup2(old_stdout, STDOUT_FILENO);
+    dup2(old_stderr, STDERR_FILENO);
+    close(old_stdout);
+    close(old_stderr);
 
     // Extract partition (per original node: 0 or 1)
     py::array_t<int32_t> partition(n);

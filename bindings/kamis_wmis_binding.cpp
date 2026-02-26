@@ -6,6 +6,9 @@
 #include <iostream>
 #include <sstream>
 #include <chrono>
+#include <cstdio>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "graph_access.h"
 #include "graph_io.h"
@@ -50,20 +53,27 @@ py_branch_reduce(py::array_t<int, py::array::c_style> xadj,
     mis_log::instance()->set_config(mis_config);
     mis_log::instance()->set_graph(G);
 
-    // Suppress stdout
-    std::streambuf *old_cout = std::cout.rdbuf();
-    std::streambuf *old_cerr = std::cerr.rdbuf();
-    std::ostringstream null_stream;
-    std::cout.rdbuf(null_stream.rdbuf());
-    std::cerr.rdbuf(null_stream.rdbuf());
+    // Suppress stdout/stderr at fd level
+    fflush(stdout);
+    fflush(stderr);
+    int old_stdout = dup(STDOUT_FILENO);
+    int old_stderr = dup(STDERR_FILENO);
+    int devnull = open("/dev/null", O_WRONLY);
+    dup2(devnull, STDOUT_FILENO);
+    dup2(devnull, STDERR_FILENO);
+    close(devnull);
 
     branch_and_reduce_algorithm reducer(G, mis_config);
     reducer.run_branch_reduce();
     NodeWeight mwis_weight = reducer.get_is_weight();
     reducer.apply_branch_reduce_solution(G);
 
-    std::cout.rdbuf(old_cout);
-    std::cerr.rdbuf(old_cerr);
+    fflush(stdout);
+    fflush(stderr);
+    dup2(old_stdout, STDOUT_FILENO);
+    dup2(old_stderr, STDERR_FILENO);
+    close(old_stdout);
+    close(old_stderr);
 
     // Collect IS vertices
     std::vector<int> is_vertices;

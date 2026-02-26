@@ -5,6 +5,9 @@
 #include <vector>
 #include <iostream>
 #include <sstream>
+#include <cstdio>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "data_structure/graph_access.h"
 #include "mis_config.h"
@@ -98,12 +101,15 @@ py_redumis(py::array_t<int, py::array::c_style> xadj,
     mis_log::instance()->set_config(mis_config);
     mis_log::instance()->set_graph(G);
 
-    // Suppress stdout during algorithm run
-    std::streambuf *old_cout = std::cout.rdbuf();
-    std::streambuf *old_cerr = std::cerr.rdbuf();
-    std::ostringstream null_stream;
-    std::cout.rdbuf(null_stream.rdbuf());
-    std::cerr.rdbuf(null_stream.rdbuf());
+    // Suppress stdout/stderr at fd level
+    fflush(stdout);
+    fflush(stderr);
+    int old_stdout_r = dup(STDOUT_FILENO);
+    int old_stderr_r = dup(STDERR_FILENO);
+    int devnull_r = open("/dev/null", O_WRONLY);
+    dup2(devnull_r, STDOUT_FILENO);
+    dup2(devnull_r, STDERR_FILENO);
+    close(devnull_r);
 
     std::vector<bool> independent_set(G.number_of_nodes(), false);
     std::vector<NodeID> best_nodes;
@@ -111,8 +117,12 @@ py_redumis(py::array_t<int, py::array::c_style> xadj,
     reduction_evolution<branch_and_reduce_algorithm> evo;
     evo.perform_mis_search(mis_config, G, independent_set, best_nodes);
 
-    std::cout.rdbuf(old_cout);
-    std::cerr.rdbuf(old_cerr);
+    fflush(stdout);
+    fflush(stderr);
+    dup2(old_stdout_r, STDOUT_FILENO);
+    dup2(old_stderr_r, STDERR_FILENO);
+    close(old_stdout_r);
+    close(old_stderr_r);
 
     // Collect results
     std::vector<int> is_vertices;
@@ -154,18 +164,25 @@ py_online_mis(py::array_t<int, py::array::c_style> xadj,
     mis_log::instance()->set_config(mis_config);
     mis_log::instance()->set_graph(G);
 
-    // Suppress stdout
-    std::streambuf *old_cout = std::cout.rdbuf();
-    std::streambuf *old_cerr = std::cerr.rdbuf();
-    std::ostringstream null_stream;
-    std::cout.rdbuf(null_stream.rdbuf());
-    std::cerr.rdbuf(null_stream.rdbuf());
+    // Suppress stdout/stderr at fd level
+    fflush(stdout);
+    fflush(stderr);
+    int old_stdout_o = dup(STDOUT_FILENO);
+    int old_stderr_o = dup(STDERR_FILENO);
+    int devnull_o = open("/dev/null", O_WRONLY);
+    dup2(devnull_o, STDOUT_FILENO);
+    dup2(devnull_o, STDERR_FILENO);
+    close(devnull_o);
 
     online_ils online;
     online.perform_ils(mis_config, G, mis_config.ils_iterations);
 
-    std::cout.rdbuf(old_cout);
-    std::cerr.rdbuf(old_cerr);
+    fflush(stdout);
+    fflush(stderr);
+    dup2(old_stdout_o, STDOUT_FILENO);
+    dup2(old_stderr_o, STDERR_FILENO);
+    close(old_stdout_o);
+    close(old_stderr_o);
 
     // Collect results: partition index == 1 means in IS
     std::vector<int> is_vertices;
