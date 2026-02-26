@@ -1,7 +1,7 @@
 <h1 align="center">CHSZLabLib</h1>
 
 <p align="center">
-  <strong>State-of-the-art graph algorithms of the algorithm engineering group Heidelberg from C++ -- easy to use in Python</strong>
+  <strong>State-of-the-art graph algorithms of the [Algorithm Engineering Group Heidelberg](https://ae.ifi.uni-heidelberg.de/) from C++ -- easy to use in Python</strong>
 </p>
 
 <p align="center">
@@ -31,7 +31,7 @@
 
 ## About
 
-The [Algorithm Engineering Group](https://ae.ifi.uni-heidelberg.de/) at Heidelberg University develops high-performance C++ algorithms for a wide range of combinatorial optimization problems on graphs — graph partitioning, minimum and maximum cuts, community detection, independent sets, edge orientation, and more. These solvers represent the state of the art in their respective domains.
+The [Algorithm Engineering Group Heidelberg](https://ae.ifi.uni-heidelberg.de/) at Heidelberg University develops high-performance C++ algorithms for a wide range of combinatorial optimization problems on graphs — graph partitioning, minimum and maximum cuts, community detection, independent sets, edge orientation, and more. These solvers represent the state of the art in their respective domains.
 
 **CHSZLabLib wraps some of these libraries into a single, easy-to-use Python interface.** `Graph` and `HyperGraph` objects, consistent method signatures, typed result objects, and zero-copy NumPy arrays — designed to be productive for end users and fully discoverable by AI agents (LLMs).
 
