@@ -1,6 +1,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
+#include <sstream>
+#include <iostream>
 
 #include "kaHIP_interface.h"
 
@@ -34,12 +36,22 @@ py_kaffpaE(py::array_t<int, py::array::c_style> vwgt,
                     n * sizeof(int));
     }
 
+    // Suppress C++ stdout/stderr
+    std::streambuf *old_cout = std::cout.rdbuf();
+    std::streambuf *old_cerr = std::cerr.rdbuf();
+    std::ostringstream null_stream;
+    std::cout.rdbuf(null_stream.rdbuf());
+    std::cerr.rdbuf(null_stream.rdbuf());
+
     kaffpaE(&n, vwgt_ptr, xadj.mutable_data(),
             adjcwgt_ptr, adjncy.mutable_data(),
             &nparts, &imbalance, suppress_output,
             graph_partitioned, time_limit, seed, mode,
             MPI_COMM_WORLD,
             &edgecut, &balance, part.mutable_data());
+
+    std::cout.rdbuf(old_cout);
+    std::cerr.rdbuf(old_cerr);
 
     return std::make_tuple(edgecut, balance, part);
 }

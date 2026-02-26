@@ -1,6 +1,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
+#include <sstream>
+#include <iostream>
 
 #include "vieclus_interface.h"
 
@@ -26,11 +28,21 @@ py_cluster(py::array_t<int, py::array::c_style> vwgt,
     double modularity = 0.0;
     int num_clusters = 0;
 
+    // Suppress C++ stdout/stderr
+    std::streambuf *old_cout = std::cout.rdbuf();
+    std::streambuf *old_cerr = std::cerr.rdbuf();
+    std::ostringstream null_stream;
+    std::cout.rdbuf(null_stream.rdbuf());
+    std::cerr.rdbuf(null_stream.rdbuf());
+
     vieclus_clustering(&n, vwgt_ptr, xadj.mutable_data(),
                        adjcwgt_ptr, adjncy.mutable_data(),
                        suppress_output, seed,
                        time_limit, cluster_upperbound,
                        &modularity, &num_clusters, clustering.mutable_data());
+
+    std::cout.rdbuf(old_cout);
+    std::cerr.rdbuf(old_cerr);
 
     return std::make_tuple(modularity, num_clusters, clustering);
 }

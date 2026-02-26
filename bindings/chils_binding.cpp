@@ -2,6 +2,9 @@
 #include <pybind11/numpy.h>
 #include <vector>
 #include <cstring>
+#include <cstdio>
+#include <unistd.h>
+#include <fcntl.h>
 
 extern "C" {
 #include "chils.h"
@@ -22,6 +25,16 @@ PYBIND11_MODULE(_chils, m) {
     ) {
         int n = static_cast<int>(xadj.size() - 1);
 
+        // Suppress C stdout/stderr at fd level (CHILS uses printf)
+        fflush(stdout);
+        fflush(stderr);
+        int old_stdout = dup(STDOUT_FILENO);
+        int old_stderr = dup(STDERR_FILENO);
+        int devnull = open("/dev/null", O_WRONLY);
+        dup2(devnull, STDOUT_FILENO);
+        dup2(devnull, STDERR_FILENO);
+        close(devnull);
+
         void* solver = chils_initialize();
         chils_set_graph(solver, n, xadj.data(), adjncy.data(), weights.data());
         chils_run_full(solver, time_limit, num_concurrent, seed);
@@ -36,6 +49,14 @@ PYBIND11_MODULE(_chils, m) {
         }
 
         chils_release(solver);
+
+        // Restore stdout/stderr
+        fflush(stdout);
+        fflush(stderr);
+        dup2(old_stdout, STDOUT_FILENO);
+        dup2(old_stderr, STDERR_FILENO);
+        close(old_stdout);
+        close(old_stderr);
         return py::make_tuple(total_weight, vertices);
     }, "Solve maximum weight independent set",
        py::arg("xadj"), py::arg("adjncy"), py::arg("weights"),
