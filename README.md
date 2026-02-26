@@ -12,8 +12,11 @@
   <br>
   <img src="https://img.shields.io/badge/Linux-x86__64-FCC624?logo=linux&logoColor=black" alt="Linux x86_64">
   <img src="https://img.shields.io/badge/macOS-arm64-000000?logo=apple&logoColor=white" alt="macOS arm64">
+  <img src="https://img.shields.io/badge/OpenMP-parallel-blue?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg==" alt="OpenMP">
   <br>
   <a href="https://github.com/CHSZLab/CHSZLabLib/actions/workflows/build-wheels.yml"><img src="https://github.com/CHSZLab/CHSZLabLib/actions/workflows/build-wheels.yml/badge.svg" alt="Build wheels"></a>
+  <a href="https://pypi.org/project/chszlablib/"><img src="https://img.shields.io/pypi/v/chszlablib" alt="PyPI version"></a>
+  <a href="https://pypi.org/project/chszlablib/"><img src="https://img.shields.io/pypi/dm/chszlablib" alt="PyPI downloads"></a>
   <a href="https://github.com/CHSZLab/CHSZLabLib/stargazers"><img src="https://img.shields.io/github/stars/CHSZLab/CHSZLabLib" alt="GitHub stars"></a>
 </p>
 
