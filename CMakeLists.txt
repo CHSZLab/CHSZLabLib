@@ -1261,84 +1261,51 @@ pybind11_add_module(_kahipe bindings/kahipe_binding.cpp)
 target_link_libraries(_kahipe PRIVATE kahipe_static)
 install(TARGETS _kahipe DESTINATION chszlablib)
 
-# --- VieCut: patch growt simpleelement.h for arm64 ---
-# growt uses xmmintrin.h (_mm_loadu_si128) for 128-bit atomic loads.
-# On non-x86, guard the include and replace SSE loads with memcpy.
-set(_GROWT_DIR "${VIECUT_DIR}/extlib/growt/data-structures")
-foreach(_GROWT_FILE simpleelement.h markableelement.h)
-    file(READ "${_GROWT_DIR}/${_GROWT_FILE}" _SRC)
-    string(REPLACE "#include <xmmintrin.h>"
-        "#include \"growt_sse_compat.h\"" _SRC "${_SRC}")
-    string(REPLACE
-        "as128i() = reinterpret_cast<int128_t>(_mm_loadu_si128((__m128i*) &e))"
-        "std::memcpy(this, &e, sizeof(*this))"
-        _SRC "${_SRC}")
-    file(WRITE "${_GROWT_DIR}/${_GROWT_FILE}" "${_SRC}")
-endforeach()
-# Write the compatibility header
-file(WRITE "${_GROWT_DIR}/growt_sse_compat.h"
-"#ifndef GROWT_SSE_COMPAT_H\n\
-#define GROWT_SSE_COMPAT_H\n\
-#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__)\n\
-#include <xmmintrin.h>\n\
-#else\n\
-#include <cstring>\n\
-#endif\n\
-#endif\n"
-)
-
-# --- VieCut: patch growt counting_wait.h for non-Linux ---
-# growt uses linux/futex.h for thread synchronization. On macOS/non-Linux,
-# replace with a portable std::atomic spinwait implementation.
-set(_CW_FILE "${VIECUT_DIR}/extlib/growt/allocator/counting_wait.h")
-file(READ "${_CW_FILE}" _SRC)
-string(FIND "${_SRC}" "COUNTING_WAIT_PORTABLE" _PATCHED)
-if(_PATCHED EQUAL -1)
-    file(WRITE "${_CW_FILE}"
-"#ifndef COUNTING_WAIT_H\n\
-#define COUNTING_WAIT_H\n\
-#include <atomic>\n\
-#include <thread>\n\
-#ifdef __linux__\n\
-#include <linux/futex.h>\n\
-#include <unistd.h>\n\
-#include <sys/syscall.h>\n\
-#include <sys/time.h>\n\
-#define COUNTING_WAIT_PORTABLE 0\n\
-#else\n\
-#define COUNTING_WAIT_PORTABLE 1\n\
-#endif\n\
+# --- VieCut: replace growt definitions.h on non-Linux ---
+# growt is a Linux-only concurrent hash table (uses futex, cpu_set_t, SSE).
+# On non-Linux, replace definitions.h with a portable shim that wraps
+# std::unordered_map + std::mutex, providing the same uaGrow interface
+# that VieCut's parallel contract_graph.h uses.
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    file(WRITE "${VIECUT_DIR}/extlib/growt/data-structures/definitions.h"
+"#ifndef DEFINITIONS_H\n\
+#define DEFINITIONS_H\n\
+// Portable growt replacement for non-Linux (macOS, etc.)\n\
+// Provides the uaGrow<Hash> interface used by VieCut's contract_graph.h\n\
+#include <unordered_map>\n\
+#include <mutex>\n\
+#include <utility>\n\
+#include <cstdint>\n\
+#include <cstddef>\n\
 namespace growt {\n\
-#if !COUNTING_WAIT_PORTABLE\n\
-static long sys_futex(void *addr1, int op, int val1, struct timespec *timeout, void *addr2, int val3)\n\
-{ return syscall(SYS_futex, addr1, op, val1, timeout, addr2, val3); }\n\
-#endif\n\
-class alignas(64) counting_wait {\n\
+template<class HashFct = std::hash<uint64_t>>\n\
+class uaGrow {\n\
 public:\n\
-    inline counting_wait(int start = 0) : counter(start) {}\n\
-    inline bool inc_if(int exp) {\n\
-        auto temp = exp;\n\
-        return counter.compare_exchange_strong(temp, exp+1,\n\
-            std::memory_order_acq_rel, std::memory_order_acquire);\n\
-    }\n\
-    inline bool wait_if(int exp) {\n\
-#if COUNTING_WAIT_PORTABLE\n\
-        while (counter.load(std::memory_order_acquire) == exp)\n\
-            std::this_thread::yield();\n\
-        return true;\n\
-#else\n\
-        return !sys_futex(&counter, FUTEX_WAIT, exp, NULL, NULL, 0);\n\
-#endif\n\
-    }\n\
-    inline unsigned int wake(unsigned int = 9999) {\n\
-#if COUNTING_WAIT_PORTABLE\n\
-        return 0;\n\
-#else\n\
-        return sys_futex(&counter, FUTEX_WAKE, 9999, NULL, NULL, 0);\n\
-#endif\n\
-    }\n\
+    explicit uaGrow(size_t = 0) {}\n\
+    class Handle {\n\
+    public:\n\
+        Handle(std::unordered_map<uint64_t,size_t,HashFct>& m, std::mutex& mu)\n\
+            : map_(m), mu_(mu) {}\n\
+        template<class F, class... Args>\n\
+        std::pair<size_t, bool> insert_or_update(\n\
+                uint64_t key, size_t val, F f, Args&&... args) {\n\
+            std::lock_guard<std::mutex> lock(mu_);\n\
+            auto it = map_.find(key);\n\
+            if (it != map_.end()) {\n\
+                f(it->second, std::forward<Args>(args)...);\n\
+                return {it->second, false};\n\
+            }\n\
+            map_.emplace(key, val);\n\
+            return {val, true};\n\
+        }\n\
+    private:\n\
+        std::unordered_map<uint64_t,size_t,HashFct>& map_;\n\
+        std::mutex& mu_;\n\
+    };\n\
+    Handle get_handle() { return Handle(map_, mu_); }\n\
 private:\n\
-    std::atomic_int counter;\n\
+    std::unordered_map<uint64_t,size_t,HashFct> map_;\n\
+    std::mutex mu_;\n\
 };\n\
 }\n\
 #endif\n"
