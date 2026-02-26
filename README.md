@@ -1,7 +1,7 @@
 <h1 align="center">CHSZLabLib</h1>
 
 <p align="center">
-  <strong>State-of-the-art graph algorithms from C++ — easy to use in Python</strong>
+  <strong>State-of-the-art graph algorithms of the algorithm engineering group Heidelberg from C++ -- easy to use in Python</strong>
 </p>
 
 <p align="center">
@@ -16,18 +16,16 @@
 
 <p align="center">
   <em>
-    11 C++ algorithm libraries.&nbsp;
-    <code>Graph</code> and <code>HyperGraph</code> objects.&nbsp;
-    Zero-copy NumPy arrays.&nbsp;
+    Python frontend for C++ algorithm libraries.&nbsp;
     Built for humans and AI agents.
   </em>
 </p>
 
 ---
 
-> **For scientific studies:** If you use any of the algorithms in a research paper, please cite and refer to the **original repositories** listed in the [Integrated Libraries](#integrated-libraries) table below. Those repositories contain the full documentation, parameter spaces, and experimental setups used in the respective publications.
+> **For scientific studies:** If you use any of the algorithms in a research paper, please cite and refer to the **original repositories** listed in the [Integrated Libraries](#integrated-libraries) table below. Those repositories contain the full documentation, parameter spaces, and experimental setups used in the respective publications and give full credit to the respective authors.
 
-> **For maximum performance:** The bundled C++ libraries are compiled with default settings for broad compatibility. For peak performance and access to every tuning knob, use the **latest main branch of the original repositories** directly (linked in the table below).
+> **For maximum performance:** The bundled C++ libraries are compiled with default settings for broad compatibility. For peak performance and access to every tuning knob, use the **latest main branch of the original repositories** directly (linked in the table below). The python front end is meant for usability, not for performance measurements. 
 
 ---
 
@@ -35,7 +33,7 @@
 
 The [Algorithm Engineering Group](https://ae.ifi.uni-heidelberg.de/) at Heidelberg University develops high-performance C++ algorithms for a wide range of combinatorial optimization problems on graphs — graph partitioning, minimum and maximum cuts, community detection, independent sets, edge orientation, and more. These solvers represent the state of the art in their respective domains.
 
-**CHSZLabLib wraps 11 of these libraries into a single, easy-to-use Python interface.** `Graph` and `HyperGraph` objects, consistent method signatures, typed result objects, and zero-copy NumPy arrays — designed to be productive for end users and fully discoverable by AI agents (LLMs).
+**CHSZLabLib wraps some of these libraries into a single, easy-to-use Python interface.** `Graph` and `HyperGraph` objects, consistent method signatures, typed result objects, and zero-copy NumPy arrays — designed to be productive for end users and fully discoverable by AI agents (LLMs).
 
 For full algorithmic control (custom parameter tuning, every possible knob), use the underlying C/C++ repositories directly. This library prioritizes **convenience and a unified interface**.
 
