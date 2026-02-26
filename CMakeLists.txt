@@ -1272,6 +1272,7 @@ target_include_directories(_viecut PRIVATE
 target_link_libraries(_viecut PRIVATE tlx)
 if(OpenMP_CXX_FOUND)
     target_link_libraries(_viecut PRIVATE OpenMP::OpenMP_CXX)
+    target_compile_definitions(_viecut PRIVATE PARALLEL)
 endif()
 install(TARGETS _viecut DESTINATION chszlablib)
 
