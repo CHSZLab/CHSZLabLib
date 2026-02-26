@@ -1287,6 +1287,64 @@ file(WRITE "${_GROWT_DIR}/growt_sse_compat.h"
 #endif\n"
 )
 
+# --- VieCut: patch growt counting_wait.h for non-Linux ---
+# growt uses linux/futex.h for thread synchronization. On macOS/non-Linux,
+# replace with a portable std::atomic spinwait implementation.
+set(_CW_FILE "${VIECUT_DIR}/extlib/growt/allocator/counting_wait.h")
+file(READ "${_CW_FILE}" _SRC)
+string(FIND "${_SRC}" "COUNTING_WAIT_PORTABLE" _PATCHED)
+if(_PATCHED EQUAL -1)
+    file(WRITE "${_CW_FILE}"
+"#ifndef COUNTING_WAIT_H\n\
+#define COUNTING_WAIT_H\n\
+#include <atomic>\n\
+#include <thread>\n\
+#ifdef __linux__\n\
+#include <linux/futex.h>\n\
+#include <unistd.h>\n\
+#include <sys/syscall.h>\n\
+#include <sys/time.h>\n\
+#define COUNTING_WAIT_PORTABLE 0\n\
+#else\n\
+#define COUNTING_WAIT_PORTABLE 1\n\
+#endif\n\
+namespace growt {\n\
+#if !COUNTING_WAIT_PORTABLE\n\
+static long sys_futex(void *addr1, int op, int val1, struct timespec *timeout, void *addr2, int val3)\n\
+{ return syscall(SYS_futex, addr1, op, val1, timeout, addr2, val3); }\n\
+#endif\n\
+class alignas(64) counting_wait {\n\
+public:\n\
+    inline counting_wait(int start = 0) : counter(start) {}\n\
+    inline bool inc_if(int exp) {\n\
+        auto temp = exp;\n\
+        return counter.compare_exchange_strong(temp, exp+1,\n\
+            std::memory_order_acq_rel, std::memory_order_acquire);\n\
+    }\n\
+    inline bool wait_if(int exp) {\n\
+#if COUNTING_WAIT_PORTABLE\n\
+        while (counter.load(std::memory_order_acquire) == exp)\n\
+            std::this_thread::yield();\n\
+        return true;\n\
+#else\n\
+        return !sys_futex(&counter, FUTEX_WAIT, exp, NULL, NULL, 0);\n\
+#endif\n\
+    }\n\
+    inline unsigned int wake(unsigned int = 9999) {\n\
+#if COUNTING_WAIT_PORTABLE\n\
+        return 0;\n\
+#else\n\
+        return sys_futex(&counter, FUTEX_WAKE, 9999, NULL, NULL, 0);\n\
+#endif\n\
+    }\n\
+private:\n\
+    std::atomic_int counter;\n\
+};\n\
+}\n\
+#endif\n"
+    )
+endif()
+
 # --- _viecut ---
 pybind11_add_module(_viecut bindings/viecut_binding.cpp)
 target_include_directories(_viecut PRIVATE
