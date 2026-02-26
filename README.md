@@ -12,6 +12,9 @@
   <br>
   <img src="https://img.shields.io/badge/Linux-x86__64-FCC624?logo=linux&logoColor=black" alt="Linux x86_64">
   <img src="https://img.shields.io/badge/macOS-arm64-000000?logo=apple&logoColor=white" alt="macOS arm64">
+  <br>
+  <a href="https://github.com/CHSZLab/CHSZLabLib/actions/workflows/build-wheels.yml"><img src="https://github.com/CHSZLab/CHSZLabLib/actions/workflows/build-wheels.yml/badge.svg" alt="Build wheels"></a>
+  <a href="https://github.com/CHSZLab/CHSZLabLib/stargazers"><img src="https://img.shields.io/github/stars/CHSZLab/CHSZLabLib" alt="GitHub stars"></a>
 </p>
 
 <p align="center">
