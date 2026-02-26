@@ -1261,6 +1261,32 @@ pybind11_add_module(_kahipe bindings/kahipe_binding.cpp)
 target_link_libraries(_kahipe PRIVATE kahipe_static)
 install(TARGETS _kahipe DESTINATION chszlablib)
 
+# --- VieCut: patch growt simpleelement.h for arm64 ---
+# growt uses xmmintrin.h (_mm_loadu_si128) for 128-bit atomic loads.
+# On non-x86, guard the include and replace SSE loads with memcpy.
+set(_GROWT_DIR "${VIECUT_DIR}/extlib/growt/data-structures")
+foreach(_GROWT_FILE simpleelement.h markableelement.h)
+    file(READ "${_GROWT_DIR}/${_GROWT_FILE}" _SRC)
+    string(REPLACE "#include <xmmintrin.h>"
+        "#include \"growt_sse_compat.h\"" _SRC "${_SRC}")
+    string(REPLACE
+        "as128i() = reinterpret_cast<int128_t>(_mm_loadu_si128((__m128i*) &e))"
+        "std::memcpy(this, &e, sizeof(*this))"
+        _SRC "${_SRC}")
+    file(WRITE "${_GROWT_DIR}/${_GROWT_FILE}" "${_SRC}")
+endforeach()
+# Write the compatibility header
+file(WRITE "${_GROWT_DIR}/growt_sse_compat.h"
+"#ifndef GROWT_SSE_COMPAT_H\n\
+#define GROWT_SSE_COMPAT_H\n\
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__)\n\
+#include <xmmintrin.h>\n\
+#else\n\
+#include <cstring>\n\
+#endif\n\
+#endif\n"
+)
+
 # --- _viecut ---
 pybind11_add_module(_viecut bindings/viecut_binding.cpp)
 target_include_directories(_viecut PRIVATE
