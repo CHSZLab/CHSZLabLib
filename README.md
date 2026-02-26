@@ -53,9 +53,21 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 - Kenneth Langedal (PostDoc)
 - Ernestine Großmann (PostDoc, former PhD)
 
+**Student Research Assistants:**
+- Fabian Walliser
+- Shai Dorian Peretz
+- Markus Everling
+
 **Alumni:**
 - Alexander Noe (PhD)
 - Marcelo Fonseca Faraj (PhD)
+- Antonie Lea Wagner (Student Research Assistant)
+- Marlon Dittes (Student Research Assistant)
+- Jannick Borowitz (Student Research Assistant)
+- Dominik Schweisgut (Student Research Assistant)
+- Thomas Möller (Student Research Assistant)
+- Patrick Steil (Student Research Assistant)
+- Joseph Holten (Student Research Assistant)
 
 ---
 
