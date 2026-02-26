@@ -44,7 +44,7 @@ def test_all_algorithms_on_same_graph():
     assert len(pr.assignment) == 8
 
     # Minimum cut (should be 1 at the bridge)
-    mc = Decomposition.mincut(g, algorithm="noi")
+    mc = Decomposition.mincut(g, algorithm="inexact")
     assert mc.cut_value == 1
     assert len(mc.partition) == 8
 

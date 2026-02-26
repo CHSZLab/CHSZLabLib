@@ -101,7 +101,7 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 |:--------|:-------|:-----------|
 | [KaHIP](https://github.com/KaHIP/KaHIP) | Graph partitioning | KaFFPa (6 modes), KaFFPaE (evolutionary), node separators, nested dissection |
 | [HeiStream](https://github.com/KaHIP/HeiStream) | Streaming partitioning | Fennel, BuffCut, parallel pipeline, restreaming |
-| [VieCut](https://github.com/VieCut/VieCut) | Minimum cuts | VieCut, NOI, Karger-Stein, Matula, Padberg-Rinaldi, Cactus |
+| [VieCut](https://github.com/VieCut/VieCut) | Minimum cuts | Inexact (parallel heuristic), Exact (parallel), Cactus (parallel) |
 | [fpt-max-cut](https://github.com/KarlsruheMIS/fpt-max-cut) | Maximum cut | FPT kernelization + heuristic/exact solvers |
 | [VieClus](https://github.com/VieClus/VieClus) | Community detection | Modularity-maximizing evolutionary clustering |
 | [SCC](https://github.com/ScalableCorrelationClustering/ScalableCorrelationClustering) | Correlation clustering | Label propagation + evolutionary on signed graphs |
@@ -138,7 +138,7 @@ p = Decomposition.partition(g, num_parts=2, mode="strong")
 print(f"Edge cut: {p.edgecut}, assignment: {p.assignment}")
 
 # Global minimum cut
-mc = Decomposition.mincut(g, algorithm="viecut")
+mc = Decomposition.mincut(g, algorithm="inexact")
 print(f"Min-cut value: {mc.cut_value}")
 
 # Community detection
@@ -196,7 +196,7 @@ from chszlablib import Graph, HyperGraph, Decomposition, IndependenceProblems, O
 g = Graph.from_edge_list([(0,1),(1,2),(2,0),(2,3),(3,4),(4,5),(5,3)])
 
 Decomposition.partition(g, num_parts=2, mode="eco")                     # balanced partition
-Decomposition.mincut(g, algorithm="viecut")                             # global minimum cut
+Decomposition.mincut(g, algorithm="inexact")                             # global minimum cut
 Decomposition.cluster(g, time_limit=1.0)                                # community detection
 Decomposition.maxcut(g, method="heuristic")                             # maximum cut
 Decomposition.correlation_clustering(g, time_limit=1.0)                 # signed clustering
@@ -218,7 +218,7 @@ from chszlablib import Decomposition
 
 # Discover all valid modes for partitioning
 Decomposition.PARTITION_MODES     # ("fast", "eco", "strong", "fastsocial", ...)
-Decomposition.MINCUT_ALGORITHMS   # ("viecut", "vc", "noi", "ks", ...)
+Decomposition.MINCUT_ALGORITHMS   # ("inexact", "exact", "cactus")
 
 # List all methods with descriptions
 Decomposition.available_methods()
@@ -572,17 +572,14 @@ $$\lambda(G) = \min_{\emptyset \neq S \subset V} \sum_{\substack{\lbrace u,v \rb
 The value $\lambda(G)$ is the **edge connectivity** of the graph. The minimum cut identifies the most vulnerable bottleneck in a network. Applications include network reliability analysis, image segmentation, and connectivity certification.
 
 ```python
-Decomposition.mincut(g, algorithm="viecut", seed=0) -> MincutResult
+Decomposition.mincut(g, algorithm="inexact", seed=0) -> MincutResult
 ```
 
 | Algorithm | Identifier | Characteristics |
 |:----------|:-----------|:----------------|
-| VieCut | `"viecut"` or `"vc"` | Near-linear time; best for large graphs |
-| NOI | `"noi"` | Deterministic; Nagamochi-Ono-Ibaraki |
-| Karger-Stein | `"ks"` | Randomized; Monte Carlo approach |
-| Matula | `"matula"` | Approximation-based |
-| Padberg-Rinaldi | `"pr"` | Exact; LP-based heuristic |
-| Cactus | `"cactus"` | Enumerates all minimum cuts |
+| VieCut (heuristic) | `"inexact"` | Parallel near-linear time; best for large graphs |
+| Exact | `"exact"` | Shared-memory parallel exact algorithm |
+| Cactus | `"cactus"` | Enumerates all minimum cuts (parallel) |
 
 **Result: `MincutResult`** — `cut_value` (int), `partition` (ndarray 0/1).
 
@@ -881,7 +878,7 @@ communities = Decomposition.cluster(g, time_limit=30.0)
 print(f"Communities: {communities.num_clusters}, modularity: {communities.modularity:.4f}")
 
 # Find the most weakly connected region
-mc = Decomposition.mincut(g, algorithm="viecut")
+mc = Decomposition.mincut(g, algorithm="inexact")
 print(f"Network bottleneck: {mc.cut_value} edges")
 
 # Explore a specific user's neighborhood

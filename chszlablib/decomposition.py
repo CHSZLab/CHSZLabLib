@@ -29,12 +29,8 @@ _KAFFPAE_MODE_MAP = {
 }
 
 _MINCUT_ALGO_MAP = {
-    "viecut": "vc",
-    "vc": "vc",
-    "noi": "noi",
-    "ks": "ks",
-    "matula": "matula",
-    "pr": "pr",
+    "inexact": "inexact",
+    "exact": "exact",
     "cactus": "cactus",
 }
 
@@ -54,7 +50,7 @@ KaFFPaEMode = Literal[
     "ultrafastsocial",
 ]
 MincutAlgorithm = Literal[
-    "viecut", "vc", "noi", "ks", "matula", "pr", "cactus",
+    "inexact", "exact", "cactus",
 ]
 MaxcutMethod = Literal["heuristic", "exact"]
 MotifMethod = Literal["social", "lmchgp"]
@@ -174,7 +170,7 @@ class Decomposition:
     """Valid modes for :meth:`evolutionary_partition`."""
 
     MINCUT_ALGORITHMS: tuple[str, ...] = (
-        "viecut", "vc", "noi", "ks", "matula", "pr", "cactus",
+        "inexact", "exact", "cactus",
     )
     """Valid algorithms for :meth:`mincut`."""
 
@@ -644,7 +640,7 @@ class Decomposition:
     # --- VieCut: Minimum Cut ---
 
     @staticmethod
-    def mincut(g: Graph, algorithm: MincutAlgorithm = "viecut", seed: int = 0) -> MincutResult:
+    def mincut(g: Graph, algorithm: MincutAlgorithm = "inexact", seed: int = 0) -> MincutResult:
         """Compute a global minimum cut of an undirected graph using VieCut.
 
         Finds a partition of the node set into two non-empty sets S and V\\S
@@ -665,12 +661,9 @@ class Decomposition:
             ==================  ===============  ======================================
             Algorithm           Identifier       Characteristics
             ==================  ===============  ======================================
-            VieCut              ``"viecut"``     Near-linear time; best for large graphs
-            NOI                 ``"noi"``        Deterministic; Nagamochi-Ono-Ibaraki
-            Karger-Stein        ``"ks"``         Randomized; Monte Carlo approach
-            Matula              ``"matula"``     Approximation-based
-            Padberg-Rinaldi     ``"pr"``         Exact; LP-based heuristic
-            Cactus              ``"cactus"``     Enumerates all minimum cuts
+            VieCut (heuristic)  ``"inexact"``    Parallel near-linear time; best for large graphs
+            Exact               ``"exact"``      Shared-memory parallel exact algorithm
+            Cactus              ``"cactus"``     Enumerates all minimum cuts (parallel)
             ==================  ===============  ======================================
 
         seed : int
@@ -691,7 +684,7 @@ class Decomposition:
         Examples
         --------
         >>> g = Graph.from_metis("network.graph")
-        >>> mc = Decomposition.mincut(g, algorithm="viecut")
+        >>> mc = Decomposition.mincut(g, algorithm="inexact")
         >>> print(f"Min-cut value: {mc.cut_value}")
         """
         from chszlablib._viecut import minimum_cut
@@ -703,6 +696,8 @@ class Decomposition:
                 f"Choose from: {', '.join(sorted(_MINCUT_ALGO_MAP))}"
             )
 
+        algo_str = _MINCUT_ALGO_MAP[algo_key]
+
         g.finalize()
 
         xadj = g.xadj.astype(np.int32, copy=False)
@@ -711,7 +706,7 @@ class Decomposition:
 
         cut_value, partition = minimum_cut(
             xadj, adjncy, adjwgt,
-            algorithm=_MINCUT_ALGO_MAP[algo_key],
+            algorithm=algo_str,
             save_cut=True,
             seed=seed,
         )

@@ -97,7 +97,7 @@ PYBIND11_MODULE(_viecut, m) {
           py::arg("xadj"),
           py::arg("adjncy"),
           py::arg("adjwgt"),
-          py::arg("algorithm") = "vc",
+          py::arg("algorithm") = "inexact",
           py::arg("save_cut") = true,
           py::arg("seed") = 0,
           R"doc(
@@ -112,7 +112,7 @@ PYBIND11_MODULE(_viecut, m) {
           adjwgt : ndarray[int32]
               Edge weights (same length as adjncy).
           algorithm : str
-              Algorithm name: "vc" (viecut), "noi", "ks", "matula", "pr", "cactus".
+              Algorithm name: "inexact" (heuristic VieCut), "exact" (shared-memory exact), "cactus" (all minimum cuts).
           save_cut : bool
               If True, compute and return the partition assignment.
           seed : int

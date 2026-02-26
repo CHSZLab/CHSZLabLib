@@ -494,25 +494,33 @@ set(_STRUCTION_DIR ${KAMIS_DIR}/mmwis/extern/struction/lib/mis/kernel)
 set(_MMWIS_KERNEL_DIR ${KAMIS_DIR}/mmwis/lib/mis/kernel)
 
 # --- struction_reductions.cpp: wrap each instantiation line individually ---
+# Guard: only patch if not already patched (avoid nested namespace wrapping)
 file(READ ${_STRUCTION_DIR}/struction_reductions.cpp _SRC)
-# Wrap each template instantiation in its own namespace block
-string(REPLACE "template class iterative_struction<" "namespace struction { template class iterative_struction<" _SRC "${_SRC}")
-string(REPLACE "template class blow_up_struction<"    "namespace struction { template class blow_up_struction<"    _SRC "${_SRC}")
-# Close the namespace at end of each line (after the semicolon)
-string(REGEX REPLACE "(namespace struction \\{ template class [^;]+;)" "\\1 }" _SRC "${_SRC}")
-file(WRITE ${_STRUCTION_DIR}/struction_reductions.cpp "${_SRC}")
+string(FIND "${_SRC}" "namespace struction { template class" _ALREADY_PATCHED)
+if(_ALREADY_PATCHED EQUAL -1)
+    string(REPLACE "template class iterative_struction<" "namespace struction { template class iterative_struction<" _SRC "${_SRC}")
+    string(REPLACE "template class blow_up_struction<"    "namespace struction { template class blow_up_struction<"    _SRC "${_SRC}")
+    string(REGEX REPLACE "(namespace struction \\{ template class [^;]+;)" "\\1 }" _SRC "${_SRC}")
+    file(WRITE ${_STRUCTION_DIR}/struction_reductions.cpp "${_SRC}")
+endif()
 
 # --- extended_struction.cpp ---
 file(READ ${_STRUCTION_DIR}/extended_struction.cpp _SRC)
-string(REPLACE "template class extended_struction<" "namespace struction { template class extended_struction<" _SRC "${_SRC}")
-string(REGEX REPLACE "(namespace struction \\{ template class [^;]+;)" "\\1 }" _SRC "${_SRC}")
-file(WRITE ${_STRUCTION_DIR}/extended_struction.cpp "${_SRC}")
+string(FIND "${_SRC}" "namespace struction { template class" _ALREADY_PATCHED)
+if(_ALREADY_PATCHED EQUAL -1)
+    string(REPLACE "template class extended_struction<" "namespace struction { template class extended_struction<" _SRC "${_SRC}")
+    string(REGEX REPLACE "(namespace struction \\{ template class [^;]+;)" "\\1 }" _SRC "${_SRC}")
+    file(WRITE ${_STRUCTION_DIR}/extended_struction.cpp "${_SRC}")
+endif()
 
 # --- original_struction.cpp ---
 file(READ ${_STRUCTION_DIR}/original_struction.cpp _SRC)
-string(REPLACE "template class original_struction<" "namespace struction { template class original_struction<" _SRC "${_SRC}")
-string(REGEX REPLACE "(namespace struction \\{ template class [^;]+;)" "\\1 }" _SRC "${_SRC}")
-file(WRITE ${_STRUCTION_DIR}/original_struction.cpp "${_SRC}")
+string(FIND "${_SRC}" "namespace struction { template class" _ALREADY_PATCHED)
+if(_ALREADY_PATCHED EQUAL -1)
+    string(REPLACE "template class original_struction<" "namespace struction { template class original_struction<" _SRC "${_SRC}")
+    string(REGEX REPLACE "(namespace struction \\{ template class [^;]+;)" "\\1 }" _SRC "${_SRC}")
+    file(WRITE ${_STRUCTION_DIR}/original_struction.cpp "${_SRC}")
+endif()
 
 # --- reduction_evolution.cpp: namespace + default argument redefinition ---
 set(_MMWIS_EVO_DIR ${KAMIS_DIR}/mmwis/lib/mis/evolutionary)
@@ -1329,6 +1337,15 @@ target_link_libraries(_viecut PRIVATE tlx)
 if(OpenMP_CXX_FOUND)
     target_link_libraries(_viecut PRIVATE OpenMP::OpenMP_CXX)
     target_compile_definitions(_viecut PRIVATE PARALLEL)
+endif()
+# Parallel VieCut uses 128-bit atomics (__sync_bool_compare_and_swap_16).
+# On x86_64, tell GCC to emit cmpxchg16b inline; also link libatomic as fallback.
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64")
+    target_compile_options(_viecut PRIVATE -mcx16)
+endif()
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_options(_viecut PRIVATE "LINKER:--no-as-needed")
+    target_link_libraries(_viecut PRIVATE atomic)
 endif()
 install(TARGETS _viecut DESTINATION chszlablib)
 
