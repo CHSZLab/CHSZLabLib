@@ -1286,6 +1286,11 @@ public:\n\
     public:\n\
         Handle(std::unordered_map<uint64_t,size_t,HashFct>& m, std::mutex& mu)\n\
             : map_(m), mu_(mu) {}\n\
+        using iterator = typename std::unordered_map<uint64_t,size_t,HashFct>::iterator;\n\
+        iterator find(uint64_t key) {\n\
+            std::lock_guard<std::mutex> lock(mu_);\n\
+            return map_.find(key);\n\
+        }\n\
         template<class F, class... Args>\n\
         std::pair<size_t, bool> insert_or_update(\n\
                 uint64_t key, size_t val, F f, Args&&... args) {\n\
