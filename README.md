@@ -44,6 +44,19 @@ The [Algorithm Engineering Group Heidelberg](https://ae.ifi.uni-heidelberg.de/) 
 
 For full algorithmic control (custom parameter tuning, every possible knob), use the underlying C/C++ repositories directly. This library prioritizes **convenience and a unified interface**.
 
+### Group Members
+
+**Current:**
+- Adil Chhabra (PhD Student)
+- Henrik Reinstädtler (PhD Student)
+- Henning Woydt (PhD Student)
+- Kenneth Langedal (PostDoc)
+- Ernestine Großmann (PostDoc, former PhD)
+
+**Alumni:**
+- Alexander Noe (PhD)
+- Marcelo Fonseca Faraj (PhD)
+
 ---
 
 ## Table of Contents
