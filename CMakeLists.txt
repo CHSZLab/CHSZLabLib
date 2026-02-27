@@ -1127,40 +1127,44 @@ file(WRITE ${HEISTREAM_DIR}/lib/partition/coarsening/matching/gpa/compare_rating
 # When used as a library (via pybind11), exit(0) kills the Python process.
 # Replace with exceptions so errors propagate as Python RuntimeError.
 
-# model_graph_ops.cpp — exit(0) kills the Python process
+# model_graph_ops.cpp — exit() kills the Python process
 file(READ ${HEISTREAM_DIR}/lib/partition/model/model_graph_ops.cpp _SRC)
 string(FIND "${_SRC}" "#include <stdexcept>" _HAS_STDEXCEPT)
 if(_HAS_STDEXCEPT EQUAL -1)
     string(REPLACE "#include <iostream>" "#include <iostream>\n#include <stdexcept>" _SRC "${_SRC}")
 endif()
 string(REPLACE "exit(0)" "throw std::runtime_error(\"HeiStream error (see stderr)\")" _SRC "${_SRC}")
+string(REPLACE "exit(1)" "throw std::runtime_error(\"HeiStream error (see stderr)\")" _SRC "${_SRC}")
 file(WRITE ${HEISTREAM_DIR}/lib/partition/model/model_graph_ops.cpp "${_SRC}")
 
-# node_batch_model_builder.cpp — exit(0) kills the Python process
+# node_batch_model_builder.cpp — exit() kills the Python process
 file(READ ${HEISTREAM_DIR}/lib/algorithms/node_partitioning/model/node_batch_model_builder.cpp _SRC)
 string(FIND "${_SRC}" "#include <stdexcept>" _HAS_STDEXCEPT)
 if(_HAS_STDEXCEPT EQUAL -1)
     string(REPLACE "#include <iostream>" "#include <iostream>\n#include <stdexcept>" _SRC "${_SRC}")
 endif()
 string(REPLACE "exit(0)" "throw std::runtime_error(\"HeiStream error (see stderr)\")" _SRC "${_SRC}")
+string(REPLACE "exit(1)" "throw std::runtime_error(\"HeiStream error (see stderr)\")" _SRC "${_SRC}")
 file(WRITE ${HEISTREAM_DIR}/lib/algorithms/node_partitioning/model/node_batch_model_builder.cpp "${_SRC}")
 
-# edge_batch_model_builder.cpp — exit(0) kills the Python process
+# edge_batch_model_builder.cpp — exit() kills the Python process
 file(READ ${HEISTREAM_DIR}/lib/algorithms/edge_partitioning/model/edge_batch_model_builder.cpp _SRC)
 string(FIND "${_SRC}" "#include <stdexcept>" _HAS_STDEXCEPT)
 if(_HAS_STDEXCEPT EQUAL -1)
     string(REPLACE "#include <iostream>" "#include <iostream>\n#include <stdexcept>" _SRC "${_SRC}")
 endif()
 string(REPLACE "exit(0)" "throw std::runtime_error(\"HeiStream error (see stderr)\")" _SRC "${_SRC}")
+string(REPLACE "exit(1)" "throw std::runtime_error(\"HeiStream error (see stderr)\")" _SRC "${_SRC}")
 file(WRITE ${HEISTREAM_DIR}/lib/algorithms/edge_partitioning/model/edge_batch_model_builder.cpp "${_SRC}")
 
-# graph_io.cpp — exit(0) kills the Python process
+# graph_io.cpp — exit() kills the Python process
 file(READ ${HEISTREAM_DIR}/lib/io/graph_io.cpp _SRC)
 string(FIND "${_SRC}" "#include <stdexcept>" _HAS_STDEXCEPT)
 if(_HAS_STDEXCEPT EQUAL -1)
     string(REPLACE "#include <iostream>" "#include <iostream>\n#include <stdexcept>" _SRC "${_SRC}")
 endif()
 string(REPLACE "exit(0)" "throw std::runtime_error(\"HeiStream error (see stderr)\")" _SRC "${_SRC}")
+string(REPLACE "exit(1)" "throw std::runtime_error(\"HeiStream error (see stderr)\")" _SRC "${_SRC}")
 file(WRITE ${HEISTREAM_DIR}/lib/io/graph_io.cpp "${_SRC}")
 
 # Build flatbuffers from HeiStream's bundled copy
