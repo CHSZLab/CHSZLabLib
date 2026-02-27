@@ -54,6 +54,13 @@ std::string write_temp_metis(
 
     fprintf(fp, "%lld %lld\n", (long long)n, (long long)m);
     for (int64_t v = 0; v < n; ++v) {
+        if (xa(v) == xa(v + 1)) {
+            /* Isolated node: write a non-empty line so HeiStream's
+             * stream reader (which skips empty lines) doesn't shift
+             * subsequent node indices. A lone space produces zero
+             * parsed tokens — correct empty adjacency list. */
+            fputc(' ', fp);
+        }
         for (int64_t e = xa(v); e < xa(v + 1); ++e) {
             if (e > xa(v)) fputc(' ', fp);
             fprintf(fp, "%lld", (long long)(aj(e) + 1));   /* 1-indexed */
