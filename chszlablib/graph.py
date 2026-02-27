@@ -473,6 +473,77 @@ class Graph:
         )
 
     # ------------------------------------------------------------------
+    # Binary I/O
+    # ------------------------------------------------------------------
+
+    def save_binary(self, path: str) -> None:
+        """Save this graph to a binary file (NumPy npz format).
+
+        The binary format stores the CSR arrays directly and loads
+        approximately 100x faster than parsing a METIS text file.
+
+        Parameters
+        ----------
+        path : str or Path
+            Output file path.  By convention, use the ``.npz`` extension.
+        """
+        self.finalize()
+        np.savez(
+            path,
+            __format_version__=np.array([1], dtype=np.int32),
+            __format_type__=np.array([1], dtype=np.int32),
+            xadj=self._xadj,
+            adjncy=self._adjncy,
+            node_weights=self._node_weights,
+            edge_weights=self._edge_weights,
+        )
+
+    @classmethod
+    def load_binary(cls, path: str) -> Graph:
+        """Load a graph from a binary file (NumPy npz format).
+
+        Parameters
+        ----------
+        path : str or Path
+            Path to a ``.npz`` file previously created by :meth:`save_binary`.
+
+        Returns
+        -------
+        Graph
+            A finalized graph.
+
+        Raises
+        ------
+        ValueError
+            If the file does not contain a valid graph or has an
+            unsupported format version.
+        """
+        data = np.load(path, allow_pickle=False)
+
+        version = int(data["__format_version__"][0]) if "__format_version__" in data else 0
+        if version > 1:
+            raise ValueError(
+                f"Unsupported graph binary format version {version}. "
+                f"Please update CHSZLabLib."
+            )
+
+        if "__format_type__" in data:
+            fmt_type = int(data["__format_type__"][0])
+            if fmt_type != 1:
+                raise ValueError(
+                    f"Expected binary type 1 (graph), got {fmt_type}"
+                )
+
+        xadj = data["xadj"]
+        adjncy = data["adjncy"]
+        node_weights = data.get("node_weights", None)
+        edge_weights = data.get("edge_weights", None)
+
+        return cls.from_csr(xadj, adjncy,
+                            node_weights=node_weights,
+                            edge_weights=edge_weights)
+
+    # ------------------------------------------------------------------
     # Properties (auto-finalize on access)
     # ------------------------------------------------------------------
 

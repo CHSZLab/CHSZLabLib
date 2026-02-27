@@ -1,11 +1,12 @@
-"""Tests for METIS I/O (read_metis / write_metis)."""
+"""Tests for METIS I/O (read_metis / write_metis) and binary I/O."""
 
 import numpy as np
 import pytest
 import tempfile
 from pathlib import Path
 
-from chszlablib import Graph, read_metis, write_metis
+from chszlablib import Graph, HyperGraph, read_metis, write_metis
+from chszlablib.io import _read_metis_python, _read_hmetis_python
 
 
 # ------------------------------------------------------------------
@@ -255,3 +256,275 @@ class TestRoundtrip:
         np.testing.assert_array_equal(g2.xadj, g.xadj)
         np.testing.assert_array_equal(g2.adjncy, g.adjncy)
         np.testing.assert_array_equal(g2.edge_weights, g.edge_weights)
+
+
+# ------------------------------------------------------------------
+# Binary I/O
+# ------------------------------------------------------------------
+
+class TestGraphBinaryIO:
+    """Test Graph.save_binary / Graph.load_binary roundtrips."""
+
+    def test_roundtrip_unweighted(self, tmp_path):
+        g = Graph(num_nodes=4)
+        g.add_edge(0, 1)
+        g.add_edge(1, 2)
+        g.add_edge(2, 3)
+        g.add_edge(0, 3)
+        g.finalize()
+        out = tmp_path / "test.npz"
+        g.save_binary(str(out))
+        g2 = Graph.load_binary(str(out))
+        assert g2.num_nodes == g.num_nodes
+        assert g2.num_edges == g.num_edges
+        np.testing.assert_array_equal(g2.xadj, g.xadj)
+        np.testing.assert_array_equal(g2.adjncy, g.adjncy)
+        np.testing.assert_array_equal(g2.node_weights, g.node_weights)
+        np.testing.assert_array_equal(g2.edge_weights, g.edge_weights)
+
+    def test_roundtrip_weighted(self, tmp_path):
+        g = Graph(num_nodes=3)
+        g.add_edge(0, 1, weight=5)
+        g.add_edge(1, 2, weight=3)
+        g.set_node_weight(0, 10)
+        g.set_node_weight(1, 20)
+        g.set_node_weight(2, 30)
+        g.finalize()
+        out = tmp_path / "test.npz"
+        g.save_binary(str(out))
+        g2 = Graph.load_binary(str(out))
+        assert g2.num_nodes == g.num_nodes
+        assert g2.num_edges == g.num_edges
+        np.testing.assert_array_equal(g2.node_weights, g.node_weights)
+        np.testing.assert_array_equal(g2.edge_weights, g.edge_weights)
+
+    def test_roundtrip_empty(self, tmp_path):
+        g = Graph(num_nodes=0)
+        g.finalize()
+        out = tmp_path / "test.npz"
+        g.save_binary(str(out))
+        g2 = Graph.load_binary(str(out))
+        assert g2.num_nodes == 0
+        assert g2.num_edges == 0
+
+    def test_type_mismatch_rejects_hypergraph(self, tmp_path):
+        """Loading a hypergraph npz as a Graph should fail."""
+        hg = HyperGraph.from_edge_list([[0, 1, 2]], num_nodes=3)
+        out = tmp_path / "test.npz"
+        hg.save_binary(str(out))
+        with pytest.raises(ValueError, match="Expected binary type 1"):
+            Graph.load_binary(str(out))
+
+
+class TestHyperGraphBinaryIO:
+    """Test HyperGraph.save_binary / HyperGraph.load_binary roundtrips."""
+
+    def test_roundtrip_unweighted(self, tmp_path):
+        hg = HyperGraph.from_edge_list(
+            [[0, 1, 2], [1, 2, 3]],
+            num_nodes=4,
+        )
+        out = tmp_path / "test.npz"
+        hg.save_binary(str(out))
+        hg2 = HyperGraph.load_binary(str(out))
+        assert hg2.num_nodes == hg.num_nodes
+        assert hg2.num_edges == hg.num_edges
+        np.testing.assert_array_equal(hg2.eptr, hg.eptr)
+        np.testing.assert_array_equal(hg2.everts, hg.everts)
+        np.testing.assert_array_equal(hg2.vptr, hg.vptr)
+        np.testing.assert_array_equal(hg2.vedges, hg.vedges)
+        np.testing.assert_array_equal(hg2.node_weights, hg.node_weights)
+        np.testing.assert_array_equal(hg2.edge_weights, hg.edge_weights)
+
+    def test_roundtrip_weighted(self, tmp_path):
+        hg = HyperGraph.from_edge_list(
+            [[0, 1], [1, 2, 3]],
+            num_nodes=4,
+            node_weights=[10, 20, 30, 40],
+            edge_weights=[5, 3],
+        )
+        out = tmp_path / "test.npz"
+        hg.save_binary(str(out))
+        hg2 = HyperGraph.load_binary(str(out))
+        np.testing.assert_array_equal(hg2.node_weights, hg.node_weights)
+        np.testing.assert_array_equal(hg2.edge_weights, hg.edge_weights)
+
+    def test_type_mismatch_rejects_graph(self, tmp_path):
+        """Loading a graph npz as a HyperGraph should fail."""
+        g = Graph(num_nodes=3)
+        g.add_edge(0, 1)
+        g.finalize()
+        out = tmp_path / "test.npz"
+        g.save_binary(str(out))
+        with pytest.raises(ValueError, match="Expected binary type 2"):
+            HyperGraph.load_binary(str(out))
+
+
+# ------------------------------------------------------------------
+# C++ Parser vs Python Parser comparison
+# ------------------------------------------------------------------
+
+class TestCppParser:
+    """Compare C++ _io parser output against the pure-Python fallback.
+
+    All tests are skipped if the _io C++ extension is not built.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _require_cpp(self):
+        pytest.importorskip("chszlablib._io")
+
+    # -- helpers --
+
+    @staticmethod
+    def _assert_graphs_equal(g_cpp, g_py):
+        """Assert two Graph objects are structurally identical."""
+        assert g_cpp.num_nodes == g_py.num_nodes
+        assert g_cpp.num_edges == g_py.num_edges
+        np.testing.assert_array_equal(g_cpp.xadj, g_py.xadj)
+        np.testing.assert_array_equal(g_cpp.adjncy, g_py.adjncy)
+        np.testing.assert_array_equal(g_cpp.node_weights, g_py.node_weights)
+        np.testing.assert_array_equal(g_cpp.edge_weights, g_py.edge_weights)
+
+    @staticmethod
+    def _assert_hypergraphs_equal(h_cpp, h_py):
+        """Assert two HyperGraph objects are structurally identical."""
+        assert h_cpp.num_nodes == h_py.num_nodes
+        assert h_cpp.num_edges == h_py.num_edges
+        np.testing.assert_array_equal(h_cpp.eptr, h_py.eptr)
+        np.testing.assert_array_equal(h_cpp.everts, h_py.everts)
+        np.testing.assert_array_equal(h_cpp.vptr, h_py.vptr)
+        np.testing.assert_array_equal(h_cpp.vedges, h_py.vedges)
+        np.testing.assert_array_equal(h_cpp.node_weights, h_py.node_weights)
+        np.testing.assert_array_equal(h_cpp.edge_weights, h_py.edge_weights)
+
+    @staticmethod
+    def _read_metis_cpp(path):
+        from chszlablib._io import read_metis_cpp
+        from chszlablib.graph import Graph
+        xadj, adjncy, nw, ew = read_metis_cpp(str(path))
+        return Graph.from_csr(xadj, adjncy, node_weights=nw, edge_weights=ew)
+
+    @staticmethod
+    def _read_hmetis_cpp(path):
+        from chszlablib._io import read_hmetis_cpp
+        from chszlablib.hypergraph import HyperGraph
+        eptr, everts, vptr, vedges, nw, ew, num_nodes = read_hmetis_cpp(str(path))
+        return HyperGraph.from_dual_csr(
+            vptr=vptr, vedges=vedges,
+            eptr=eptr, everts=everts,
+            node_weights=nw, edge_weights=ew,
+        )
+
+    # -- METIS tests --
+
+    def test_metis_fmt0(self):
+        """Unweighted graph (fmt=0 / omitted)."""
+        content = "4 4\n2 4\n1 3\n2 4\n1 3\n"
+        path = _write_tmp(content)
+        self._assert_graphs_equal(
+            self._read_metis_cpp(path), _read_metis_python(path)
+        )
+
+    def test_metis_fmt1(self):
+        """Edge weights only (fmt=1)."""
+        content = "3 2 1\n2 5\n1 5 3 3\n2 3\n"
+        path = _write_tmp(content)
+        self._assert_graphs_equal(
+            self._read_metis_cpp(path), _read_metis_python(path)
+        )
+
+    def test_metis_fmt10(self):
+        """Node weights only (fmt=10)."""
+        content = "3 2 10\n10 2\n20 1 3\n30 2\n"
+        path = _write_tmp(content)
+        self._assert_graphs_equal(
+            self._read_metis_cpp(path), _read_metis_python(path)
+        )
+
+    def test_metis_fmt11(self):
+        """Both node and edge weights (fmt=11)."""
+        content = "3 2 11\n10 2 5\n20 1 5 3 3\n30 2 3\n"
+        path = _write_tmp(content)
+        self._assert_graphs_equal(
+            self._read_metis_cpp(path), _read_metis_python(path)
+        )
+
+    def test_metis_comments(self):
+        """Comments and blank lines should be skipped identically."""
+        content = (
+            "% comment 1\n"
+            "% comment 2\n"
+            "2 1\n"
+            "% mid-body comment\n"
+            "2\n"
+            "1\n"
+        )
+        path = _write_tmp(content)
+        self._assert_graphs_equal(
+            self._read_metis_cpp(path), _read_metis_python(path)
+        )
+
+    def test_metis_isolated_node(self):
+        """Graph with an isolated node (empty adjacency line)."""
+        content = "3 1\n2\n1\n\n"
+        path = _write_tmp(content)
+        self._assert_graphs_equal(
+            self._read_metis_cpp(path), _read_metis_python(path)
+        )
+
+    # -- hMETIS tests --
+
+    def test_hmetis_w0(self):
+        """Unweighted hypergraph (W=0 / omitted)."""
+        content = "2 4\n1 2 3\n2 3 4\n"
+        path = _write_tmp(content)
+        self._assert_hypergraphs_equal(
+            self._read_hmetis_cpp(path), _read_hmetis_python(path)
+        )
+
+    def test_hmetis_w1(self):
+        """Edge weights only (W=1)."""
+        content = "2 4 1\n5 1 2 3\n3 2 3 4\n"
+        path = _write_tmp(content)
+        self._assert_hypergraphs_equal(
+            self._read_hmetis_cpp(path), _read_hmetis_python(path)
+        )
+
+    def test_hmetis_w10(self):
+        """Node weights only (W=10)."""
+        content = "2 4 10\n1 2 3\n2 3 4\n10\n20\n30\n40\n"
+        path = _write_tmp(content)
+        self._assert_hypergraphs_equal(
+            self._read_hmetis_cpp(path), _read_hmetis_python(path)
+        )
+
+    def test_hmetis_w11(self):
+        """Both edge and node weights (W=11)."""
+        content = "2 4 11\n5 1 2 3\n3 2 3 4\n10\n20\n30\n40\n"
+        path = _write_tmp(content)
+        self._assert_hypergraphs_equal(
+            self._read_hmetis_cpp(path), _read_hmetis_python(path)
+        )
+
+    def test_hmetis_comments(self):
+        """Comment lines (c and %) should be skipped identically."""
+        content = (
+            "c a comment\n"
+            "% another comment\n"
+            "2 3\n"
+            "1 2\n"
+            "2 3\n"
+        )
+        path = _write_tmp(content)
+        self._assert_hypergraphs_equal(
+            self._read_hmetis_cpp(path), _read_hmetis_python(path)
+        )
+
+    def test_hmetis_single_vertex_edges(self):
+        """Hyperedges containing a single vertex."""
+        content = "3 3\n1\n2\n3\n"
+        path = _write_tmp(content)
+        self._assert_hypergraphs_equal(
+            self._read_hmetis_cpp(path), _read_hmetis_python(path)
+        )

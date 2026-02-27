@@ -1416,3 +1416,7 @@ pybind11_add_module(_hypermis bindings/hypermis_binding.cpp)
 target_link_libraries(_hypermis PRIVATE hypermis_static)
 install(TARGETS _hypermis DESTINATION chszlablib)
 
+# --- _io (Fast METIS/hMETIS file parser) ---
+pybind11_add_module(_io bindings/io_binding.cpp)
+install(TARGETS _io DESTINATION chszlablib)
+

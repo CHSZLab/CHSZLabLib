@@ -17,6 +17,7 @@
 #include "configuration_mis.h"
 #include "reduction_evolution.h"
 #include "branch_and_reduce_algorithm.h"
+#include "sort_adjacency.h"
 
 namespace py = pybind11;
 
@@ -29,6 +30,8 @@ py_mmwis(py::array_t<int, py::array::c_style> xadj,
     int n = static_cast<int>(xadj.size() - 1);
     int *xadj_ptr = xadj.mutable_data();
     int *adjncy_ptr = adjncy.mutable_data();
+
+    sort_adjacency_lists(n, xadj_ptr, adjncy_ptr);
 
     graph_access G;
     if (vwgt.size() > 0) {

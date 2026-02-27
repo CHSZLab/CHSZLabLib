@@ -16,6 +16,7 @@
 #include "reduction_evolution.h"
 #include "mis/kernel/branch_and_reduce_algorithm.h"
 #include "ils/online_ils.h"
+#include "sort_adjacency.h"
 
 namespace py = pybind11;
 
@@ -69,6 +70,8 @@ static void build_graph(graph_access &G,
     int n = static_cast<int>(xadj.size() - 1);
     int *xadj_ptr = xadj.mutable_data();
     int *adjncy_ptr = adjncy.mutable_data();
+
+    sort_adjacency_lists(n, xadj_ptr, adjncy_ptr);
 
     if (vwgt.size() > 0) {
         std::vector<int> adjwgt(adjncy.size(), 1);

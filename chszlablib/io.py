@@ -8,38 +8,13 @@ from typing import Union
 import numpy as np
 
 
-def read_metis(path: Union[str, Path]) -> "Graph":
-    """Read a graph from a METIS-format file.
+# ------------------------------------------------------------------
+# Pure-Python fallback implementations
+# ------------------------------------------------------------------
 
-    METIS format overview::
-
-        % optional comment lines
-        n m [fmt]
-        [vwgt] neighbor1 [ewgt1] neighbor2 [ewgt2] ...
-        ...
-
-    ``fmt`` encodes which weights are present:
-
-    - omitted or ``0``: no weights
-    - ``1``:  edge weights only
-    - ``10``: node weights only
-    - ``11``: both node and edge weights
-
-    Neighbors in the file are **1-indexed**; internally they are **0-indexed**.
-
-    Parameters
-    ----------
-    path : str or Path
-        Path to the METIS file.
-
-    Returns
-    -------
-    Graph
-        A finalized :class:`~chszlablib.graph.Graph`.
-    """
+def _read_metis_python(path: Path) -> "Graph":
+    """Pure-Python METIS reader (fallback when C++ extension unavailable)."""
     from chszlablib.graph import Graph
-
-    path = Path(path)
 
     with open(path, "r") as fh:
         lines = fh.readlines()
@@ -133,6 +108,161 @@ def read_metis(path: Union[str, Path]) -> "Graph":
     )
 
 
+def _read_hmetis_python(path: Path) -> "HyperGraph":
+    """Pure-Python hMETIS reader (fallback when C++ extension unavailable)."""
+    from chszlablib.hypergraph import HyperGraph
+
+    with open(path, "r") as fh:
+        lines = fh.readlines()
+
+    # Collect non-comment, non-blank lines
+    data_lines: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped == "" or stripped.startswith("c") or stripped.startswith("%"):
+            continue
+        data_lines.append(stripped)
+
+    if not data_lines:
+        raise ValueError("hMETIS file is empty or contains only comments")
+
+    # Parse header: M N [W]
+    header = data_lines[0].split()
+    m = int(header[0])  # number of hyperedges
+    n = int(header[1])  # number of vertices
+    w = int(header[2]) if len(header) >= 3 else 0
+
+    has_edge_weights = w in (1, 11)
+    has_node_weights = w in (10, 11)
+
+    # Parse M edge lines
+    edges: list[list[int]] = []
+    edge_weights_list: list[int] = []
+
+    for i in range(1, m + 1):
+        tokens = list(map(int, data_lines[i].split()))
+        pos = 0
+
+        if has_edge_weights:
+            edge_weights_list.append(tokens[pos])
+            pos += 1
+
+        # Remaining tokens are 1-indexed vertex IDs
+        verts = [t - 1 for t in tokens[pos:]]
+        edges.append(verts)
+
+    # Parse N node weight lines (if present)
+    node_weights_list: list[int] | None = None
+    if has_node_weights:
+        node_weights_list = []
+        for i in range(m + 1, m + 1 + n):
+            node_weights_list.append(int(data_lines[i].strip()))
+
+    return HyperGraph.from_edge_list(
+        edges,
+        num_nodes=n,
+        node_weights=node_weights_list,
+        edge_weights=edge_weights_list if has_edge_weights else None,
+    )
+
+
+# ------------------------------------------------------------------
+# Public API: try C++ first, fall back to Python
+# ------------------------------------------------------------------
+
+def read_metis(path: Union[str, Path]) -> "Graph":
+    """Read a graph from a METIS-format file.
+
+    METIS format overview::
+
+        % optional comment lines
+        n m [fmt]
+        [vwgt] neighbor1 [ewgt1] neighbor2 [ewgt2] ...
+        ...
+
+    ``fmt`` encodes which weights are present:
+
+    - omitted or ``0``: no weights
+    - ``1``:  edge weights only
+    - ``10``: node weights only
+    - ``11``: both node and edge weights
+
+    Neighbors in the file are **1-indexed**; internally they are **0-indexed**.
+
+    Parameters
+    ----------
+    path : str or Path
+        Path to the METIS file.
+
+    Returns
+    -------
+    Graph
+        A finalized :class:`~chszlablib.graph.Graph`.
+    """
+    from chszlablib.graph import Graph
+
+    path = Path(path)
+    try:
+        from chszlablib._io import read_metis_cpp
+        xadj, adjncy, node_weights, edge_weights = read_metis_cpp(str(path))
+        return Graph.from_csr(xadj, adjncy,
+                              node_weights=node_weights,
+                              edge_weights=edge_weights)
+    except ImportError:
+        pass
+    return _read_metis_python(path)
+
+
+def read_hmetis(path: Union[str, Path]) -> "HyperGraph":
+    """Read a hypergraph from an hMETIS-format file.
+
+    hMETIS format overview::
+
+        c optional comment lines (start with c or %)
+        M N [W]
+        [edge_weight] v1 v2 v3 ...   (M lines, one per hyperedge)
+        [vertex_weight]               (N lines, only when W includes node weights)
+
+    ``W`` encodes which weights are present (two-digit flag):
+
+    - omitted or ``0``: no weights
+    - ``1``:  edge weights only (first token per edge line)
+    - ``10``: node weights only (N lines after edges)
+    - ``11``: both edge and node weights
+
+    Vertex IDs in the file are **1-indexed**; internally they are **0-indexed**.
+
+    Parameters
+    ----------
+    path : str or Path
+        Path to the hMETIS file.
+
+    Returns
+    -------
+    HyperGraph
+        A finalized :class:`~chszlablib.hypergraph.HyperGraph`.
+    """
+    from chszlablib.hypergraph import HyperGraph
+
+    path = Path(path)
+    try:
+        from chszlablib._io import read_hmetis_cpp
+        eptr, everts, vptr, vedges, node_weights, edge_weights, num_nodes = read_hmetis_cpp(str(path))
+        return HyperGraph.from_dual_csr(
+            vptr=vptr, vedges=vedges,
+            eptr=eptr, everts=everts,
+            node_weights=node_weights,
+            edge_weights=edge_weights,
+        )
+    except ImportError:
+        pass
+    return _read_hmetis_python(path)
+
+
+# ------------------------------------------------------------------
+# Writers (unchanged)
+# ------------------------------------------------------------------
+
 def write_metis(graph: "Graph", path: Union[str, Path]) -> None:
     """Write a graph to a METIS-format file.
 
@@ -189,93 +319,6 @@ def write_metis(graph: "Graph", path: Union[str, Path]) -> None:
                     parts.append(str(int(ew[j])))
 
             fh.write(" ".join(parts) + "\n")
-
-
-def read_hmetis(path: Union[str, Path]) -> "HyperGraph":
-    """Read a hypergraph from an hMETIS-format file.
-
-    hMETIS format overview::
-
-        c optional comment lines (start with c or %)
-        M N [W]
-        [edge_weight] v1 v2 v3 ...   (M lines, one per hyperedge)
-        [vertex_weight]               (N lines, only when W includes node weights)
-
-    ``W`` encodes which weights are present (two-digit flag):
-
-    - omitted or ``0``: no weights
-    - ``1``:  edge weights only (first token per edge line)
-    - ``10``: node weights only (N lines after edges)
-    - ``11``: both edge and node weights
-
-    Vertex IDs in the file are **1-indexed**; internally they are **0-indexed**.
-
-    Parameters
-    ----------
-    path : str or Path
-        Path to the hMETIS file.
-
-    Returns
-    -------
-    HyperGraph
-        A finalized :class:`~chszlablib.hypergraph.HyperGraph`.
-    """
-    from chszlablib.hypergraph import HyperGraph
-
-    path = Path(path)
-
-    with open(path, "r") as fh:
-        lines = fh.readlines()
-
-    # Collect non-comment, non-blank lines
-    data_lines: list[str] = []
-    for line in lines:
-        stripped = line.strip()
-        if stripped == "" or stripped.startswith("c") or stripped.startswith("%"):
-            continue
-        data_lines.append(stripped)
-
-    if not data_lines:
-        raise ValueError("hMETIS file is empty or contains only comments")
-
-    # Parse header: M N [W]
-    header = data_lines[0].split()
-    m = int(header[0])  # number of hyperedges
-    n = int(header[1])  # number of vertices
-    w = int(header[2]) if len(header) >= 3 else 0
-
-    has_edge_weights = w in (1, 11)
-    has_node_weights = w in (10, 11)
-
-    # Parse M edge lines
-    edges: list[list[int]] = []
-    edge_weights_list: list[int] = []
-
-    for i in range(1, m + 1):
-        tokens = list(map(int, data_lines[i].split()))
-        pos = 0
-
-        if has_edge_weights:
-            edge_weights_list.append(tokens[pos])
-            pos += 1
-
-        # Remaining tokens are 1-indexed vertex IDs
-        verts = [t - 1 for t in tokens[pos:]]
-        edges.append(verts)
-
-    # Parse N node weight lines (if present)
-    node_weights_list: list[int] | None = None
-    if has_node_weights:
-        node_weights_list = []
-        for i in range(m + 1, m + 1 + n):
-            node_weights_list.append(int(data_lines[i].strip()))
-
-    return HyperGraph.from_edge_list(
-        edges,
-        num_nodes=n,
-        node_weights=node_weights_list,
-        edge_weights=edge_weights_list if has_edge_weights else None,
-    )
 
 
 def write_hmetis(hypergraph: "HyperGraph", path: Union[str, Path]) -> None:

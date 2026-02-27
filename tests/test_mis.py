@@ -147,3 +147,46 @@ class TestMMWIS:
         r = IndependenceProblems.mmwis(g, time_limit=5.0, seed=0)
         assert r.size == 1
         assert is_valid_independent_set(g, r.vertices)
+
+
+# ---------------------------------------------------------------------------
+# Unsorted-edge tests (from_csr with deliberately unsorted adjacency)
+# ---------------------------------------------------------------------------
+
+def _make_unsorted_triangle():
+    """Triangle 0-1, 0-2, 1-2 with deliberately unsorted adjacency lists.
+
+    Node 0's neighbors listed as [2, 1] instead of [1, 2].
+    """
+    xadj = np.array([0, 2, 4, 6], dtype=np.int64)
+    adjncy = np.array([2, 1, 2, 0, 0, 1], dtype=np.int32)  # unsorted
+    return Graph.from_csr(xadj, adjncy)
+
+
+class TestUnsortedEdges:
+    """Verify KaMIS algorithms work with unsorted adjacency lists (from_csr)."""
+
+    def test_redumis_unsorted_csr(self):
+        g = _make_unsorted_triangle()
+        r = IndependenceProblems.redumis(g, time_limit=5.0, seed=0)
+        assert r.size >= 1
+        assert is_valid_independent_set(g, r.vertices)
+
+    def test_online_mis_unsorted_csr(self):
+        g = _make_unsorted_triangle()
+        r = IndependenceProblems.online_mis(g, time_limit=5.0, seed=0,
+                                            ils_iterations=1000)
+        assert r.size >= 1
+        assert is_valid_independent_set(g, r.vertices)
+
+    def test_branch_reduce_unsorted_csr(self):
+        g = _make_unsorted_triangle()
+        r = IndependenceProblems.branch_reduce(g, time_limit=5.0, seed=0)
+        assert r.size >= 1
+        assert is_valid_independent_set(g, r.vertices)
+
+    def test_mmwis_unsorted_csr(self):
+        g = _make_unsorted_triangle()
+        r = IndependenceProblems.mmwis(g, time_limit=5.0, seed=0)
+        assert r.size >= 1
+        assert is_valid_independent_set(g, r.vertices)
