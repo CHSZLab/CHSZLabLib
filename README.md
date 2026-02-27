@@ -245,6 +245,10 @@ g.to_scipy_sparse()  # convert back
 
 # From METIS file
 g = Graph.from_metis("graph.metis")
+
+# Binary save/load (fast, for repeated use)
+g.save_binary("graph.npz")
+g = Graph.load_binary("graph.npz")
 ```
 
 ### HyperGraph Construction Shortcuts
@@ -257,6 +261,10 @@ hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3, 4]])
 
 # From hMETIS file
 hg = HyperGraph.from_hmetis("hypergraph.hgr")
+
+# Binary save/load (fast, for repeated use)
+hg.save_binary("hypergraph.npz")
+hg = HyperGraph.load_binary("hypergraph.npz")
 
 # Convert to regular graph (clique expansion)
 g = hg.to_graph()
@@ -905,7 +913,9 @@ perm = order.ordering
 
 ## I/O
 
-Read and write graphs in [METIS format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf) and hypergraphs in [hMETIS format](http://glaros.dtc.umn.edu/gkhome/metis/hmetis/overview):
+### METIS / hMETIS (text format)
+
+Read and write graphs in [METIS format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf) and hypergraphs in [hMETIS format](http://glaros.dtc.umn.edu/gkhome/metis/hmetis/overview). When the C++ extension is available (default when built from source), `read_metis` and `read_hmetis` use a fast C++ parser for significantly faster loading on large graphs. A pure-Python fallback is used automatically if the extension is not present.
 
 ```python
 from chszlablib import read_metis, write_metis, read_hmetis, write_hmetis
@@ -922,6 +932,22 @@ write_hmetis(hg, "output.hgr")
 hg = HyperGraph.from_hmetis("input.hgr")  # equivalent class method
 hg.to_hmetis("output.hgr")
 ```
+
+### Binary format (NumPy)
+
+For fast repeated loading (e.g., in benchmarks or pipelines), save and load graphs and hypergraphs in a compact binary format based on `np.savez`. Binary I/O is ~10--50x faster than text-based METIS for large graphs.
+
+```python
+# Graph binary I/O
+g.save_binary("graph.npz")
+g = Graph.load_binary("graph.npz")
+
+# HyperGraph binary I/O
+hg.save_binary("hypergraph.npz")
+hg = HyperGraph.load_binary("hypergraph.npz")
+```
+
+The binary format includes version and type metadata. Loading a hypergraph file as a graph (or vice versa) raises `ValueError`.
 
 ---
 
@@ -948,6 +974,9 @@ CHSZLabLib/
 │   ├── exceptions.py            # Custom exception hierarchy
 │   └── io.py                    # METIS + hMETIS file I/O
 ├── bindings/                    # pybind11 C++ bindings
+│   ├── io_binding.cpp           #   Fast C++ METIS/hMETIS parser
+│   ├── sort_adjacency.h         #   Adjacency list sorting for KaMIS
+│   └── ...                      #   Algorithm-specific bindings
 ├── tests/                       # pytest suite
 ├── external_repositories/       # Git submodules (algorithm libraries)
 │   ├── KaHIP/                   # Graph partitioning
