@@ -12,8 +12,8 @@ set -euo pipefail
 MTK_REPO="${MTK_REPO:-https://github.com/kahypar/mt-kahypar.git}"
 MTK_COMMIT="${MTK_COMMIT:-0ef674a}"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
-KAHYPAR_DOWNLOAD_TBB="${KAHYPAR_DOWNLOAD_TBB:-ON}"
-KAHYPAR_DOWNLOAD_BOOST="${KAHYPAR_DOWNLOAD_BOOST:-OFF}"
+TBB_URL="https://github.com/oneapi-src/oneTBB/releases/download/v2021.7.0/oneapi-tbb-2021.7.0-lin.tgz"
+BOOST_URL="https://sourceforge.net/projects/boost/files/boost/1.69.0/boost_1_69_0.tar.bz2/download"
 
 # ---- Paths ------------------------------------------------------------
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -60,39 +60,47 @@ test -d "${SRC_DIR}/external_tools" || {
     exit 1
 }
 
-# ---- Patch: skip Boost entirely when MT_KAHYPAR_DISABLE_BOOST is ON --
-# The upstream CMakeLists.txt unconditionally enters the Boost download/find
-# block even when DISABLE_BOOST is set. Wrap it so we can build just the
-# shared library without any Boost dependency.
+# ---- Download TBB & Boost into source tree ----------------------------
+# mt-KaHyPar's execute_process(cmake -P download_*.cmake) uses
+# FetchContent with relative SOURCE_DIR, which extracts to / inside
+# containers instead of the source tree. We download both ourselves.
+TBB_DIR="${SRC_DIR}/external_tools/tbb"
+BOOST_DIR="${SRC_DIR}/external_tools/boost"
+
+echo ">>> Downloading TBB..."
+mkdir -p "${TBB_DIR}"
+curl -sL "${TBB_URL}" | tar xz --strip-components=1 -C "${TBB_DIR}"
+
+echo ">>> Downloading Boost..."
+mkdir -p "${BOOST_DIR}"
+curl -sL "${BOOST_URL}" | tar xj --strip-components=1 -C "${BOOST_DIR}"
+
+# ---- Patch CMakeLists: fix download paths ----------------------------
+# Replace BINARY_DIR with SOURCE_DIR so cmake finds the files we
+# downloaded above, and disable the execute_process download calls.
 python3 -c "
 import pathlib
 f = pathlib.Path('${SRC_DIR}/CMakeLists.txt')
 txt = f.read_text()
-
-# 1) Skip the Boost block when MT_KAHYPAR_DISABLE_BOOST is ON
-lines = txt.splitlines(True)
-start = next(i for i, l in enumerate(lines) if 'if(KAHYPAR_DOWNLOAD_BOOST)' in l)
-depth = 0
-end = None
-for i in range(start, len(lines)):
-    s = lines[i].strip()
-    if s.startswith('if('):
-        depth += 1
-    if s.startswith('endif'):
-        depth -= 1
-        if depth == 0:
-            end = i
-            break
-lines.insert(start, 'if(NOT MT_KAHYPAR_DISABLE_BOOST)\n')
-lines.insert(end + 2, 'endif() # NOT MT_KAHYPAR_DISABLE_BOOST\n')
-txt = ''.join(lines)
-
-# 2) Fix TBB download path: download scripts put files in SOURCE_DIR but
-#    CMakeLists references BINARY_DIR. Fix by using SOURCE_DIR.
+# Fix Boost paths: glob and include use BINARY_DIR but files are in SOURCE_DIR
+txt = txt.replace(
+    '\${CMAKE_CURRENT_BINARY_DIR}/external_tools/boost/',
+    '\${CMAKE_CURRENT_SOURCE_DIR}/external_tools/boost/')
+# Fix TBB path
 txt = txt.replace(
     'set(TBB_ROOT \${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)',
     'set(TBB_ROOT \${CMAKE_CURRENT_SOURCE_DIR}/external_tools/tbb)')
-
+# Disable the broken execute_process download calls (files already exist)
+txt = txt.replace(
+    'execute_process(COMMAND cmake -P \${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_boost.cmake)',
+    '# download_boost.cmake skipped (pre-downloaded)')
+txt = txt.replace(
+    'execute_process(COMMAND cmake -P \${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tbb_linux.cmake)',
+    '# download_tbb_linux.cmake skipped (pre-downloaded)')
+# Fix mini_boost: needs -fPIC to link into shared library
+txt = txt.replace(
+    'set_target_properties(mini_boost PROPERTIES LINKER_LANGUAGE CXX)',
+    'set_target_properties(mini_boost PROPERTIES LINKER_LANGUAGE CXX POSITION_INDEPENDENT_CODE ON)')
 f.write_text(txt)
 "
 
@@ -101,11 +109,11 @@ mkdir -p "${BLD_DIR}"
 
 cmake -S "${SRC_DIR}" -B "${BLD_DIR}" \
     -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
-    -DKAHYPAR_DOWNLOAD_TBB="${KAHYPAR_DOWNLOAD_TBB}" \
-    -DKAHYPAR_DOWNLOAD_BOOST="${KAHYPAR_DOWNLOAD_BOOST}" \
+    -DKAHYPAR_DOWNLOAD_TBB=ON \
+    -DKAHYPAR_DOWNLOAD_BOOST=ON \
     -DKAHYPAR_ENFORCE_MINIMUM_TBB_VERSION=OFF \
     -DKAHYPAR_PYTHON=OFF \
-    -DMT_KAHYPAR_DISABLE_BOOST=ON
+    -DMT_KAHYPAR_DISABLE_BOOST=OFF
 
 cmake --build "${BLD_DIR}" --target mtkahypar -j"$(nproc)"
 
