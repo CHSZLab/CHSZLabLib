@@ -60,6 +60,24 @@ test -d "${SRC_DIR}/external_tools" || {
     exit 1
 }
 
+# ---- Patch: skip Boost entirely when MT_KAHYPAR_DISABLE_BOOST is ON --
+# The upstream CMakeLists.txt unconditionally enters the Boost download/find
+# block even when DISABLE_BOOST is set. Wrap it so we can build just the
+# shared library without any Boost dependency.
+python3 -c "
+import pathlib, re
+f = pathlib.Path('${SRC_DIR}/CMakeLists.txt')
+txt = f.read_text()
+# Wrap the entire if(KAHYPAR_DOWNLOAD_BOOST)...endif(Boost_FOUND) block
+txt = txt.replace(
+    'if(KAHYPAR_DOWNLOAD_BOOST)',
+    'if(NOT MT_KAHYPAR_DISABLE_BOOST)\nif(KAHYPAR_DOWNLOAD_BOOST)')
+txt = txt.replace(
+    '  endif(Boost_FOUND)',
+    '  endif(Boost_FOUND)\nendif() # NOT MT_KAHYPAR_DISABLE_BOOST')
+f.write_text(txt)
+"
+
 # ---- Configure & build ------------------------------------------------
 mkdir -p "${BLD_DIR}"
 
