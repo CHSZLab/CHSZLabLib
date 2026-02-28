@@ -1282,17 +1282,50 @@ endif()
 # =============================================================================
 set(CLUSTRE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/CluStRE)
 
-# --- Patch: guard x86intrin.h for non-x86 (ARM/macOS) ---
-# (Already applied manually — kept as documentation)
+# --- Patch CluStRE sources for portability (ARM, no abseil, no cpi) ---
+# Uses Python to handle \r\n line endings and multi-line replacements reliably.
+execute_process(
+    COMMAND python3 -c "
+import pathlib, re
 
-# --- Patch: timer.h — sys/ headers guarded for Windows.
-#     (Already applied manually — kept as documentation)
+d = pathlib.Path('${CLUSTRE_DIR}')
 
-# --- Patch: partition_config.h — stxxl/cpi includes removed, ExternalPQ
-#     forward-declared. (Already applied manually — kept as documentation)
+# --- definitions.h: remove x86intrin.h, make crc32 always use fnv2a ---
+f = d / 'lib/definitions.h'
+if f.exists():
+    t = f.read_text()
+    t = t.replace('#include <x86intrin.h>', '// #include <x86intrin.h>  // removed for ARM')
+    # Replace SSE4.2 branch in crc32() with just the fnv2a fallback
+    t = re.sub(
+        r'#ifdef __SSE4_2__.*?_mm_crc32_u64.*?#else',
+        '#if 0  // SSE4.2 removed for portability\\n\\treturn 0;\\n#else',
+        t, flags=re.DOTALL)
+    f.write_text(t)
 
-# --- Patch: vertex_partitioning.h/.cpp — absl::flat_hash_map replaced with
-#     std::unordered_map. (Already applied manually — kept as documentation)
+# --- partition_config.h: remove cpi + ExternalPQ includes ---
+f = d / 'lib/partition/partition_config.h'
+if f.exists():
+    t = f.read_text()
+    if 'patched out' not in t:
+        t = t.replace('#include \"cpi/run_length_compression.hpp\"',
+                       '// #include \"cpi/run_length_compression.hpp\"  // patched out')
+        t = t.replace('#include \"data_structure/ExternalPQ.h\"',
+                       '// #include \"data_structure/ExternalPQ.h\"  // patched out\\nclass ExternalPQ;')
+        f.write_text(t)
+
+# --- vertex_partitioning.h/.cpp: replace absl with std::unordered_map ---
+for rel in ['lib/partition/onepass_partitioning/vertex_partitioning.h',
+            'lib/partition/onepass_partitioning/vertex_partitioning.cpp']:
+    f = d / rel
+    if f.exists():
+        t = f.read_text()
+        t = t.replace('#include \"absl/container/flat_hash_map.h\"',
+                       '// #include \"absl/container/flat_hash_map.h\"  // patched out')
+        t = t.replace('absl::flat_hash_map', 'std::unordered_map')
+        f.write_text(t)
+"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
 
 # --- Patch: replace exit() with throw in CluStRE files ---
 foreach(_CLUSTRE_PATCH_FILE
