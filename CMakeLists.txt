@@ -1283,22 +1283,20 @@ endif()
 set(CLUSTRE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/CluStRE)
 
 # --- Patch CluStRE sources for portability (ARM, no abseil, no cpi) ---
-# Uses Python to handle \r\n line endings and multi-line replacements reliably.
-execute_process(
-    COMMAND python3 -c "
-import pathlib, re
+# Write patch script to temp file to avoid cmake string escaping issues with regex.
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/_patch_clustre.py" [=[
+import pathlib, re, sys
 
-d = pathlib.Path('${CLUSTRE_DIR}')
+d = pathlib.Path(sys.argv[1])
 
 # --- definitions.h: remove x86intrin.h, make crc32 always use fnv2a ---
 f = d / 'lib/definitions.h'
 if f.exists():
     t = f.read_text()
     t = t.replace('#include <x86intrin.h>', '// #include <x86intrin.h>  // removed for ARM')
-    # Replace SSE4.2 branch in crc32() with just the fnv2a fallback
     t = re.sub(
         r'#ifdef __SSE4_2__.*?_mm_crc32_u64.*?#else',
-        '#if 0  // SSE4.2 removed for portability\\n\\treturn 0;\\n#else',
+        '#if 0  // SSE4.2 removed for portability\n\treturn 0;\n#else',
         t, flags=re.DOTALL)
     f.write_text(t)
 
@@ -1307,23 +1305,60 @@ f = d / 'lib/partition/partition_config.h'
 if f.exists():
     t = f.read_text()
     if 'patched out' not in t:
-        t = t.replace('#include \"cpi/run_length_compression.hpp\"',
-                       '// #include \"cpi/run_length_compression.hpp\"  // patched out')
-        t = t.replace('#include \"data_structure/ExternalPQ.h\"',
-                       '// #include \"data_structure/ExternalPQ.h\"  // patched out\\nclass ExternalPQ;')
+        t = t.replace('#include "cpi/run_length_compression.hpp"',
+                       '// #include "cpi/run_length_compression.hpp"  // patched out')
+        t = t.replace('#include "data_structure/ExternalPQ.h"',
+                       '// #include "data_structure/ExternalPQ.h"  // patched out\nclass ExternalPQ;')
         f.write_text(t)
 
-# --- vertex_partitioning.h/.cpp: replace absl with std::unordered_map ---
-for rel in ['lib/partition/onepass_partitioning/vertex_partitioning.h',
-            'lib/partition/onepass_partitioning/vertex_partitioning.cpp']:
-    f = d / rel
-    if f.exists():
-        t = f.read_text()
-        t = t.replace('#include \"absl/container/flat_hash_map.h\"',
-                       '// #include \"absl/container/flat_hash_map.h\"  // patched out')
-        t = t.replace('absl::flat_hash_map', 'std::unordered_map')
-        f.write_text(t)
-"
+# --- vertex_partitioning.h/.cpp: replace absl, fix clang errors ---
+f = d / 'lib/partition/onepass_partitioning/vertex_partitioning.h'
+if f.exists():
+    t = f.read_text()
+    t = t.replace('#include "absl/container/flat_hash_map.h"',
+                   '// #include "absl/container/flat_hash_map.h"  // patched out')
+    t = t.replace('absl::flat_hash_map', 'std::unordered_map')
+    # Fix: bare 'return;' in non-void set_decision (clang error)
+    t = re.sub(r'(set_decision\(PartitionID block,.*?my_thread, degree\);)\s*return;',
+               r'\1 return block;', t, flags=re.DOTALL)
+    # Fix: const correctness in get_block_address (declaration + definition)
+    t = t.replace('floating_block *get_block_address', 'const floating_block *get_block_address')
+    t = re.sub(r'inline floating_block \*\s*\n(\s*vertex_partitioning::get_block_address)',
+               r'inline const floating_block *\n\1', t)
+    t = t.replace('  floating_block *block_pointer = &(blocks[block_id]);',
+                   '  const floating_block *block_pointer = &(blocks[block_id]);')
+    f.write_text(t)
+
+f = d / 'lib/partition/onepass_partitioning/vertex_partitioning.cpp'
+if f.exists():
+    t = f.read_text()
+    t = t.replace('absl::flat_hash_map', 'std::unordered_map')
+    f.write_text(t)
+
+# --- random_functions.h: constexpr -> const for large array (clang limit) ---
+f = d / 'lib/tools/random_functions.h'
+if f.exists():
+    t = f.read_text()
+    t = t.replace('constexpr ConstRandArray rand_nums',
+                   'const ConstRandArray rand_nums')
+    f.write_text(t)
+
+# --- buffered_map.h: fix const-correctness (clang errors) ---
+f = d / 'lib/data_structure/buffered_map.h'
+if f.exists():
+    t = f.read_text()
+    # build() is const but calls non-const redo() - remove const from build()
+    t = t.replace('void build() const {', 'void build() {')
+    # comparison operators: add const qualifier
+    t = re.sub(r'bool operator([<>=!]+)\(const minimal_min_heap<U>& obj\) \{',
+               r'bool operator\1(const minimal_min_heap<U>& obj) const {', t)
+    # get_min() needs a const overload for const comparison operators
+    t = re.sub(r'(U& get_min\(\) \{[^}]+\})',
+               r'\1 const U& get_min() const { return (*this->fp)[0]; }', t)
+    f.write_text(t)
+]=])
+execute_process(
+    COMMAND python3 "${CMAKE_CURRENT_BINARY_DIR}/_patch_clustre.py" "${CLUSTRE_DIR}"
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
@@ -1578,7 +1613,15 @@ install(TARGETS _io DESTINATION chszlablib)
 set(HEICUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/HeiCut)
 set(MTKAHYPAR_DIR ${HEICUT_DIR}/extern/mt-kahypar)
 set(MTKAHYPAR_BUILD_DIR ${MTKAHYPAR_DIR}/build)
-set(TBB_DIR ${MTKAHYPAR_BUILD_DIR}/external_tools/tbb)
+set(MTKAHYPAR_LIB_DIR ${HEICUT_DIR}/extern/mt-kahypar-library)
+# TBB headers: check build_mtkahypar.sh install dir first, then mt-kahypar build dir
+if(EXISTS ${MTKAHYPAR_LIB_DIR}/tbb_include)
+    set(TBB_INCLUDE_DIR ${MTKAHYPAR_LIB_DIR}/tbb_include)
+    set(TBB_LIB_SEARCH_DIR ${MTKAHYPAR_LIB_DIR}/tbb_lib/intel64/gcc4.8)
+else()
+    set(TBB_INCLUDE_DIR ${MTKAHYPAR_BUILD_DIR}/external_tools/tbb/include)
+    set(TBB_LIB_SEARCH_DIR ${MTKAHYPAR_BUILD_DIR}/external_tools/tbb/lib/intel64/gcc4.8)
+endif()
 
 # --- HeiCut static library ---
 add_library(heicut_static STATIC
@@ -1604,13 +1647,15 @@ target_include_directories(heicut_static PUBLIC
     ${MTKAHYPAR_DIR}/external_tools/kahypar-shared-resources # kahypar-resources/...
     ${MTKAHYPAR_DIR}/external_tools/growt              # growt hash tables
     ${HEICUT_DIR}/extern                               # for "kahip/..." includes
-    ${TBB_DIR}/include                                 # TBB headers
+    ${TBB_INCLUDE_DIR}                                  # TBB headers
     ${HEICUT_DIR}/extern/argtable3-3.2.2               # argtable3.h for parse_parameters
     ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/HeiStream/extern/sparsehash/src  # sparsehash for pruner
 )
 
 # Add Boost program_options include from mt-kahypar's downloaded copy
-if(EXISTS ${MTKAHYPAR_BUILD_DIR}/external_tools/boost/boost)
+if(EXISTS ${MTKAHYPAR_LIB_DIR}/boost_include/boost)
+    target_include_directories(heicut_static PUBLIC ${MTKAHYPAR_LIB_DIR}/boost_include)
+elseif(EXISTS ${MTKAHYPAR_BUILD_DIR}/external_tools/boost/boost)
     target_include_directories(heicut_static PUBLIC ${MTKAHYPAR_BUILD_DIR}/external_tools/boost)
 endif()
 
@@ -1622,13 +1667,16 @@ target_compile_definitions(heicut_static PRIVATE NDEBUG)
 target_link_libraries(heicut_static PUBLIC pybind11::embed)
 
 # Link TBB (pre-built from Mt-KaHyPar build)
-find_library(TBB_LIB tbb PATHS ${TBB_DIR}/lib/intel64/gcc4.8 NO_DEFAULT_PATH)
+find_library(TBB_LIB tbb PATHS ${TBB_LIB_SEARCH_DIR} NO_DEFAULT_PATH)
+if(NOT TBB_LIB)
+    find_library(TBB_LIB tbb)  # fall back to system TBB (macOS Homebrew)
+endif()
 if(TBB_LIB)
     target_link_libraries(heicut_static PUBLIC ${TBB_LIB})
 endif()
 
 # Link libmtkahypar.so (pre-built)
-find_library(MTKAHYPAR_LIB mtkahypar PATHS ${MTKAHYPAR_BUILD_DIR}/lib NO_DEFAULT_PATH)
+find_library(MTKAHYPAR_LIB mtkahypar PATHS ${MTKAHYPAR_LIB_DIR} ${MTKAHYPAR_BUILD_DIR}/lib NO_DEFAULT_PATH)
 if(MTKAHYPAR_LIB)
     target_link_libraries(heicut_static PUBLIC ${MTKAHYPAR_LIB})
 endif()

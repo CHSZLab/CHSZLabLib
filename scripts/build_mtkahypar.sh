@@ -171,6 +171,45 @@ fi
 install -m 644 "${FOUND}" "${DEST_DIR}/libmtkahypar.${LIB_EXT}"
 echo ">>> Installed: ${DEST_DIR}/libmtkahypar.${LIB_EXT}"
 
+# ---- Copy TBB/Boost headers for HeiCut compilation --------------------
+if $IS_LINUX; then
+    # TBB headers are needed by mt-kahypar headers included by HeiCut
+    if [ -d "${SRC_DIR}/external_tools/tbb/include" ]; then
+        cp -r "${SRC_DIR}/external_tools/tbb/include" "${DEST_DIR}/tbb_include"
+        echo ">>> Installed TBB headers to ${DEST_DIR}/tbb_include"
+    fi
+    # TBB shared libraries needed at link time
+    if [ -d "${SRC_DIR}/external_tools/tbb/lib" ]; then
+        cp -r "${SRC_DIR}/external_tools/tbb/lib" "${DEST_DIR}/tbb_lib"
+        echo ">>> Installed TBB libraries to ${DEST_DIR}/tbb_lib"
+    fi
+    # Boost headers (for program_options used by HeiCut)
+    if [ -d "${SRC_DIR}/external_tools/boost/boost" ]; then
+        mkdir -p "${DEST_DIR}/boost_include"
+        cp -r "${SRC_DIR}/external_tools/boost/boost" "${DEST_DIR}/boost_include/boost"
+        echo ">>> Installed Boost headers to ${DEST_DIR}/boost_include"
+    fi
+fi
+
+# ---- Copy mt-kahypar submodule headers needed by HeiCut ----------------
+MTKAHYPAR_SUBMOD="${HEICUT_DIR}/extern/mt-kahypar"
+# kahypar-shared-resources (provides kahypar-resources/macros.h etc.)
+if [ -d "${SRC_DIR}/external_tools/kahypar-shared-resources" ] && \
+   [ ! -d "${MTKAHYPAR_SUBMOD}/external_tools/kahypar-shared-resources" ]; then
+    mkdir -p "${MTKAHYPAR_SUBMOD}/external_tools"
+    cp -r "${SRC_DIR}/external_tools/kahypar-shared-resources" \
+          "${MTKAHYPAR_SUBMOD}/external_tools/kahypar-shared-resources"
+    echo ">>> Installed kahypar-shared-resources headers"
+fi
+# growt (provides growt hash tables)
+if [ -d "${SRC_DIR}/external_tools/growt" ] && \
+   [ ! -d "${MTKAHYPAR_SUBMOD}/external_tools/growt" ]; then
+    mkdir -p "${MTKAHYPAR_SUBMOD}/external_tools"
+    cp -r "${SRC_DIR}/external_tools/growt" \
+          "${MTKAHYPAR_SUBMOD}/external_tools/growt"
+    echo ">>> Installed growt headers"
+fi
+
 # ---- Clean up build directory -----------------------------------------
 rm -rf "${WORK_DIR}"
 echo ">>> Build directory cleaned up."
