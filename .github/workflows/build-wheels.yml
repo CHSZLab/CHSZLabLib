@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]
+        python-version: ["cp314"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,7 +52,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]
+        python-version: ["cp314"]
     steps:
       - uses: actions/checkout@v4
         with:

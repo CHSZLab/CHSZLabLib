@@ -3,7 +3,8 @@
 # Clones mt-kahypar at a pinned commit, builds the shared library,
 # and installs it to HeiCut's extern/mt-kahypar-library/ directory.
 #
-# System dependencies: libtbb-dev, libboost-program-options-dev, libhwloc-dev
+# System dependencies (macOS): brew install hwloc tbb boost
+# System dependencies (Linux): hwloc-devel (TBB & Boost downloaded automatically)
 #
 # Based on HeiCut's install_mtkahypar.sh.
 set -euo pipefail
@@ -27,10 +28,18 @@ SRC_DIR="${WORK_DIR}/mt-kahypar"
 BLD_DIR="${SRC_DIR}/build"
 STAGE_DIR="${WORK_DIR}/_install"
 
-# ---- Platform-specific shared library extension -----------------------
+# ---- Platform detection -----------------------------------------------
 case "$(uname -s)" in
-    Darwin*) LIB_EXT="dylib" ;;
-    *)       LIB_EXT="so" ;;
+    Darwin*)
+        LIB_EXT="dylib"
+        NPROC="$(sysctl -n hw.ncpu)"
+        IS_LINUX=false
+        ;;
+    *)
+        LIB_EXT="so"
+        NPROC="$(nproc)"
+        IS_LINUX=true
+        ;;
 esac
 
 # ---- Skip if already built --------------------------------------------
@@ -40,7 +49,7 @@ if [ -f "${DEST_DIR}/libmtkahypar.${LIB_EXT}" ]; then
     exit 0
 fi
 
-echo ">>> Building Mt-KaHyPar (libmtkahypar.so)"
+echo ">>> Building Mt-KaHyPar (libmtkahypar.${LIB_EXT})"
 echo "    repo   : ${MTK_REPO}"
 echo "    commit : ${MTK_COMMIT}"
 echo "    build  : ${BUILD_TYPE}"
@@ -60,25 +69,26 @@ test -d "${SRC_DIR}/external_tools" || {
     exit 1
 }
 
-# ---- Download TBB & Boost into source tree ----------------------------
-# mt-KaHyPar's execute_process(cmake -P download_*.cmake) uses
-# FetchContent with relative SOURCE_DIR, which extracts to / inside
-# containers instead of the source tree. We download both ourselves.
-TBB_DIR="${SRC_DIR}/external_tools/tbb"
-BOOST_DIR="${SRC_DIR}/external_tools/boost"
+# ---- Platform-specific dependency setup & cmake flags -----------------
+if $IS_LINUX; then
+    # On Linux (manylinux containers), system TBB/Boost are too old.
+    # mt-KaHyPar's cmake download scripts are broken in containers
+    # (FetchContent extracts to / instead of source dir).
+    # We download both ourselves and patch cmake to find them.
 
-echo ">>> Downloading TBB..."
-mkdir -p "${TBB_DIR}"
-curl -sL "${TBB_URL}" | tar xz --strip-components=1 -C "${TBB_DIR}"
+    TBB_DIR="${SRC_DIR}/external_tools/tbb"
+    BOOST_DIR="${SRC_DIR}/external_tools/boost"
 
-echo ">>> Downloading Boost..."
-mkdir -p "${BOOST_DIR}"
-curl -sL "${BOOST_URL}" | tar xj --strip-components=1 -C "${BOOST_DIR}"
+    echo ">>> Downloading TBB..."
+    mkdir -p "${TBB_DIR}"
+    curl -sL "${TBB_URL}" | tar xz --strip-components=1 -C "${TBB_DIR}"
 
-# ---- Patch CMakeLists: fix download paths ----------------------------
-# Replace BINARY_DIR with SOURCE_DIR so cmake finds the files we
-# downloaded above, and disable the execute_process download calls.
-python3 -c "
+    echo ">>> Downloading Boost..."
+    mkdir -p "${BOOST_DIR}"
+    curl -sL "${BOOST_URL}" | tar xj --strip-components=1 -C "${BOOST_DIR}"
+
+    # Patch CMakeLists: fix paths and add -fPIC for mini_boost
+    python3 -c "
 import pathlib
 f = pathlib.Path('${SRC_DIR}/CMakeLists.txt')
 txt = f.read_text()
@@ -104,20 +114,32 @@ txt = txt.replace(
 f.write_text(txt)
 "
 
+    CMAKE_EXTRA_FLAGS=(
+        -DKAHYPAR_DOWNLOAD_TBB=ON
+        -DKAHYPAR_DOWNLOAD_BOOST=ON
+        -DMT_KAHYPAR_DISABLE_BOOST=OFF
+    )
+else
+    # On macOS, use system TBB and Boost from Homebrew.
+    CMAKE_EXTRA_FLAGS=(
+        -DKAHYPAR_DOWNLOAD_TBB="${KAHYPAR_DOWNLOAD_TBB:-OFF}"
+        -DKAHYPAR_DOWNLOAD_BOOST="${KAHYPAR_DOWNLOAD_BOOST:-OFF}"
+        -DMT_KAHYPAR_DISABLE_BOOST=OFF
+    )
+fi
+
 # ---- Configure & build ------------------------------------------------
 mkdir -p "${BLD_DIR}"
 
 cmake -S "${SRC_DIR}" -B "${BLD_DIR}" \
     -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
-    -DKAHYPAR_DOWNLOAD_TBB=ON \
-    -DKAHYPAR_DOWNLOAD_BOOST=ON \
     -DKAHYPAR_ENFORCE_MINIMUM_TBB_VERSION=OFF \
     -DKAHYPAR_PYTHON=OFF \
-    -DMT_KAHYPAR_DISABLE_BOOST=OFF
+    "${CMAKE_EXTRA_FLAGS[@]}"
 
-cmake --build "${BLD_DIR}" --target mtkahypar -j"$(nproc)"
+cmake --build "${BLD_DIR}" --target mtkahypar -j"${NPROC}"
 
-# ---- Find and install the .so -----------------------------------------
+# ---- Find and install the library -------------------------------------
 cmake --install "${BLD_DIR}" --prefix "${STAGE_DIR}" || true
 
 CANDIDATES=(
