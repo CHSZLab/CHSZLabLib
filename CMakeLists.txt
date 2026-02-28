@@ -1618,9 +1618,13 @@ set(MTKAHYPAR_LIB_DIR ${HEICUT_DIR}/extern/mt-kahypar-library)
 if(EXISTS ${MTKAHYPAR_LIB_DIR}/tbb_include)
     set(TBB_INCLUDE_DIR ${MTKAHYPAR_LIB_DIR}/tbb_include)
     set(TBB_LIB_SEARCH_DIR ${MTKAHYPAR_LIB_DIR}/tbb_lib/intel64/gcc4.8)
-else()
+elseif(EXISTS ${MTKAHYPAR_BUILD_DIR}/external_tools/tbb/include)
     set(TBB_INCLUDE_DIR ${MTKAHYPAR_BUILD_DIR}/external_tools/tbb/include)
     set(TBB_LIB_SEARCH_DIR ${MTKAHYPAR_BUILD_DIR}/external_tools/tbb/lib/intel64/gcc4.8)
+else()
+    # System TBB (macOS Homebrew: /opt/homebrew/include)
+    find_path(TBB_INCLUDE_DIR tbb/parallel_for.h)
+    set(TBB_LIB_SEARCH_DIR "")
 endif()
 
 # --- HeiCut static library ---
@@ -1663,8 +1667,10 @@ target_compile_features(heicut_static PUBLIC cxx_std_17)
 target_compile_options(heicut_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>)
 target_compile_definitions(heicut_static PRIVATE NDEBUG)
 
-# Link pybind11::embed for Gurobi shim (GRBModel::optimize() calls gurobipy)
-target_link_libraries(heicut_static PUBLIC pybind11::embed)
+# Gurobi shim needs pybind11 + Python headers (pybind11::embed requires
+# libpython which isn't available in manylinux). pybind11::pybind11 provides
+# headers + Python include without linking libpython.
+target_link_libraries(heicut_static PUBLIC pybind11::pybind11)
 
 # Link TBB (pre-built from Mt-KaHyPar build)
 find_library(TBB_LIB tbb PATHS ${TBB_LIB_SEARCH_DIR} NO_DEFAULT_PATH)
