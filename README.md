@@ -106,6 +106,8 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 | [VieClus](https://github.com/VieClus/VieClus) | Community detection | Modularity-maximizing evolutionary clustering |
 | [SCC](https://github.com/ScalableCorrelationClustering/ScalableCorrelationClustering) | Correlation clustering | Label propagation + evolutionary on signed graphs |
 | [HeidelbergMotifClustering](https://github.com/LocalClustering/HeidelbergMotifClustering) | Local clustering | Triangle-motif-based flow and partitioning methods |
+| [HeiCut](https://github.com/HeiCut/HeiCut) | Hypergraph minimum cut | Kernelization, submodular minimization, ILP, k-trimmed certificates |
+| [CluStRE](https://github.com/KaHIP/CluStRE) | Streaming graph clustering | Streaming modularity clustering with restreaming and local search |
 
 **IndependenceProblems** — Maximum independent set and maximum weight independent set.
 
@@ -159,6 +161,14 @@ from chszlablib import HyperGraph
 hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3, 4], [4, 5]])
 r = IndependenceProblems.hypermis(hg, time_limit=5.0)
 print(f"Hypergraph IS size: {r.size}, vertices: {r.vertices}")
+
+# --- Hypergraph minimum cut ---
+r = Decomposition.hypergraph_mincut(hg, algorithm="kernelizer")
+print(f"Hypergraph min-cut: {r.cut_value}, time: {r.time:.2f}s")
+
+# --- Streaming graph clustering ---
+sc = Decomposition.stream_cluster(g, mode="strong")
+print(f"Clusters: {sc.num_clusters}, modularity: {sc.modularity:.4f}")
 ```
 
 ---
@@ -181,6 +191,8 @@ print(f"Hypergraph IS size: {r.size}, vertices: {r.vertices}")
 | Cluster a signed graph | `Decomposition.correlation_clustering` | `seed`, `time_limit` |
 | Find a local community around a node | `Decomposition.motif_cluster` | `seed_node`, `method` |
 | Partition a streaming graph | `Decomposition.stream_partition` | `k`, `imbalance` |
+| Cluster a graph in streaming fashion | `Decomposition.stream_cluster` | `mode`, `resolution_param` |
+| Find the minimum cut of a hypergraph | `Decomposition.hypergraph_mincut` | `algorithm`, `threads` |
 | Compute a fill-reducing ordering | `Decomposition.node_ordering` | `mode` |
 | Find a node separator | `Decomposition.node_separator` | `num_parts`, `mode` |
 | Find a large independent set | `IndependenceProblems.redumis` | `time_limit` |
@@ -206,9 +218,14 @@ IndependenceProblems.redumis(g, time_limit=5.0)                         # max in
 IndependenceProblems.chils(g, time_limit=5.0)                           # max weight independent set
 Orientation.orient_edges(g, algorithm="combined")                       # edge orientation
 
+Decomposition.stream_cluster(g, mode="strong")                          # streaming clustering
+Decomposition.stream_cluster(g, mode="light", resolution_param=1.0)     # fast streaming, more clusters
+
 hg = HyperGraph.from_edge_list([[0,1,2],[2,3,4],[4,5]])
 IndependenceProblems.hypermis(hg)                                       # hypergraph IS (heuristic)
 IndependenceProblems.hypermis(hg, method="exact")                       # hypergraph IS (exact, needs gurobipy)
+Decomposition.hypergraph_mincut(hg)                                     # hypergraph min-cut (kernelizer)
+Decomposition.hypergraph_mincut(hg, algorithm="submodular")             # hypergraph min-cut (submodular)
 ```
 
 ### Programmatic Introspection
@@ -217,8 +234,9 @@ IndependenceProblems.hypermis(hg, method="exact")                       # hyperg
 from chszlablib import Decomposition
 
 # Discover all valid modes for partitioning
-Decomposition.PARTITION_MODES     # ("fast", "eco", "strong", "fastsocial", ...)
-Decomposition.MINCUT_ALGORITHMS   # ("inexact", "exact", "cactus")
+Decomposition.PARTITION_MODES              # ("fast", "eco", "strong", "fastsocial", ...)
+Decomposition.MINCUT_ALGORITHMS            # ("inexact", "exact", "cactus")
+Decomposition.HYPERGRAPH_MINCUT_ALGORITHMS # ("kernelizer", "ilp", "submodular", "trimmer")
 
 # List all methods with descriptions
 Decomposition.available_methods()
@@ -277,6 +295,8 @@ g = hg.to_graph()
 - **Self-loops and duplicate edges raise `InvalidGraphError`.** Empty hyperedges raise `InvalidHyperGraphError`.
 - **NetworkX / SciPy / gurobipy are optional** — import errors give a helpful message.
 - **`IndependenceProblems.hypermis()` takes a `HyperGraph`, not a `Graph`.**
+- **`Decomposition.hypergraph_mincut()` takes a `HyperGraph`, not a `Graph`.**
+- **`Decomposition.stream_cluster()` ignores edge weights** — CluStRE operates on unweighted graphs.
 - **`PartitionResult.balance` is only set by `evolutionary_partition`.**
 - **Catch `CHSZLabLibError` to handle all library errors, or use specific subclasses (`InvalidModeError`, `InvalidGraphError`, `GraphNotFinalizedError`).**
 
@@ -478,6 +498,9 @@ Graph decomposition: partitioning, cuts, clustering, and community detection.
 | `correlation_clustering` | Correlation clustering | SCC |
 | `evolutionary_correlation_clustering` | Correlation clustering (evolutionary) | SCC |
 | `motif_cluster` | Local motif clustering | HeidelbergMotifClustering |
+| `hypergraph_mincut` | Exact hypergraph minimum cut | HeiCut |
+| `stream_cluster` | Streaming graph clustering | CluStRE |
+| `CluStReClusterer` | Streaming graph clustering (node-by-node) | CluStRE |
 
 #### `Decomposition.partition(g, ...)` — Balanced Graph Partitioning (KaHIP)
 
@@ -697,6 +720,130 @@ Decomposition.motif_cluster(g, seed_node, method="social", bfs_depths=None,
 
 **Result: `MotifClusterResult`** — `cluster_nodes` (ndarray), `motif_conductance` (float).
 
+#### `Decomposition.hypergraph_mincut(hg, ...)` — Exact Hypergraph Minimum Cut (HeiCut)
+
+**Problem.** Given a hypergraph $H = (V, E)$ with vertex weights $c : V \to \mathbb{R}_{\geq 0}$ and hyperedge weights $\omega : E \to \mathbb{R}_{\geq 0}$, find a bipartition of $V$ into two non-empty sets $S$ and $\bar{S} = V \setminus S$ that minimizes the **hyperedge cut**
+
+$$\lambda(H) = \min_{\emptyset \neq S \subset V} \sum_{\substack{e \in E \\ e \cap S \neq \emptyset \\ e \cap \bar{S} \neq \emptyset}} \omega(e).$$
+
+A hyperedge $e$ is cut if it has vertices on both sides of the partition. HeiCut provides four exact algorithms, including a kernelization-based approach that typically runs orders of magnitude faster than solving the full instance directly.
+
+```python
+Decomposition.hypergraph_mincut(hg, algorithm="kernelizer", *, base_solver="submodular",
+                                 ilp_timeout=7200.0, ilp_mode="bip",
+                                 ordering_type="tight", ordering_mode="single",
+                                 seed=0, threads=1, unweighted=False) -> HypergraphMincutResult
+```
+
+| Parameter | Type | Default | Description |
+|:----------|:-----|:--------|:------------|
+| `hg` | `HyperGraph` | — | Input hypergraph |
+| `algorithm` | `str` | `"kernelizer"` | Algorithm to use |
+| `base_solver` | `str` | `"submodular"` | Base solver for kernelizer: `"submodular"` or `"ilp"` |
+| `ilp_timeout` | `float` | `7200.0` | ILP time limit in seconds |
+| `ilp_mode` | `str` | `"bip"` | ILP formulation: `"bip"` (binary IP) or `"milp"` (mixed ILP) |
+| `ordering_type` | `str` | `"tight"` | Vertex ordering for submodular/trimmer |
+| `ordering_mode` | `str` | `"single"` | `"single"` or `"multi"` ordering pass |
+| `seed` | `int` | `0` | Random seed |
+| `threads` | `int` | `1` | Number of threads |
+| `unweighted` | `bool` | `False` | Force unit edge weights |
+
+**Algorithms:**
+
+| Algorithm | Identifier | Characteristics |
+|:----------|:-----------|:----------------|
+| Kernelizer | `"kernelizer"` | Kernelization + base solver; fastest in practice |
+| ILP | `"ilp"` | Integer linear programming (requires gurobipy) |
+| Submodular | `"submodular"` | Submodular function minimization |
+| Trimmer | `"trimmer"` | k-trimmed certificates (unweighted only) |
+
+**Result: `HypergraphMincutResult`** — `cut_value` (int), `time` (float, seconds).
+
+```python
+from chszlablib import HyperGraph, Decomposition
+
+hg = HyperGraph.from_edge_list([[0, 1, 2], [1, 2, 3], [2, 3, 4]])
+
+# Kernelizer with submodular base solver (default, fastest)
+r = Decomposition.hypergraph_mincut(hg)
+print(f"Min cut: {r.cut_value}, time: {r.time:.3f}s")
+
+# Submodular with queyranne ordering
+r = Decomposition.hypergraph_mincut(hg, algorithm="submodular", ordering_type="queyranne")
+
+# Multi-threaded kernelizer
+r = Decomposition.hypergraph_mincut(hg, algorithm="kernelizer", threads=4)
+```
+
+#### `Decomposition.stream_cluster(g, ...)` — Streaming Graph Clustering (CluStRE)
+
+**Problem.** Given an undirected, unweighted graph $G = (V, E)$, find a partition $\mathcal{C} = \lbrace C_1, \dotsc, C_k \rbrace$ of $V$ — where $k$ is determined automatically — that maximizes a modularity-based objective, using a **streaming** model where nodes are processed sequentially with bounded memory. CluStRE supports multiple streaming passes (restreaming) and local search refinement for improved quality.
+
+```python
+Decomposition.stream_cluster(g, mode="strong", seed=0, num_streams_passes=2,
+                              resolution_param=0.5, max_num_clusters=-1,
+                              ls_time_limit=600, ls_frac_time=0.5,
+                              cut_off=0.05, suppress_output=True) -> StreamClusterResult
+```
+
+| Parameter | Type | Default | Description |
+|:----------|:-----|:--------|:------------|
+| `g` | `Graph` | — | Input graph (undirected, unweighted; edge weights ignored) |
+| `mode` | `str` | `"strong"` | Quality/speed trade-off |
+| `seed` | `int` | `0` | Random seed |
+| `num_streams_passes` | `int` | `2` | Number of streaming passes |
+| `resolution_param` | `float` | `0.5` | CPM resolution parameter; higher = more clusters |
+| `max_num_clusters` | `int` | `-1` | Maximum clusters (-1 = unlimited) |
+| `ls_time_limit` | `int` | `600` | Local search time limit in seconds |
+| `ls_frac_time` | `float` | `0.5` | Fraction of total time for local search |
+| `cut_off` | `float` | `0.05` | Convergence cut-off for local search |
+| `suppress_output` | `bool` | `True` | Suppress C++ stdout/stderr |
+
+**Clustering modes:**
+
+| Mode | Speed | Quality | Best for |
+|:-----|:------|:--------|:---------|
+| `"light"` | Fastest | Good | Single-pass, large-scale exploration |
+| `"light_plus"` | Fast | Better | Restreaming + local search |
+| `"evo"` | Slower | Very good | Evolutionary with quotient graph updates |
+| `"strong"` | Slowest | Best | Final production clusterings |
+
+**Result: `StreamClusterResult`** — `modularity` (float), `num_clusters` (int), `assignment` (ndarray).
+
+```python
+from chszlablib import Graph, Decomposition
+
+g = Graph.from_edge_list([(0,1),(1,2),(2,0),(2,3),(3,4),(4,5),(5,3)])
+
+# Best quality clustering
+sc = Decomposition.stream_cluster(g, mode="strong")
+print(f"{sc.num_clusters} clusters, modularity={sc.modularity:.4f}")
+print(f"Assignment: {sc.assignment}")
+
+# Fast single-pass with higher resolution (more clusters)
+sc = Decomposition.stream_cluster(g, mode="light", resolution_param=1.0)
+
+# Control number of clusters
+sc = Decomposition.stream_cluster(g, max_num_clusters=3)
+```
+
+#### `CluStReClusterer` — Incremental Streaming Clustering (CluStRE)
+
+**Problem.** Same as `stream_cluster`, but exposes a **node-by-node streaming interface** for scenarios where the graph is not available as a complete `Graph` object — e.g., when edges arrive from a network stream, a database cursor, or an online graph generator.
+
+```python
+from chszlablib import CluStReClusterer
+
+cs = CluStReClusterer(mode="strong")
+cs.new_node(0, [1, 2])
+cs.new_node(1, [0, 3])
+cs.new_node(2, [0])
+cs.new_node(3, [1])
+
+result = cs.cluster()
+print(f"{result.num_clusters} clusters, modularity={result.modularity:.4f}")
+```
+
 ---
 
 ### IndependenceProblems
@@ -898,6 +1045,42 @@ result = IndependenceProblems.chils(g, time_limit=30.0, num_concurrent=8)
 print(f"Selected {len(result.vertices)} non-adjacent influencers, total reach: {result.weight:,}")
 ```
 
+### VLSI / Circuit Design: Hypergraph Minimum Cut
+
+```python
+from chszlablib import HyperGraph, Decomposition
+
+# Load a netlist as a hypergraph (nets = hyperedges, cells = vertices)
+hg = HyperGraph.from_hmetis("circuit_netlist.hgr")
+
+# Find the minimum cut (bottleneck analysis)
+r = Decomposition.hypergraph_mincut(hg, algorithm="kernelizer", threads=8)
+print(f"Min cut: {r.cut_value} nets, computed in {r.time:.2f}s")
+
+# Compare algorithms
+for algo in ["kernelizer", "submodular", "trimmer"]:
+    r = Decomposition.hypergraph_mincut(hg, algorithm=algo)
+    print(f"  {algo:12s}: cut={r.cut_value}, time={r.time:.3f}s")
+```
+
+### Large-Scale Streaming Clustering
+
+```python
+from chszlablib import Graph, Decomposition, CluStReClusterer
+
+# Batch API: cluster a full graph
+g = Graph.from_metis("web_graph.graph")
+sc = Decomposition.stream_cluster(g, mode="strong", num_streams_passes=3)
+print(f"Communities: {sc.num_clusters}, modularity: {sc.modularity:.4f}")
+
+# Streaming API: cluster as edges arrive
+cs = CluStReClusterer(mode="light_plus", resolution_param=0.8)
+for node_id, neighbors in edge_stream():  # your data source
+    cs.new_node(node_id, neighbors)
+result = cs.cluster()
+print(f"Online clusters: {result.num_clusters}")
+```
+
 ### Sparse Linear Algebra
 
 ```python
@@ -988,6 +1171,8 @@ CHSZLabLib/
 │   ├── SCC/                     # Correlation clustering
 │   ├── HeiOrient/               # Edge orientation
 │   ├── HeiStream/               # Streaming partitioning
+│   ├── HeiCut/                  # Hypergraph minimum cut
+│   ├── CluStRE/                 # Streaming graph clustering
 │   ├── fpt-max-cut/             # Maximum cut
 │   └── HeidelbergMotifClustering/ # Motif clustering
 ├── CMakeLists.txt               # Top-level CMake configuration
@@ -1142,6 +1327,28 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
 }
 ```
 
+### HeiCut (Hypergraph Minimum Cut)
+
+```bibtex
+@inproceedings{chhabra2026heicut,
+  title     = {Exact Minimum Cuts in Hypergraphs at Scale},
+  author    = {Adil Chhabra and Christian Schulz},
+  booktitle = {Proceedings of SIAM ALENEX'26},
+  year      = {2026}
+}
+```
+
+### CluStRE (Streaming Graph Clustering)
+
+```bibtex
+@software{chhabra2026clustre,
+  title   = {CluStRE: Streaming Graph Clustering with Multi-Stage Refinement},
+  author  = {Adil Chhabra and Christian Schulz},
+  year    = {2026},
+  url     = {https://github.com/KaHIP/CluStRE}
+}
+```
+
 ### HeidelbergMotifClustering (Local Motif Clustering)
 
 ```bibtex
@@ -1172,7 +1379,7 @@ This library would not be possible without the original algorithm implementation
 
 - **Yaroslav Akhremtsev** — KaHIP
 - **Sonja Biedermann** — VieClus
-- **Adil Chhabra** — HeiStream, HeidelbergMotifClustering, KaHIP
+- **Adil Chhabra** — HeiCut, CluStRE, HeiStream, HeidelbergMotifClustering, KaHIP
 - **Jakob Dahlum** — KaMIS
 - **Marcelo Fonseca Faraj** — SCC, HeiStream, HeidelbergMotifClustering, KaHIP
 - **Alexander Gellner** — KaMIS
