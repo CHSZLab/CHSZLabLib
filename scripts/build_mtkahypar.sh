@@ -67,8 +67,10 @@ test -d "${SRC_DIR}/external_tools" || {
 python3 -c "
 import pathlib
 f = pathlib.Path('${SRC_DIR}/CMakeLists.txt')
-lines = f.read_text().splitlines(True)
-# Find 'if(KAHYPAR_DOWNLOAD_BOOST)' and its matching 'endif()'
+txt = f.read_text()
+
+# 1) Skip the Boost block when MT_KAHYPAR_DISABLE_BOOST is ON
+lines = txt.splitlines(True)
 start = next(i for i, l in enumerate(lines) if 'if(KAHYPAR_DOWNLOAD_BOOST)' in l)
 depth = 0
 end = None
@@ -82,9 +84,16 @@ for i in range(start, len(lines)):
             end = i
             break
 lines.insert(start, 'if(NOT MT_KAHYPAR_DISABLE_BOOST)\n')
-# +2 because we inserted one line above, shifting indices by 1
 lines.insert(end + 2, 'endif() # NOT MT_KAHYPAR_DISABLE_BOOST\n')
-f.write_text(''.join(lines))
+txt = ''.join(lines)
+
+# 2) Fix TBB download path: download scripts put files in SOURCE_DIR but
+#    CMakeLists references BINARY_DIR. Fix by using SOURCE_DIR.
+txt = txt.replace(
+    'set(TBB_ROOT \${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)',
+    'set(TBB_ROOT \${CMAKE_CURRENT_SOURCE_DIR}/external_tools/tbb)')
+
+f.write_text(txt)
 "
 
 # ---- Configure & build ------------------------------------------------
