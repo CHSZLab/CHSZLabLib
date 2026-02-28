@@ -65,17 +65,26 @@ test -d "${SRC_DIR}/external_tools" || {
 # block even when DISABLE_BOOST is set. Wrap it so we can build just the
 # shared library without any Boost dependency.
 python3 -c "
-import pathlib, re
+import pathlib
 f = pathlib.Path('${SRC_DIR}/CMakeLists.txt')
-txt = f.read_text()
-# Wrap the entire if(KAHYPAR_DOWNLOAD_BOOST)...endif(Boost_FOUND) block
-txt = txt.replace(
-    'if(KAHYPAR_DOWNLOAD_BOOST)',
-    'if(NOT MT_KAHYPAR_DISABLE_BOOST)\nif(KAHYPAR_DOWNLOAD_BOOST)')
-txt = txt.replace(
-    '  endif(Boost_FOUND)',
-    '  endif(Boost_FOUND)\nendif() # NOT MT_KAHYPAR_DISABLE_BOOST')
-f.write_text(txt)
+lines = f.read_text().splitlines(True)
+# Find 'if(KAHYPAR_DOWNLOAD_BOOST)' and its matching 'endif()'
+start = next(i for i, l in enumerate(lines) if 'if(KAHYPAR_DOWNLOAD_BOOST)' in l)
+depth = 0
+end = None
+for i in range(start, len(lines)):
+    s = lines[i].strip()
+    if s.startswith('if('):
+        depth += 1
+    if s.startswith('endif'):
+        depth -= 1
+        if depth == 0:
+            end = i
+            break
+lines.insert(start, 'if(NOT MT_KAHYPAR_DISABLE_BOOST)\n')
+# +2 because we inserted one line above, shifting indices by 1
+lines.insert(end + 2, 'endif() # NOT MT_KAHYPAR_DISABLE_BOOST\n')
+f.write_text(''.join(lines))
 "
 
 # ---- Configure & build ------------------------------------------------
