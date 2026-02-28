@@ -1278,6 +1278,71 @@ if(OpenMP_CXX_FOUND)
 endif()
 
 # =============================================================================
+# CluStRE  (Streaming Graph Clustering — modularity / leiden)
+# =============================================================================
+set(CLUSTRE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/CluStRE)
+
+# --- Patch: guard x86intrin.h for non-x86 (ARM/macOS) ---
+# (Already applied manually — kept as documentation)
+
+# --- Patch: timer.h — sys/ headers guarded for Windows.
+#     (Already applied manually — kept as documentation)
+
+# --- Patch: partition_config.h — stxxl/cpi includes removed, ExternalPQ
+#     forward-declared. (Already applied manually — kept as documentation)
+
+# --- Patch: vertex_partitioning.h/.cpp — absl::flat_hash_map replaced with
+#     std::unordered_map. (Already applied manually — kept as documentation)
+
+# --- Patch: replace exit() with throw in CluStRE files ---
+foreach(_CLUSTRE_PATCH_FILE
+    ${CLUSTRE_DIR}/lib/tools/quality_metrics.cpp
+    ${CLUSTRE_DIR}/lib/tools/random_functions.cpp
+)
+    if(EXISTS ${_CLUSTRE_PATCH_FILE})
+        file(READ ${_CLUSTRE_PATCH_FILE} _SRC)
+        string(FIND "${_SRC}" "#include <stdexcept>" _HAS_STDEXCEPT)
+        if(_HAS_STDEXCEPT EQUAL -1)
+            string(REPLACE "#include" "#include <stdexcept>\n#include" _SRC "${_SRC}")
+        endif()
+        string(REPLACE "exit(0)" "throw std::runtime_error(\"CluStRE error (see stderr)\")" _SRC "${_SRC}")
+        string(REPLACE "exit(1)" "throw std::runtime_error(\"CluStRE error (see stderr)\")" _SRC "${_SRC}")
+        file(WRITE ${_CLUSTRE_PATCH_FILE} "${_SRC}")
+    endif()
+endforeach()
+
+set(CLUSTRE_SOURCES
+    ${CLUSTRE_DIR}/lib/partition/onepass_partitioning/vertex_partitioning.cpp
+    ${CLUSTRE_DIR}/lib/partition/onepass_partitioning/floating_block.cpp
+    ${CLUSTRE_DIR}/lib/partition/onepass_partitioning/leiden.cpp
+    ${CLUSTRE_DIR}/lib/partition/onepass_partitioning/modularity.cpp
+    ${CLUSTRE_DIR}/lib/tools/quality_metrics.cpp
+    ${CLUSTRE_DIR}/lib/tools/random_functions.cpp
+)
+
+add_library(clustre_static STATIC ${CLUSTRE_SOURCES})
+target_include_directories(clustre_static PUBLIC
+    ${CLUSTRE_DIR}
+    ${CLUSTRE_DIR}/app
+    ${CLUSTRE_DIR}/lib
+    ${CLUSTRE_DIR}/lib/partition
+    ${CLUSTRE_DIR}/lib/tools
+    ${CLUSTRE_DIR}/lib/data_structure
+    ${CLUSTRE_DIR}/lib/data_structure/priority_queues
+    ${CLUSTRE_DIR}/extern/robin-hood-hashing/src/include
+)
+target_compile_definitions(clustre_static PUBLIC
+    -DMODE64BITEDGES
+    -DPOINTER64=1
+    -DNDEBUG
+)
+target_compile_options(clustre_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -fpermissive>)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(clustre_static PUBLIC OpenMP::OpenMP_CXX)
+endif()
+
+# =============================================================================
 # HyperMIS  (Maximum Independent Set on Hypergraphs)
 # =============================================================================
 set(HYPERMIS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/HyperMIS)
@@ -1459,6 +1524,12 @@ pybind11_add_module(_heistream bindings/heistream_binding.cpp)
 target_link_libraries(_heistream PRIVATE heistream_static)
 install(TARGETS _heistream DESTINATION chszlablib)
 
+# --- _clustre (Streaming Graph Clustering) ---
+pybind11_add_module(_clustre bindings/clustre_binding.cpp)
+target_link_libraries(_clustre PRIVATE clustre_static)
+target_compile_options(_clustre PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-fpermissive>)
+install(TARGETS _clustre DESTINATION chszlablib)
+
 # --- _hypermis (HyperMIS reductions, always built) ---
 pybind11_add_module(_hypermis bindings/hypermis_binding.cpp)
 target_link_libraries(_hypermis PRIVATE hypermis_static)
@@ -1467,4 +1538,89 @@ install(TARGETS _hypermis DESTINATION chszlablib)
 # --- _io (Fast METIS/hMETIS file parser) ---
 pybind11_add_module(_io bindings/io_binding.cpp)
 install(TARGETS _io DESTINATION chszlablib)
+
+# =============================================================================
+# HeiCut  (Exact Minimum Cut on Hypergraphs)
+# =============================================================================
+set(HEICUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/HeiCut)
+set(MTKAHYPAR_DIR ${HEICUT_DIR}/extern/mt-kahypar)
+set(MTKAHYPAR_BUILD_DIR ${MTKAHYPAR_DIR}/build)
+set(TBB_DIR ${MTKAHYPAR_BUILD_DIR}/external_tools/tbb)
+
+# --- HeiCut static library ---
+add_library(heicut_static STATIC
+    ${HEICUT_DIR}/lib/solvers/ilp.cpp
+    ${HEICUT_DIR}/lib/solvers/kernelizer.cpp
+    ${HEICUT_DIR}/lib/solvers/submodular.cpp
+    ${HEICUT_DIR}/lib/coarsening/label_propagation.cpp
+    ${HEICUT_DIR}/lib/decomposition/core_decomposition.cpp
+    ${HEICUT_DIR}/lib/trimmer/trimmer.cpp
+    ${HEICUT_DIR}/lib/parse_parameters/parse_parameters.cpp
+    ${HEICUT_DIR}/lib/utils/random.cpp
+    ${HEICUT_DIR}/extern/argtable3-3.2.2/argtable3.c
+)
+
+target_include_directories(heicut_static BEFORE PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/shims/gurobi          # Gurobi C++ shim (MUST be first)
+)
+target_include_directories(heicut_static PUBLIC
+    ${HEICUT_DIR}                                      # for "lib/..." includes
+    ${HEICUT_DIR}/extern/mt-kahypar-library            # libmtkahypar.h
+    ${MTKAHYPAR_DIR}                                   # mt-kahypar/... internal headers
+    ${MTKAHYPAR_DIR}/include                           # mt-kahypar public includes
+    ${MTKAHYPAR_DIR}/external_tools/kahypar-shared-resources # kahypar-resources/...
+    ${MTKAHYPAR_DIR}/external_tools/growt              # growt hash tables
+    ${HEICUT_DIR}/extern                               # for "kahip/..." includes
+    ${TBB_DIR}/include                                 # TBB headers
+    ${HEICUT_DIR}/extern/argtable3-3.2.2               # argtable3.h for parse_parameters
+    ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/HeiStream/extern/sparsehash/src  # sparsehash for pruner
+)
+
+# Add Boost program_options include from mt-kahypar's downloaded copy
+if(EXISTS ${MTKAHYPAR_BUILD_DIR}/external_tools/boost/boost)
+    target_include_directories(heicut_static PUBLIC ${MTKAHYPAR_BUILD_DIR}/external_tools/boost)
+endif()
+
+target_compile_features(heicut_static PUBLIC cxx_std_17)
+target_compile_options(heicut_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>)
+target_compile_definitions(heicut_static PRIVATE NDEBUG)
+
+# Link pybind11::embed for Gurobi shim (GRBModel::optimize() calls gurobipy)
+target_link_libraries(heicut_static PUBLIC pybind11::embed)
+
+# Link TBB (pre-built from Mt-KaHyPar build)
+find_library(TBB_LIB tbb PATHS ${TBB_DIR}/lib/intel64/gcc4.8 NO_DEFAULT_PATH)
+if(TBB_LIB)
+    target_link_libraries(heicut_static PUBLIC ${TBB_LIB})
+endif()
+
+# Link libmtkahypar.so (pre-built)
+find_library(MTKAHYPAR_LIB mtkahypar PATHS ${MTKAHYPAR_BUILD_DIR}/lib NO_DEFAULT_PATH)
+if(MTKAHYPAR_LIB)
+    target_link_libraries(heicut_static PUBLIC ${MTKAHYPAR_LIB})
+endif()
+
+# Link hwloc (required by Mt-KaHyPar)
+find_library(HWLOC_LIB hwloc)
+if(HWLOC_LIB)
+    target_link_libraries(heicut_static PUBLIC ${HWLOC_LIB})
+endif()
+
+find_package(Threads)
+if(Threads_FOUND)
+    target_link_libraries(heicut_static PUBLIC Threads::Threads)
+endif()
+
+# --- _heicut pybind11 module ---
+pybind11_add_module(_heicut bindings/heicut_binding.cpp)
+target_link_libraries(_heicut PRIVATE heicut_static)
+# Embed RPATH so libmtkahypar.so and libtbb.so can be found at runtime.
+# BUILD_RPATH: absolute paths for the build tree (local development).
+# INSTALL_RPATH: $ORIGIN so auditwheel/delocate can bundle the .so/.dylib
+# into the wheel at install time.
+set_target_properties(_heicut PROPERTIES
+    BUILD_RPATH "${MTKAHYPAR_BUILD_DIR}/lib;${TBB_DIR}/lib/intel64/gcc4.8"
+    INSTALL_RPATH "$ORIGIN"
+)
+install(TARGETS _heicut DESTINATION chszlablib)
 

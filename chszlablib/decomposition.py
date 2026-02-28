@@ -54,6 +54,8 @@ MincutAlgorithm = Literal[
 ]
 MaxcutMethod = Literal["heuristic", "exact"]
 MotifMethod = Literal["social", "lmchgp"]
+HypergraphMincutAlgorithm = Literal["kernelizer", "ilp", "submodular", "trimmer"]
+StreamClusterMode = Literal["light", "light_plus", "evo", "strong"]
 
 # ---------------------------------------------------------------------------
 # Validation helpers
@@ -150,6 +152,28 @@ class StreamPartitionResult:
     """Partition assignment for each node (0-indexed)."""
 
 
+@dataclass
+class StreamClusterResult:
+    """Result of a streaming graph clustering call."""
+
+    modularity: float
+    """Estimated modularity score."""
+
+    num_clusters: int
+    """Number of clusters found."""
+
+    assignment: np.ndarray
+    """Cluster assignment for each node (0-indexed)."""
+
+
+@dataclass
+class HypergraphMincutResult:
+    """Result of an exact hypergraph minimum cut computation."""
+
+    cut_value: int
+    time: float
+
+
 # ---------------------------------------------------------------------------
 # Decomposition namespace
 # ---------------------------------------------------------------------------
@@ -177,6 +201,11 @@ class Decomposition:
     MAXCUT_METHODS: tuple[str, ...] = ("heuristic", "exact")
     """Valid methods for :meth:`maxcut`."""
 
+    HYPERGRAPH_MINCUT_ALGORITHMS: tuple[str, ...] = (
+        "kernelizer", "ilp", "submodular", "trimmer",
+    )
+    """Valid algorithms for :meth:`hypergraph_mincut`."""
+
     MOTIF_METHODS: tuple[str, ...] = ("social", "lmchgp")
     """Valid methods for :meth:`motif_cluster`."""
 
@@ -201,6 +230,8 @@ class Decomposition:
             "correlation_clustering": "Correlation clustering on signed graphs (SCC)",
             "evolutionary_correlation_clustering": "Evolutionary correlation clustering (SCC)",
             "motif_cluster": "Local motif clustering (HeidelbergMotifClustering)",
+            "stream_cluster": "Streaming graph clustering (CluStRE)",
+            "hypergraph_mincut": "Exact hypergraph minimum cut (HeiCut)",
         }
 
     # --- KaHIP: Graph Partitioning ---
@@ -636,6 +667,95 @@ class Decomposition:
         )
 
         return StreamPartitionResult(assignment=assignment)
+
+    # --- CluStRE: Streaming Graph Clustering ---
+
+    @staticmethod
+    def stream_cluster(
+        g: Graph,
+        mode: StreamClusterMode = "strong",
+        seed: int = 0,
+        num_streams_passes: int = 2,
+        resolution_param: float = 0.5,
+        max_num_clusters: int = -1,
+        ls_time_limit: int = 600,
+        ls_frac_time: float = 0.5,
+        cut_off: float = 0.05,
+        suppress_output: bool = True,
+    ) -> StreamClusterResult:
+        """Cluster a graph using CluStRE's streaming algorithm.
+
+        Uses a streaming model where nodes and their adjacencies are presented
+        sequentially, with modularity-based cluster assignment. Supports
+        restreaming for improved quality and local search refinement.
+
+        For node-by-node streaming, see :class:`CluStReClusterer`.
+
+        Parameters
+        ----------
+        g : Graph
+            Input graph (undirected, unweighted). Edge weights are ignored.
+        mode : str
+            Clustering mode. One of ``"light"`` (fastest, single pass),
+            ``"light_plus"`` (restreaming + local search), ``"evo"``
+            (evolutionary), or ``"strong"`` (best quality, restreaming +
+            local search).
+        seed : int
+            Random seed for reproducibility.
+        num_streams_passes : int
+            Number of streaming passes (default 2). More passes improve
+            quality at the cost of runtime.
+        resolution_param : float
+            Resolution parameter for modularity (default 0.5). Higher values
+            produce more clusters.
+        max_num_clusters : int
+            Maximum number of clusters. Set to -1 for unlimited.
+        ls_time_limit : int
+            Local search time limit in seconds (default 600).
+        ls_frac_time : float
+            Fraction of total time allowed for local search (default 0.5).
+        cut_off : float
+            Convergence cut-off for local search (default 0.05).
+        suppress_output : bool
+            If True, suppress stdout/stderr from the C++ algorithm.
+
+        Returns
+        -------
+        StreamClusterResult
+            ``modularity`` (float), ``num_clusters`` (int),
+            ``assignment`` (ndarray of cluster IDs, 0-indexed).
+
+        Examples
+        --------
+        >>> g = Graph.from_edge_list([(0,1),(1,2),(2,0),(2,3),(3,4),(4,5),(5,3)])
+        >>> sc = Decomposition.stream_cluster(g, mode="strong")
+        >>> print(f"{sc.num_clusters} clusters, modularity={sc.modularity:.4f}")
+        """
+        from chszlablib._clustre import clustre_cluster
+
+        g.finalize()
+        xadj = g.xadj.astype(np.int64)
+        adjncy = g.adjncy.astype(np.int64)
+
+        num_clusters, modularity, assignment = clustre_cluster(
+            xadj,
+            adjncy,
+            mode=mode,
+            seed=seed,
+            num_streams_passes=num_streams_passes,
+            resolution_param=resolution_param,
+            max_num_clusters=max_num_clusters,
+            ls_time_limit=ls_time_limit,
+            ls_frac_time=ls_frac_time,
+            cut_off=cut_off,
+            suppress_output=suppress_output,
+        )
+
+        return StreamClusterResult(
+            modularity=modularity,
+            num_clusters=num_clusters,
+            assignment=assignment,
+        )
 
     # --- VieCut: Minimum Cut ---
 
@@ -1095,6 +1215,160 @@ class Decomposition:
             motif_conductance=float(conductance),
         )
 
+    # --- HeiCut: Exact Hypergraph Minimum Cut ---
+
+    @staticmethod
+    def hypergraph_mincut(
+        hg: "HyperGraph",
+        algorithm: HypergraphMincutAlgorithm = "kernelizer",
+        *,
+        base_solver: Literal["submodular", "ilp"] = "submodular",
+        ilp_timeout: float = 7200.0,
+        ilp_mode: Literal["bip", "milp"] = "bip",
+        ordering_type: Literal["ma", "tight", "queyranne"] = "tight",
+        ordering_mode: Literal["single", "multi"] = "single",
+        seed: int = 0,
+        threads: int = 1,
+        unweighted: bool = False,
+    ) -> HypergraphMincutResult:
+        """Compute an exact minimum cut of a hypergraph using HeiCut.
+
+        Finds a bipartition of the vertex set that minimizes the total weight
+        of hyperedges crossing the cut. Four algorithms are available:
+
+        ==============  =======================================================
+        Algorithm       Description
+        ==============  =======================================================
+        kernelizer      Kernelization + base solver (fastest in practice)
+        ilp             Integer linear programming (requires gurobipy)
+        submodular      Submodular function minimization
+        trimmer         k-trimmed certificates (unweighted only)
+        ==============  =======================================================
+
+        Parameters
+        ----------
+        hg : HyperGraph
+            Input hypergraph (must be finalized).
+        algorithm : str
+            Algorithm to use. One of ``"kernelizer"``, ``"ilp"``,
+            ``"submodular"``, ``"trimmer"``.
+        base_solver : str
+            Base solver for the kernelizer: ``"submodular"`` (default) or
+            ``"ilp"``. Ignored by other algorithms.
+        ilp_timeout : float
+            Time limit in seconds for ILP-based solving. Applies to
+            ``"ilp"`` and ``"kernelizer"`` (with ``base_solver="ilp"``).
+        ilp_mode : str
+            ILP formulation: ``"bip"`` (binary IP) or ``"milp"`` (mixed ILP).
+            Only used by the ``"ilp"`` algorithm.
+        ordering_type : str
+            Vertex ordering for submodular/trimmer: ``"ma"`` (maximum
+            adjacency), ``"tight"``, or ``"queyranne"``.
+        ordering_mode : str
+            ``"single"`` or ``"multi"`` ordering pass.
+        seed : int
+            Random seed for reproducibility.
+        threads : int
+            Number of threads.
+        unweighted : bool
+            If ``True``, treat all edge weights as 1.
+
+        Returns
+        -------
+        HypergraphMincutResult
+            ``cut_value`` (int) -- minimum edge cut value.
+            ``time`` (float) -- computation time in seconds.
+
+        Raises
+        ------
+        InvalidModeError
+            If ``algorithm`` is not recognized.
+        ValueError
+            If ``threads < 1`` or the hypergraph is empty.
+        RuntimeError
+            If ILP solving fails (e.g. gurobipy not installed).
+
+        Examples
+        --------
+        >>> from chszlablib import HyperGraph, Decomposition
+        >>> hg = HyperGraph.from_edge_list([[0, 1, 2], [1, 2, 3], [2, 3, 4]])
+        >>> r = Decomposition.hypergraph_mincut(hg, algorithm="submodular")
+        >>> print(f"Min cut: {r.cut_value}")
+        """
+        from chszlablib.hypergraph import HyperGraph as HG
+
+        if not isinstance(hg, HG):
+            raise TypeError(f"Expected HyperGraph, got {type(hg).__name__}")
+
+        valid_algos = {"kernelizer", "ilp", "submodular", "trimmer"}
+        if algorithm not in valid_algos:
+            raise InvalidModeError(
+                f"Unknown algorithm {algorithm!r}. "
+                f"Choose from: {', '.join(sorted(valid_algos))}"
+            )
+        if threads < 1:
+            raise ValueError(f"threads must be >= 1, got {threads}")
+
+        hg.finalize()
+
+        if hg.num_nodes == 0 or hg.num_edges == 0:
+            return HypergraphMincutResult(cut_value=0, time=0.0)
+
+        eptr = hg.eptr.astype(np.int64, copy=False)
+        everts = hg.everts.astype(np.int32, copy=False)
+        nw = hg.node_weights.astype(np.int64, copy=False)
+        ew = hg.edge_weights.astype(np.int64, copy=False)
+
+        # Pass empty arrays if all weights are 1 (unit weights)
+        if np.all(nw == 1):
+            nw = np.empty(0, dtype=np.int64)
+        if np.all(ew == 1):
+            ew = np.empty(0, dtype=np.int64)
+
+        from chszlablib._heicut import (
+            kernelizer as _kernelizer,
+            ilp as _ilp,
+            submodular as _submodular,
+            trimmer as _trimmer,
+        )
+
+        if algorithm == "kernelizer":
+            cut, t = _kernelizer(
+                eptr, everts, nw, ew,
+                base_solver=base_solver,
+                ilp_timeout=ilp_timeout,
+                seed=seed,
+                threads=threads,
+                unweighted=unweighted,
+            )
+        elif algorithm == "ilp":
+            cut, t = _ilp(
+                eptr, everts, nw, ew,
+                ilp_timeout=ilp_timeout,
+                ilp_mode=ilp_mode,
+                seed=seed,
+                threads=threads,
+                unweighted=unweighted,
+            )
+        elif algorithm == "submodular":
+            cut, t = _submodular(
+                eptr, everts, nw, ew,
+                ordering_type=ordering_type,
+                ordering_mode=ordering_mode,
+                seed=seed,
+                threads=threads,
+                unweighted=unweighted,
+            )
+        else:  # trimmer
+            cut, t = _trimmer(
+                eptr, everts, nw, ew,
+                ordering_type=ordering_type,
+                ordering_mode=ordering_mode,
+                seed=seed,
+                threads=threads,
+            )
+
+        return HypergraphMincutResult(cut_value=int(cut), time=float(t))
 
 
 # ---------------------------------------------------------------------------
@@ -1273,6 +1547,166 @@ class HeiStreamPartitioner:
         Retains all configuration parameters (k, imbalance, seed, etc.)
         but removes every node added via :meth:`new_node`. Call this to
         partition a different graph without constructing a new instance.
+        """
+        self._nodes.clear()
+        self._node_map.clear()
+
+
+class CluStReClusterer:
+    """Streaming graph clusterer using CluStRE.
+
+    Collects nodes one-by-one via :meth:`new_node`, then clusters the
+    accumulated graph when :meth:`cluster` is called.
+
+    Usage::
+
+        cs = CluStReClusterer(mode="strong")
+        cs.new_node(0, [1, 2])
+        cs.new_node(1, [0, 3])
+        cs.new_node(2, [0])
+        cs.new_node(3, [1])
+        result = cs.cluster()
+        print(result.num_clusters, result.modularity)
+
+    Parameters
+    ----------
+    mode : str
+        Clustering mode (``"light"``, ``"light_plus"``, ``"evo"``,
+        ``"strong"``).
+    seed : int
+        Random seed.
+    num_streams_passes : int
+        Number of streaming passes (default 2).
+    resolution_param : float
+        Resolution parameter for modularity (default 0.5).
+    max_num_clusters : int
+        Maximum number of clusters (-1 = unlimited).
+    ls_time_limit : int
+        Local search time limit in seconds (default 600).
+    ls_frac_time : float
+        Fraction of total time for local search (default 0.5).
+    cut_off : float
+        Convergence cut-off for local search (default 0.05).
+    suppress_output : bool
+        Suppress stdout/stderr from the C++ algorithm.
+    """
+
+    def __init__(
+        self,
+        mode: StreamClusterMode = "strong",
+        seed: int = 0,
+        num_streams_passes: int = 2,
+        resolution_param: float = 0.5,
+        max_num_clusters: int = -1,
+        ls_time_limit: int = 600,
+        ls_frac_time: float = 0.5,
+        cut_off: float = 0.05,
+        suppress_output: bool = True,
+    ):
+        self._mode = mode
+        self._seed = seed
+        self._num_streams_passes = num_streams_passes
+        self._resolution_param = resolution_param
+        self._max_num_clusters = max_num_clusters
+        self._ls_time_limit = ls_time_limit
+        self._ls_frac_time = ls_frac_time
+        self._cut_off = cut_off
+        self._suppress_output = suppress_output
+
+        self._nodes: list[list[int]] = []
+        self._node_map: dict[int, int] = {}
+
+    def new_node(self, node: int, neighbors: Sequence[int]) -> None:
+        """Add a node with its neighborhood to the stream.
+
+        Nodes can be added in any order and with non-contiguous IDs. Neighbor
+        references to nodes not yet added are silently dropped when
+        :meth:`cluster` builds the internal CSR representation.
+
+        Parameters
+        ----------
+        node : int
+            The node ID (0-indexed). Must not have been added before.
+        neighbors : sequence of int
+            Neighbor node IDs (0-indexed).
+
+        Raises
+        ------
+        ValueError
+            If ``node`` has already been added.
+        """
+        if node in self._node_map:
+            raise ValueError(f"Node {node} has already been added")
+        self._node_map[node] = len(self._nodes)
+        self._nodes.append(list(neighbors))
+
+    def cluster(self) -> StreamClusterResult:
+        """Run CluStRE on all added nodes.
+
+        Builds a CSR graph from the nodes added via :meth:`new_node`, runs
+        the streaming clusterer, and returns the result.
+
+        Returns
+        -------
+        StreamClusterResult
+            ``modularity``, ``num_clusters``, ``assignment``.
+        """
+        from chszlablib._clustre import clustre_cluster
+
+        n = len(self._nodes)
+        if n == 0:
+            return StreamClusterResult(
+                modularity=0.0, num_clusters=0,
+                assignment=np.array([], dtype=np.int32),
+            )
+
+        original_ids = sorted(self._node_map.keys())
+        id_to_contiguous = {orig: i for i, orig in enumerate(original_ids)}
+
+        xadj = [0]
+        adjncy = []
+        for orig_id in original_ids:
+            idx = self._node_map[orig_id]
+            neighbors = self._nodes[idx]
+            mapped = [id_to_contiguous[nb] for nb in neighbors if nb in id_to_contiguous]
+            adjncy.extend(mapped)
+            xadj.append(len(adjncy))
+
+        xadj_arr = np.array(xadj, dtype=np.int64)
+        adjncy_arr = np.array(adjncy, dtype=np.int64)
+
+        num_clusters, modularity, raw_assignment = clustre_cluster(
+            xadj_arr,
+            adjncy_arr,
+            mode=self._mode,
+            seed=self._seed,
+            num_streams_passes=self._num_streams_passes,
+            resolution_param=self._resolution_param,
+            max_num_clusters=self._max_num_clusters,
+            ls_time_limit=self._ls_time_limit,
+            ls_frac_time=self._ls_frac_time,
+            cut_off=self._cut_off,
+            suppress_output=self._suppress_output,
+        )
+
+        if original_ids == list(range(n)):
+            assignment = raw_assignment
+        else:
+            assignment = np.full(max(original_ids) + 1, -1, dtype=np.int32)
+            for i, orig_id in enumerate(original_ids):
+                assignment[orig_id] = raw_assignment[i]
+
+        return StreamClusterResult(
+            modularity=modularity,
+            num_clusters=num_clusters,
+            assignment=assignment,
+        )
+
+    def reset(self) -> None:
+        """Clear all added nodes so this clusterer can be reused.
+
+        Retains all configuration parameters but removes every node
+        added via :meth:`new_node`.
         """
         self._nodes.clear()
         self._node_map.clear()

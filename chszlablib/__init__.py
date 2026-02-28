@@ -11,6 +11,7 @@ from chszlablib.io import read_metis, write_metis, read_hmetis, write_hmetis
 from chszlablib.decomposition import (
     Decomposition,
     HeiStreamPartitioner,
+    CluStReClusterer,
     PartitionResult,
     SeparatorResult,
     OrderingResult,
@@ -20,6 +21,8 @@ from chszlablib.decomposition import (
     MaxCutResult,
     MotifClusterResult,
     StreamPartitionResult,
+    StreamClusterResult,
+    HypergraphMincutResult,
 )
 from chszlablib.independence import IndependenceProblems, MISResult, MWISResult, HyperMISResult
 from chszlablib.orientation import Orientation, EdgeOrientationResult
@@ -99,11 +102,13 @@ def describe() -> str:
         "  SeparatorResult         num_separator_vertices, separator",
         "  OrderingResult          ordering",
         "  StreamPartitionResult   assignment",
+        "  StreamClusterResult     modularity, num_clusters, assignment",
         "  MincutResult            cut_value, partition",
         "  MaxCutResult            cut_value, partition",
         "  ClusterResult           modularity, num_clusters, assignment",
         "  CorrelationClusteringResult  edge_cut, num_clusters, assignment",
         "  MotifClusterResult      cluster_nodes, motif_conductance",
+        "  HypergraphMincutResult  cut_value, time",
         "  MISResult               size, weight, vertices",
         "  MWISResult              size, weight, vertices",
         "  HyperMISResult          size, weight, vertices, offset, reduction_time",
@@ -151,6 +156,7 @@ __all__ = [
     # Namespace classes
     "Decomposition",
     "HeiStreamPartitioner",
+    "CluStReClusterer",
     "IndependenceProblems",
     "Orientation",
     # Result dataclasses
@@ -163,6 +169,8 @@ __all__ = [
     "MaxCutResult",
     "MotifClusterResult",
     "StreamPartitionResult",
+    "StreamClusterResult",
+    "HypergraphMincutResult",
     "MISResult",
     "MWISResult",
     "HyperMISResult",
