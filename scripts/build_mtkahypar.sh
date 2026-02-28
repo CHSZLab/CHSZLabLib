@@ -13,7 +13,7 @@ MTK_REPO="${MTK_REPO:-https://github.com/kahypar/mt-kahypar.git}"
 MTK_COMMIT="${MTK_COMMIT:-0ef674a}"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
 KAHYPAR_DOWNLOAD_TBB="${KAHYPAR_DOWNLOAD_TBB:-ON}"
-KAHYPAR_DOWNLOAD_BOOST="${KAHYPAR_DOWNLOAD_BOOST:-ON}"
+KAHYPAR_DOWNLOAD_BOOST="${KAHYPAR_DOWNLOAD_BOOST:-OFF}"
 
 # ---- Paths ------------------------------------------------------------
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
