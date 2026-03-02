@@ -1,4 +1,4 @@
-"""Maximum independent set and maximum weight independent set solvers."""
+"""Maximum independent set, maximum weight independent set, and b-matching solvers."""
 
 from __future__ import annotations
 
@@ -58,6 +58,23 @@ class HyperMISResult:
     """Whether the solution is provably optimal (requires ILP solver)."""
 
 
+@dataclass
+class BMatchingResult:
+    """Result of a hypergraph b-matching computation.
+
+    Given a hypergraph H = (V, E) with edge weights w and vertex capacities b,
+    find a set of edges M (matching) that maximizes total weight subject to
+    each vertex v being incident to at most b(v) matched edges.
+    """
+
+    matched_edges: np.ndarray
+    """1-D int array of matched edge indices."""
+    total_weight: float
+    """Total weight of the matched edges."""
+    num_matched: int
+    """Number of matched edges."""
+
+
 class IndependenceProblems:
     """Maximum independent set and maximum weight independent set solvers."""
 
@@ -74,6 +91,7 @@ class IndependenceProblems:
             "mmwis": "Maximum weight independent set, evolutionary (KaMIS/MMWIS)",
             "chils": "Maximum weight independent set, concurrent local search (CHILS)",
             "hypermis": "Maximum independent set on hypergraphs (HyperMIS)",
+            "bmatching": "Hypergraph b-matching (HeiHGM/Bmatching)",
         }
 
     HYPERMIS_ILP_AVAILABLE: bool = _HYPERMIS_ILP_AVAILABLE
@@ -81,6 +99,14 @@ class IndependenceProblems:
 
     HYPERMIS_METHODS: tuple[str, ...] = ("heuristic", "exact")
     """Valid ``method`` values for :meth:`hypermis`."""
+
+    BMATCHING_ALGORITHMS: tuple[str, ...] = (
+        "greedy_random", "greedy_weight_desc", "greedy_weight_asc",
+        "greedy_degree_asc", "greedy_degree_desc",
+        "greedy_weight_degree_ratio_desc", "greedy_weight_degree_ratio_asc",
+        "reductions", "ils",
+    )
+    """Valid ``algorithm`` values for :meth:`bmatching`."""
 
     # --- KaMIS: Unweighted MIS ---
 
@@ -485,4 +511,186 @@ class IndependenceProblems:
             offset=offset,
             reduction_time=reduction_time,
             is_optimal=is_optimal,
+        )
+
+    # --- HeiHGM: Hypergraph B-Matching ---
+
+    @staticmethod
+    def bmatching(
+        hg: "HyperGraph",
+        algorithm: str = "greedy_weight_desc",
+        seed: int = 0,
+        ils_iterations: int = 15,
+        ils_time_limit: float = 1800.0,
+    ) -> BMatchingResult:
+        """Compute a maximum weight b-matching on a hypergraph.
+
+        Given a hypergraph H = (V, E) with edge weights w and vertex
+        capacities b (default 1), find a set of edges M that maximizes
+        the total weight sum(w(e) for e in M) subject to each vertex v
+        having at most b(v) incident matched edges.
+
+        Parameters
+        ----------
+        hg : HyperGraph
+            Input hypergraph.  Edge weights define the objective.
+            Vertex capacities are set via ``hg.set_capacity()`` or
+            ``hg.set_capacities()`` (default 1 = standard matching).
+        algorithm : str, optional
+            Algorithm name (default ``"greedy_weight_desc"``).
+            Options: ``"greedy_random"``, ``"greedy_weight_desc"``,
+            ``"greedy_weight_asc"``, ``"greedy_degree_asc"``,
+            ``"greedy_degree_desc"``, ``"greedy_weight_degree_ratio_desc"``,
+            ``"greedy_weight_degree_ratio_asc"``, ``"reductions"``,
+            ``"ils"``.
+        seed : int, optional
+            Random seed (default 0).
+        ils_iterations : int, optional
+            Max ILS iterations (default 15, only for ``"ils"``).
+        ils_time_limit : float, optional
+            ILS time budget in seconds (default 1800, only for ``"ils"``).
+
+        Returns
+        -------
+        BMatchingResult
+            ``matched_edges`` -- 1-D int array of matched edge indices,
+            ``total_weight`` -- total weight of matched edges,
+            ``num_matched`` -- number of matched edges.
+
+        Raises
+        ------
+        ValueError
+            If *algorithm* is not recognized.
+        """
+        from chszlablib.exceptions import InvalidModeError
+
+        if algorithm not in IndependenceProblems.BMATCHING_ALGORITHMS:
+            raise InvalidModeError(
+                f"Unknown algorithm {algorithm!r}. "
+                f"Valid: {IndependenceProblems.BMATCHING_ALGORITHMS}"
+            )
+
+        hg.finalize()
+        eptr = hg.eptr.astype(np.int64, copy=False)
+        everts = hg.everts.astype(np.int32, copy=False)
+        edge_weights = hg.edge_weights.astype(np.float64, copy=False)
+        capacities = hg.capacities.astype(np.int32, copy=False)
+
+        from chszlablib._bmatching import bmatching as _bmatching
+
+        matched, total_weight = _bmatching(
+            eptr, everts, edge_weights, capacities,
+            hg.num_nodes, algorithm, seed,
+            ils_iterations, ils_time_limit,
+        )
+
+        return BMatchingResult(
+            matched_edges=matched,
+            total_weight=total_weight,
+            num_matched=len(matched),
+        )
+
+
+class StreamingBMatcher:
+    """True streaming hypergraph matching — process edges one at a time.
+
+    Implements five streaming matching algorithms from HeiHGM/Streaming.
+    Each edge is processed on arrival (single pass), making this suitable
+    for large-scale hypergraphs that don't fit in memory.
+
+    Parameters
+    ----------
+    num_nodes : int
+        Number of vertices in the hypergraph.
+    algorithm : str, optional
+        Streaming algorithm (default ``"greedy"``).
+    capacities : array-like, optional
+        Per-vertex capacities (default all-ones).
+    seed : int, optional
+        Random seed (default 0).
+    epsilon : float, optional
+        Approximation parameter for greedy (default 0.0).
+    """
+
+    ALGORITHMS: tuple[str, ...] = (
+        "naive", "greedy_set", "best_evict", "greedy", "lenient",
+    )
+    """Valid algorithm names."""
+
+    DEFAULT_ALGORITHM: str = "greedy"
+    """Default streaming algorithm (best quality/speed tradeoff)."""
+
+    def __init__(
+        self,
+        num_nodes: int,
+        algorithm: str = "greedy",
+        capacities: np.ndarray | list[int] | None = None,
+        seed: int = 0,
+        epsilon: float = 0.0,
+    ) -> None:
+        if algorithm not in self.ALGORITHMS:
+            from chszlablib.exceptions import InvalidModeError
+            raise InvalidModeError(
+                f"Unknown algorithm {algorithm!r}. Valid: {self.ALGORITHMS}"
+            )
+        self._num_nodes = num_nodes
+        self._algorithm = algorithm
+        self._seed = seed
+        self._epsilon = epsilon
+        self._edge_count = 0
+
+        if capacities is not None:
+            self._capacities = np.asarray(capacities, dtype=np.int32)
+        else:
+            self._capacities = np.ones(num_nodes, dtype=np.int32)
+
+        from chszlablib._streaming_bmatching import StreamingMatcher
+        self._matcher = StreamingMatcher(
+            num_nodes, algorithm, self._capacities, seed, epsilon,
+        )
+
+    def add_edge(self, nodes: list[int], weight: float = 1.0) -> None:
+        """Feed one hyperedge to the streaming matcher.
+
+        Parameters
+        ----------
+        nodes : list[int]
+            Vertex IDs in this hyperedge.
+        weight : float, optional
+            Edge weight (default 1.0).
+        """
+        self._matcher.add_edge(nodes, weight)
+        self._edge_count += 1
+
+    def finish(self) -> BMatchingResult:
+        """Finalize and return the matching result.
+
+        Returns
+        -------
+        BMatchingResult
+            ``matched_edges`` -- 1-D int array of matched edge indices
+            (in insertion order), ``total_weight``, ``num_matched``.
+        """
+        matched, total_weight = self._matcher.finish()
+        return BMatchingResult(
+            matched_edges=matched,
+            total_weight=total_weight,
+            num_matched=len(matched),
+        )
+
+    def reset(self) -> None:
+        """Reset internal state for re-streaming."""
+        self._matcher.reset()
+        self._edge_count = 0
+
+    @property
+    def num_edges_streamed(self) -> int:
+        """Number of edges fed so far."""
+        return self._edge_count
+
+    def __repr__(self) -> str:
+        return (
+            f"StreamingBMatcher(n={self._num_nodes}, "
+            f"algorithm={self._algorithm!r}, "
+            f"edges_streamed={self._edge_count})"
         )

@@ -1711,3 +1711,45 @@ set_target_properties(_heicut PROPERTIES
 )
 install(TARGETS _heicut DESTINATION chszlablib)
 
+# =============================================================================
+# HeiHGM  (Hypergraph B-Matching — Static + Streaming)
+# =============================================================================
+set(HEIHGM_BMATCHING_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/HeiHGM_Bmatching)
+set(HEIHGM_STREAMING_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/HeiHGM_Streaming)
+
+# --- Patch Abseil/Protobuf out of both repos at configure time ---
+execute_process(
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/patch_heihgm.py ${HEIHGM_BMATCHING_DIR}
+    RESULT_VARIABLE _patch_bm_rc
+)
+if(NOT _patch_bm_rc EQUAL 0)
+    message(WARNING "HeiHGM Bmatching patching returned non-zero: ${_patch_bm_rc}")
+endif()
+execute_process(
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/patch_heihgm.py ${HEIHGM_STREAMING_DIR}
+    RESULT_VARIABLE _patch_st_rc
+)
+if(NOT _patch_st_rc EQUAL 0)
+    message(WARNING "HeiHGM Streaming patching returned non-zero: ${_patch_st_rc}")
+endif()
+
+# --- Bmatching: header-only (INTERFACE library) ---
+add_library(bmatching_headers INTERFACE)
+target_include_directories(bmatching_headers INTERFACE
+    ${HEIHGM_BMATCHING_DIR}
+    ${HEIHGM_BMATCHING_DIR}/others    # easylogging++.h, ds/hashing-config.h
+)
+target_compile_features(bmatching_headers INTERFACE cxx_std_17)
+
+# --- _bmatching pybind11 module ---
+pybind11_add_module(_bmatching bindings/bmatching_binding.cpp)
+target_link_libraries(_bmatching PRIVATE bmatching_headers)
+target_compile_options(_bmatching PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>)
+install(TARGETS _bmatching DESTINATION chszlablib)
+
+# --- _streaming_bmatching pybind11 module ---
+# Streaming algorithms are reimplemented directly in the binding (no external deps)
+pybind11_add_module(_streaming_bmatching bindings/streaming_bmatching_binding.cpp)
+target_compile_features(_streaming_bmatching PRIVATE cxx_std_17)
+install(TARGETS _streaming_bmatching DESTINATION chszlablib)
+

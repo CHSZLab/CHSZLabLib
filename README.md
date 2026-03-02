@@ -116,6 +116,8 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 | [KaMIS](https://github.com/KarlsruheMIS/KaMIS) | Independent set | ReduMIS, OnlineMIS, Branch&Reduce, MMWIS |
 | [CHILS](https://github.com/KennethLangedal/CHILS) | Weighted independent set | Concurrent heuristic independent local search |
 | [HyperMIS](https://github.com/KarlsruheMIS/HyperMIS) | Hypergraph independent set | Kernelization reductions (+ optional ILP via Gurobi) |
+| [HeiHGM/Bmatching](https://github.com/HeiHGM/Bmatching) | Hypergraph b-matching | Greedy (7 orderings), reductions+unfold, ILS |
+| [HeiHGM/Streaming](https://github.com/HeiHGM/Streaming) | Streaming hypergraph matching | Naive, greedy, greedy\_set, best\_evict, lenient |
 
 **Orientation** — Edge orientation for minimum maximum out-degree.
 
@@ -169,6 +171,20 @@ print(f"Hypergraph min-cut: {r.cut_value}, time: {r.time:.2f}s")
 # --- Streaming graph clustering ---
 sc = Decomposition.stream_cluster(g, mode="strong")
 print(f"Clusters: {sc.num_clusters}, modularity: {sc.modularity:.4f}")
+
+# --- Hypergraph b-matching ---
+from chszlablib import StreamingBMatcher
+
+hg = HyperGraph.from_edge_list([[0,1],[1,2],[2,3],[3,4]], num_nodes=5, edge_weights=[5,3,7,2])
+r = IndependenceProblems.bmatching(hg, algorithm="greedy_weight_desc")
+print(f"B-matching: {r.num_matched} edges, weight {r.total_weight}")
+
+# --- Streaming hypergraph matching ---
+sm = StreamingBMatcher(5, algorithm="greedy")
+for nodes, w in [([0,1], 5), ([1,2], 3), ([2,3], 7), ([3,4], 2)]:
+    sm.add_edge(nodes, w)
+r = sm.finish()
+print(f"Streaming matching: {r.num_matched} edges, weight {r.total_weight}")
 ```
 
 ---
@@ -198,6 +214,8 @@ print(f"Clusters: {sc.num_clusters}, modularity: {sc.modularity:.4f}")
 | Find a large independent set | `IndependenceProblems.redumis` | `time_limit` |
 | Find max-weight independent set | `IndependenceProblems.chils` | `time_limit`, `num_concurrent` |
 | Independent set on a hypergraph | `IndependenceProblems.hypermis` | `method`, `time_limit`, `strong_reductions` |
+| Find max-weight b-matching on hypergraph | `IndependenceProblems.bmatching` | `algorithm`, `seed` |
+| Stream hypergraph edges for matching | `StreamingBMatcher` | `algorithm`, `epsilon` |
 | Orient edges (min max out-degree) | `Orientation.orient_edges` | `algorithm` |
 
 ### One-Liner Recipes
@@ -226,6 +244,15 @@ IndependenceProblems.hypermis(hg)                                       # hyperg
 IndependenceProblems.hypermis(hg, method="exact")                       # hypergraph IS (exact, needs gurobipy)
 Decomposition.hypergraph_mincut(hg)                                     # hypergraph min-cut (kernelizer)
 Decomposition.hypergraph_mincut(hg, algorithm="submodular")             # hypergraph min-cut (submodular)
+
+hg = HyperGraph.from_edge_list([[0,1],[1,2],[2,3],[3,4]], num_nodes=5, edge_weights=[5,3,7,2])
+IndependenceProblems.bmatching(hg)                                      # greedy b-matching
+IndependenceProblems.bmatching(hg, algorithm="ils")                     # ILS b-matching
+IndependenceProblems.bmatching(hg, algorithm="reductions")              # reductions + unfold
+
+from chszlablib import StreamingBMatcher
+sm = StreamingBMatcher(5, algorithm="greedy")                           # streaming matcher
+sm.add_edge([0,1], 5.0); sm.add_edge([2,3], 7.0); sm.finish()          # stream & collect
 ```
 
 ### Programmatic Introspection
@@ -237,6 +264,10 @@ from chszlablib import Decomposition
 Decomposition.PARTITION_MODES              # ("fast", "eco", "strong", "fastsocial", ...)
 Decomposition.MINCUT_ALGORITHMS            # ("inexact", "exact", "cactus")
 Decomposition.HYPERGRAPH_MINCUT_ALGORITHMS # ("kernelizer", "ilp", "submodular", "trimmer")
+
+from chszlablib import IndependenceProblems, StreamingBMatcher
+IndependenceProblems.BMATCHING_ALGORITHMS  # ("greedy_random", "greedy_weight_desc", ..., "reductions", "ils")
+StreamingBMatcher.ALGORITHMS               # ("naive", "greedy_set", "best_evict", "greedy", "lenient")
 
 # List all methods with descriptions
 Decomposition.available_methods()
@@ -297,6 +328,8 @@ g = hg.to_graph()
 - **`IndependenceProblems.hypermis()` takes a `HyperGraph`, not a `Graph`.**
 - **`Decomposition.hypergraph_mincut()` takes a `HyperGraph`, not a `Graph`.**
 - **`Decomposition.stream_cluster()` ignores edge weights** — CluStRE operates on unweighted graphs.
+- **`IndependenceProblems.bmatching()` takes a `HyperGraph`, not a `Graph`.** Set capacities *before* finalization.
+- **`StreamingBMatcher` capacity defaults to 1.** Pass `capacities=` array to the constructor for custom capacities.
 - **`PartitionResult.balance` is only set by `evolutionary_partition`.**
 - **Catch `CHSZLabLibError` to handle all library errors, or use specific subclasses (`InvalidModeError`, `InvalidGraphError`, `GraphNotFinalizedError`).**
 
@@ -858,6 +891,7 @@ Maximum independent set and maximum weight independent set solvers.
 | `mmwis` | Maximum weight independent set (evolutionary) | KaMIS |
 | `chils` | Maximum weight independent set (concurrent local search) | CHILS |
 | `hypermis` | Maximum independent set on hypergraphs (heuristic or exact) | HyperMIS |
+| `bmatching` | Hypergraph b-matching (greedy, reductions, ILS) | HeiHGM/Bmatching |
 
 #### `IndependenceProblems.redumis(g, ...)` — Maximum Independent Set (KaMIS)
 
@@ -964,6 +998,85 @@ print(f"IS size: {result.size}, optimal: {result.is_optimal}")
 ```
 
 > **Note:** Check `IndependenceProblems.HYPERMIS_ILP_AVAILABLE` at runtime to see if `gurobipy` is installed. Valid methods are listed in `IndependenceProblems.HYPERMIS_METHODS`.
+
+---
+
+#### `IndependenceProblems.bmatching(hg, ...)` — Hypergraph B-Matching (HeiHGM)
+
+**Problem.** Given a hypergraph $H = (V, E)$ with edge weights $w : E \to \mathbb{R}_{\geq 0}$ and vertex capacities $b : V \to \mathbb{Z}_{\geq 1}$, find a set of edges $M \subseteq E$ (b-matching) that maximizes
+
+$$\sum_{e \in M} w(e) \quad \text{subject to} \quad |\{e \in M : v \in e\}| \leq b(v) \quad \forall v \in V.$$
+
+When all capacities are 1, this is a standard maximum weight matching.
+
+```python
+IndependenceProblems.bmatching(hg, algorithm="greedy_weight_desc", seed=0,
+                               ils_iterations=15, ils_time_limit=1800.0) -> BMatchingResult
+```
+
+| Parameter | Type | Default | Description |
+|:----------|:-----|:--------|:------------|
+| `hg` | `HyperGraph` | *(required)* | Input hypergraph with edge weights and vertex capacities |
+| `algorithm` | `str` | `"greedy_weight_desc"` | Algorithm: `"greedy_random"`, `"greedy_weight_desc"`, `"greedy_weight_asc"`, `"greedy_degree_asc"`, `"greedy_degree_desc"`, `"greedy_weight_degree_ratio_desc"`, `"greedy_weight_degree_ratio_asc"`, `"reductions"`, `"ils"` |
+| `seed` | `int` | `0` | Random seed |
+| `ils_iterations` | `int` | `15` | Max ILS perturbation iterations (only for `"ils"`) |
+| `ils_time_limit` | `float` | `1800.0` | ILS time limit in seconds (only for `"ils"`) |
+
+**Returns** `BMatchingResult` with fields: `matched_edges` (int array of edge indices), `total_weight` (float), `num_matched` (int).
+
+```python
+from chszlablib import HyperGraph, IndependenceProblems
+
+hg = HyperGraph.from_edge_list([[0,1],[1,2],[2,3],[3,4]], num_nodes=5, edge_weights=[5,3,7,2])
+result = IndependenceProblems.bmatching(hg, algorithm="greedy_weight_desc")
+print(f"Matched {result.num_matched} edges, total weight: {result.total_weight}")
+
+# With custom capacities (b-matching)
+hg2 = HyperGraph(5, 4)
+for i, (edge, w) in enumerate(zip([[0,1],[1,2],[2,3],[3,4]], [5,3,7,2])):
+    hg2.set_edge(i, edge)
+    hg2.set_edge_weight(i, w)
+hg2.set_capacities([2, 2, 2, 2, 2])  # each node can participate in up to 2 matched edges
+result = IndependenceProblems.bmatching(hg2, algorithm="ils")
+print(f"B-matching: {result.num_matched} edges, weight: {result.total_weight}")
+```
+
+> **Note:** Valid algorithms are listed in `IndependenceProblems.BMATCHING_ALGORITHMS`. The `"reductions"` algorithm applies preprocessing reductions (edge folding, domination removal) before maximizing. The `"ils"` algorithm uses iterated local search with perturbation.
+
+---
+
+#### `StreamingBMatcher` — Streaming Hypergraph Matching (HeiHGM)
+
+**Problem.** Same as b-matching, but edges arrive one at a time in a data stream. Each edge is processed on arrival (single pass), making this suitable for large-scale hypergraphs that don't fit in memory.
+
+```python
+StreamingBMatcher(num_nodes, algorithm="greedy", capacities=None, seed=0, epsilon=0.0)
+```
+
+| Parameter | Type | Default | Description |
+|:----------|:-----|:--------|:------------|
+| `num_nodes` | `int` | *(required)* | Number of vertices |
+| `algorithm` | `str` | `"greedy"` | Algorithm: `"naive"`, `"greedy"`, `"greedy_set"`, `"best_evict"`, `"lenient"` |
+| `capacities` | `array-like` | `None` (all ones) | Per-vertex capacities |
+| `seed` | `int` | `0` | Random seed |
+| `epsilon` | `float` | `0.0` | Approximation parameter for greedy |
+
+**Methods:**
+- `add_edge(nodes, weight=1.0)` — Feed one hyperedge
+- `finish() -> BMatchingResult` — Finalize and return matching
+- `reset()` — Reset state for re-streaming
+
+```python
+from chszlablib import StreamingBMatcher
+
+sm = StreamingBMatcher(num_nodes=1000, algorithm="greedy")
+for nodes, weight in edge_stream:  # edges arrive one by one
+    sm.add_edge(nodes, weight)
+result = sm.finish()
+print(f"Matched {result.num_matched} edges, weight: {result.total_weight}")
+```
+
+> **Note:** Valid algorithms are listed in `StreamingBMatcher.ALGORITHMS`. The default `"greedy"` provides the best quality/speed tradeoff. `"naive"` is fastest but lowest quality. `"best_evict"` tries multiple epsilon values (requires buffering all edges).
 
 ---
 
@@ -1092,6 +1205,38 @@ order = Decomposition.node_ordering(g, mode="strong")
 perm = order.ordering
 ```
 
+### Hypergraph B-Matching
+
+```python
+from chszlablib import HyperGraph, IndependenceProblems
+
+# Resource allocation: assign tasks (edges) to workers (nodes)
+# Each worker can handle up to b tasks (capacity)
+hg = HyperGraph(num_nodes=100, num_edges=500)
+for i, (nodes, weight) in enumerate(task_assignments):
+    hg.set_edge(i, nodes)
+    hg.set_edge_weight(i, weight)
+hg.set_capacities(worker_capacities)  # e.g., [3, 2, 5, ...]
+
+result = IndependenceProblems.bmatching(hg, algorithm="ils")
+print(f"Assigned {result.num_matched} tasks, total value: {result.total_weight}")
+```
+
+### Streaming Hypergraph Matching
+
+```python
+from chszlablib import StreamingBMatcher
+
+# Process a large-scale hypergraph edge stream (e.g., from a database or file)
+sm = StreamingBMatcher(num_nodes=1_000_000, algorithm="greedy")
+for line in open("edges.txt"):
+    nodes = [int(x) for x in line.split(",")[:-1]]
+    weight = float(line.split(",")[-1])
+    sm.add_edge(nodes, weight)
+result = sm.finish()
+print(f"Streaming matched {result.num_matched} edges")
+```
+
 ---
 
 ## I/O
@@ -1174,7 +1319,9 @@ CHSZLabLib/
 │   ├── HeiCut/                  # Hypergraph minimum cut
 │   ├── CluStRE/                 # Streaming graph clustering
 │   ├── fpt-max-cut/             # Maximum cut
-│   └── HeidelbergMotifClustering/ # Motif clustering
+│   ├── HeidelbergMotifClustering/ # Motif clustering
+│   ├── HeiHGM_Bmatching/        # Hypergraph b-matching
+│   └── HeiHGM_Streaming/        # Streaming hypergraph matching
 ├── CMakeLists.txt               # Top-level CMake configuration
 ├── pyproject.toml               # Python package metadata
 ├── build.sh                     # One-step build script
@@ -1369,6 +1516,16 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
 }
 ```
 
+### HeiHGM (Hypergraph B-Matching & Streaming Matching)
+
+```bibtex
+@article{grossmann2025heihgm,
+  title     = {Engineering Hypergraph b-Matching Algorithms},
+  author    = {Ernestine Gro{\ss}mann and Felix Joos and Henrik Reinst{\"a}dtler and Christian Schulz},
+  year      = {2025}
+}
+```
+
 ---
 
 ## Authors & Acknowledgments
@@ -1383,15 +1540,17 @@ This library would not be possible without the original algorithm implementation
 - **Jakob Dahlum** — KaMIS
 - **Marcelo Fonseca Faraj** — SCC, HeiStream, HeidelbergMotifClustering, KaHIP
 - **Alexander Gellner** — KaMIS
-- **Ernestine Großmann** — CHILS, HyperMIS, KaMIS (MMWIS)
+- **Ernestine Großmann** — CHILS, HyperMIS, KaMIS (MMWIS), HeiHGM/Bmatching
 - **Felix Hausberger** — SCC
 - **Monika Henzinger** — VieCut, VieClus
 - **Alexandra Henzinger** — KaHIP
 - **Demian Hespe** — KaMIS
+- **Felix Joos** — HeiHGM/Bmatching
 - **Sebastian Lamm** — KaMIS
 - **Kenneth Langedal** — CHILS
 - **Henning Meyerhenke** — KaHIP
 - **Alexander Noe** — VieCut, KaHIP
+- **Henrik Reinstädtler** — HeiHGM/Bmatching, HeiHGM/Streaming
 - **Peter Sanders** — KaHIP, KaMIS
 - **Sebastian Schlag** — KaHIP
 - **Christian Schulz** — All libraries

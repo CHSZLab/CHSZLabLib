@@ -53,6 +53,7 @@ class HyperGraph:
         self._edge_vertex_sets: list[set[int]] = [set() for _ in range(num_edges)]
         self._node_weight_map: dict[int, int] = {}
         self._edge_weight_map: dict[int, int] = {}
+        self._capacity_map: dict[int, int] = {}
 
         # CSR state (post-finalize)
         self._vptr: np.ndarray | None = None
@@ -61,6 +62,7 @@ class HyperGraph:
         self._everts: np.ndarray | None = None
         self._node_weights: np.ndarray | None = None
         self._edge_weights: np.ndarray | None = None
+        self._capacities: np.ndarray | None = None
 
     # ------------------------------------------------------------------
     # Builder API
@@ -182,6 +184,64 @@ class HyperGraph:
         self._validate_edge_id(edge)
         self._edge_weight_map[edge] = weight
 
+    def set_capacity(self, node: int, capacity: int) -> None:
+        """Set the b-matching capacity of a single vertex.
+
+        Parameters
+        ----------
+        node : int
+            Vertex index (0-based).
+        capacity : int
+            Maximum number of matched hyperedges incident to this vertex.
+            Must be >= 1.
+
+        Raises
+        ------
+        RuntimeError
+            If the hypergraph has already been finalized.
+        ValueError
+            If *node* is out of range or *capacity* < 1.
+        """
+        if self._finalized:
+            raise GraphNotFinalizedError(
+                "Cannot set capacities after finalize()"
+            )
+        self._validate_vertex(node)
+        if capacity < 1:
+            raise InvalidHyperGraphError(
+                f"capacity must be >= 1, got {capacity}"
+            )
+        self._capacity_map[node] = capacity
+
+    def set_capacities(self, capacities: np.ndarray | list[int]) -> None:
+        """Set capacities for all vertices from an array.
+
+        Parameters
+        ----------
+        capacities : array-like, shape (num_nodes,)
+            Capacity for each vertex. All values must be >= 1.
+
+        Raises
+        ------
+        RuntimeError
+            If the hypergraph has already been finalized.
+        ValueError
+            If the array length doesn't match num_nodes or any value < 1.
+        """
+        if self._finalized:
+            raise GraphNotFinalizedError(
+                "Cannot set capacities after finalize()"
+            )
+        arr = np.asarray(capacities)
+        if arr.shape != (self._num_nodes,):
+            raise InvalidHyperGraphError(
+                f"capacities must have shape ({self._num_nodes},), got {arr.shape}"
+            )
+        if np.any(arr < 1):
+            raise InvalidHyperGraphError("All capacities must be >= 1")
+        for i in range(self._num_nodes):
+            self._capacity_map[i] = int(arr[i])
+
     # ------------------------------------------------------------------
     # Finalize
     # ------------------------------------------------------------------
@@ -256,12 +316,18 @@ class HyperGraph:
         for eid, w in self._edge_weight_map.items():
             edge_weights[eid] = w
 
+        # Build capacity array (default all-ones)
+        capacities = np.ones(n, dtype=np.int32)
+        for node, c in self._capacity_map.items():
+            capacities[node] = c
+
         self._vptr = vptr
         self._vedges = vedges
         self._eptr = eptr
         self._everts = everts
         self._node_weights = node_weights
         self._edge_weights = edge_weights
+        self._capacities = capacities
         self._finalized = True
 
         # Release builder state
@@ -269,6 +335,7 @@ class HyperGraph:
         self._edge_vertex_sets = []
         self._node_weight_map = {}
         self._edge_weight_map = {}
+        self._capacity_map = {}
 
     # ------------------------------------------------------------------
     # Properties (auto-finalize on access)
@@ -319,6 +386,16 @@ class HyperGraph:
         """Edge weight array, shape ``(num_edges,)``."""
         self.finalize()
         return self._edge_weights
+
+    @property
+    def capacities(self) -> np.ndarray:
+        """Node capacity array for b-matching, shape ``(num_nodes,)``.
+
+        Defaults to all-ones (standard matching). Set via
+        :meth:`set_capacity` or :meth:`set_capacities` before finalize.
+        """
+        self.finalize()
+        return self._capacities
 
     # ------------------------------------------------------------------
     # Class methods (batch constructors)
@@ -508,12 +585,14 @@ class HyperGraph:
         hg._edge_vertex_sets = []
         hg._node_weight_map = {}
         hg._edge_weight_map = {}
+        hg._capacity_map = {}
 
         # CSR state
         hg._vptr = vptr
         hg._vedges = vedges
         hg._eptr = eptr
         hg._everts = everts
+        hg._capacities = np.ones(n, dtype=np.int32)
 
         if node_weights is not None:
             hg._node_weights = np.asarray(node_weights, dtype=np.int64)

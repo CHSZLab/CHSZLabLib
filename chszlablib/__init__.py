@@ -24,7 +24,10 @@ from chszlablib.decomposition import (
     StreamClusterResult,
     HypergraphMincutResult,
 )
-from chszlablib.independence import IndependenceProblems, MISResult, MWISResult, HyperMISResult
+from chszlablib.independence import (
+    IndependenceProblems, MISResult, MWISResult, HyperMISResult,
+    BMatchingResult, StreamingBMatcher,
+)
 from chszlablib.orientation import Orientation, EdgeOrientationResult
 
 def describe() -> str:
@@ -112,6 +115,7 @@ def describe() -> str:
         "  MISResult               size, weight, vertices",
         "  MWISResult              size, weight, vertices",
         "  HyperMISResult          size, weight, vertices, offset, reduction_time",
+        "  BMatchingResult         matched_edges, total_weight, num_matched",
         "  EdgeOrientationResult   max_out_degree, out_degrees, edge_heads",
         "",
         "EXCEPTIONS",
@@ -158,6 +162,7 @@ __all__ = [
     "HeiStreamPartitioner",
     "CluStReClusterer",
     "IndependenceProblems",
+    "StreamingBMatcher",
     "Orientation",
     # Result dataclasses
     "PartitionResult",
@@ -174,5 +179,6 @@ __all__ = [
     "MISResult",
     "MWISResult",
     "HyperMISResult",
+    "BMatchingResult",
     "EdgeOrientationResult",
 ]

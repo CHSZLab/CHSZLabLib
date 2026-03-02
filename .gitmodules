@@ -41,3 +41,9 @@
 [submodule "external_repositories/CluStRE"]
 	path = external_repositories/CluStRE
 	url = https://github.com/KaHIP/CluStRE
+[submodule "external_repositories/HeiHGM_Bmatching"]
+	path = external_repositories/HeiHGM_Bmatching
+	url = https://github.com/HeiHGM/Bmatching.git
+[submodule "external_repositories/HeiHGM_Streaming"]
+	path = external_repositories/HeiHGM_Streaming
+	url = https://github.com/HeiHGM/Streaming.git
