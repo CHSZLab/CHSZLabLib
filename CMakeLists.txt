@@ -1361,20 +1361,13 @@ if f.exists():
     t = re.sub(r'bool operator([<>=!]+)\(const minimal_min_heap<U>& obj\)(?! const) \{',
                r'bool operator\1(const minimal_min_heap<U>& obj) const {', t)
     # get_min(): ensure exactly one non-const + one const overload
-    # First, collapse any existing get_min definitions to canonical form
-    t = re.sub(
-        r'U& get_min\(\) \{ return \(\*this->fp\)\[0\]; \}(?:\s*const U& get_min\(\) const \{ return \(\*this->fp\)\[0\]; \})+',
-        r'U& get_min() { return (*this->fp)[0]; } const U& get_min() const { return (*this->fp)[0]; }',
-        t)
-    # If no const overload exists yet, add one
+    # Match get_min in both multi-line (original) and single-line (patched) format
     if 'const U& get_min() const' not in t:
-        t = t.replace(
-            'U& get_min() { return (*this->fp)[0]; }',
-            'U& get_min() { return (*this->fp)[0]; } const U& get_min() const { return (*this->fp)[0]; }')
-    # Remove any standalone duplicate const overload on subsequent line
-    t = re.sub(
-        r'(const U& get_min\(\) const \{ return \(\*this->fp\)\[0\]; \})\s*\n\s*const U& get_min\(\) const \{ return \(\*this->fp\)\[0\]; \}',
-        r'\1', t)
+        # Multi-line original: U& get_min() {\n\t\t\treturn (*this->fp)[0];\n\t\t}
+        t = re.sub(
+            r'(U& get_min\(\)\s*\{[^}]*\})',
+            r'\1\n\t\tconst U& get_min() const { return (*this->fp)[0]; }',
+            t, count=1)
     f.write_text(t)
 ]=])
 execute_process(
