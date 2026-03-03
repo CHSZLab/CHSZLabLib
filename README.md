@@ -1349,6 +1349,16 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
   doi       = {10.1007/978-3-642-38527-8\_16}
 }
 
+@inproceedings{sanders2012distributed,
+  author    = {Peter Sanders and Christian Schulz},
+  title     = {Distributed Evolutionary Graph Partitioning},
+  booktitle = {Proceedings of the 14th Meeting on Algorithm Engineering and Experiments ({ALENEX})},
+  pages     = {16--29},
+  publisher = {SIAM},
+  year      = {2012},
+  doi       = {10.1137/1.9781611972924.2}
+}
+
 @article{meyerhenke2017parallel,
   author  = {Henning Meyerhenke and Peter Sanders and Christian Schulz},
   title   = {Parallel Graph Partitioning for Complex Networks},
@@ -1467,6 +1477,15 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
   pages   = {1.10:1--1.10:26},
   year    = {2022},
   doi     = {10.1145/3546911}
+}
+
+@article{baumgartner2026buffcut,
+  author  = {Linus Baumg{\"a}rtner and Adil Chhabra and Marcelo Fonseca Faraj and Christian Schulz},
+  title   = {BuffCut: Prioritized Buffered Streaming Graph Partitioning},
+  journal = {CoRR},
+  volume  = {abs/2602.21248},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2602.21248}
 }
 ```
 
@@ -1596,6 +1615,18 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
   year    = {2026},
   doi     = {10.7155/jgaa.v30i1.3166}
 }
+
+@inproceedings{reinstadtler2025streaming,
+  author    = {Henrik Reinst{\"a}dtler and S. M. Ferdous and Alex Pothen and Bora U{\c{c}}ar and Christian Schulz},
+  title     = {Semi-Streaming Algorithms for Hypergraph Matching},
+  booktitle = {33rd Annual European Symposium on Algorithms ({ESA})},
+  series    = {LIPIcs},
+  volume    = {351},
+  pages     = {79:1--79:19},
+  publisher = {Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
+  year      = {2025},
+  doi       = {10.4230/LIPIcs.ESA.2025.79}
+}
 ```
 
 ### HeiOrient (Edge Orientation)
@@ -1618,15 +1649,17 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
 
 ## Authors & Acknowledgments
 
-CHSZLabLib is developed by **Christian Schulz** at Heidelberg University.
+CHSZLabLib is maintained by **Christian Schulz** at Heidelberg University.
 
 This library would not be possible without the original algorithm implementations and research contributions from the following people:
 
 - **Yaroslav Akhremtsev** — KaHIP
+- **Linus Baumgärtner** — HeiStream
 - **Sonja Biedermann** — VieClus
 - **Adil Chhabra** — HeiCut, CluStRE, HeiStream, HeidelbergMotifClustering, KaHIP
 - **Jakob Dahlum** — KaMIS
 - **Damir Ferizovic** — fpt-max-cut
+- **S. M. Ferdous** — HeiHGM/Streaming
 - **Marcelo Fonseca Faraj** — SCC, HeiStream, HeidelbergMotifClustering, KaHIP
 - **Alexander Gellner** — KaMIS
 - **Ernestine Großmann** — CHILS, HyperMIS, KaMIS (MMWIS), HeiHGM/Bmatching
@@ -1641,6 +1674,7 @@ This library would not be possible without the original algorithm implementation
 - **Matthias Mnich** — fpt-max-cut
 - **Alexander Noe** — VieCut, KaHIP
 - **Shai Dorian Peretz** — CluStRE
+- **Alex Pothen** — HeiHGM/Streaming
 - **Henrik Reinstädtler** — HeiOrient, HeiHGM/Bmatching, HeiHGM/Streaming
 - **Peter Sanders** — KaHIP, KaMIS
 - **Sebastian Schlag** — KaHIP
@@ -1649,7 +1683,7 @@ This library would not be possible without the original algorithm implementation
 - **Daniel Seemaier** — KaHIP, HeiStream
 - **Darren Strash** — VieCut, KaMIS, fpt-max-cut, HyperMIS, KaHIP
 - **Jesper Larsson Träff** — KaHIP
-- **Bora Uçar** — HeiOrient, HeiCut
+- **Bora Uçar** — HeiOrient, HeiCut, HeiHGM/Streaming
 - **Antonie Wagner** — HyperMIS
 - **Renato F. Werneck** — KaMIS
 - **Robert Williger** — KaMIS
