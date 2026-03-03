@@ -1338,24 +1338,26 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
 
 ```bibtex
 @inproceedings{sanders2013think,
-  title     = {Think Locally, Act Globally: Highly Balanced Graph Partitioning},
   author    = {Peter Sanders and Christian Schulz},
-  booktitle = {Proceedings of the 12th International Symposium on Experimental Algorithms (SEA'13)},
-  series    = {LNCS},
+  title     = {Think Locally, Act Globally: Highly Balanced Graph Partitioning},
+  booktitle = {12th International Symposium on Experimental Algorithms ({SEA})},
+  series    = {Lecture Notes in Computer Science},
   volume    = {7933},
   pages     = {164--175},
+  publisher = {Springer},
   year      = {2013},
-  publisher = {Springer}
+  doi       = {10.1007/978-3-642-38527-8\_16}
 }
 
 @article{meyerhenke2017parallel,
-  title   = {Parallel Graph Partitioning for Complex Networks},
   author  = {Henning Meyerhenke and Peter Sanders and Christian Schulz},
+  title   = {Parallel Graph Partitioning for Complex Networks},
   journal = {IEEE Transactions on Parallel and Distributed Systems},
   volume  = {28},
   number  = {9},
   pages   = {2625--2638},
-  year    = {2017}
+  year    = {2017},
+  doi     = {10.1109/TPDS.2017.2671868}
 }
 ```
 
@@ -1363,18 +1365,24 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
 
 ```bibtex
 @article{henzinger2018practical,
-  title   = {Practical Minimum Cut Algorithms},
   author  = {Monika Henzinger and Alexander Noe and Christian Schulz and Darren Strash},
+  title   = {Practical Minimum Cut Algorithms},
   journal = {ACM Journal of Experimental Algorithmics},
   volume  = {23},
-  year    = {2018}
+  year    = {2018},
+  doi     = {10.1145/3274662}
 }
 
 @inproceedings{henzinger2020finding,
-  title     = {Finding All Global Minimum Cuts in Practice},
   author    = {Monika Henzinger and Alexander Noe and Christian Schulz and Darren Strash},
-  booktitle = {Proceedings of the 28th European Symposium on Algorithms (ESA'20)},
-  year      = {2020}
+  title     = {Finding All Global Minimum Cuts in Practice},
+  booktitle = {28th Annual European Symposium on Algorithms ({ESA})},
+  series    = {LIPIcs},
+  volume    = {173},
+  pages     = {59:1--59:20},
+  publisher = {Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
+  year      = {2020},
+  doi       = {10.4230/LIPIcs.ESA.2020.59}
 }
 ```
 
@@ -1382,117 +1390,43 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
 
 ```bibtex
 @inproceedings{biedermann2018memetic,
-  title     = {Memetic Graph Clustering},
   author    = {Sonja Biedermann and Monika Henzinger and Christian Schulz and Bernhard Schuster},
-  booktitle = {Proceedings of the 17th International Symposium on Experimental Algorithms (SEA'18)},
+  title     = {Memetic Graph Clustering},
+  booktitle = {17th International Symposium on Experimental Algorithms ({SEA})},
   series    = {LIPIcs},
-  year      = {2018}
+  volume    = {103},
+  pages     = {3:1--3:15},
+  publisher = {Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
+  year      = {2018},
+  doi       = {10.4230/LIPIcs.SEA.2018.3}
 }
 ```
 
-### CHILS (Weighted Independent Set)
+### fpt-max-cut (Maximum Cut)
 
 ```bibtex
-@inproceedings{grossmann2025chils,
-  title     = {Accelerating Reductions Using Graph Neural Networks and a New Concurrent Local Search for the Maximum Weight Independent Set Problem},
-  author    = {Ernestine Gro{\ss}mann and Kenneth Langedal and Christian Schulz},
-  booktitle = {Proceedings of the Symposium on Experimental Algorithms (SEA'25)},
-  year      = {2025}
-}
-```
-
-### KaMIS (Maximum Independent Set)
-
-```bibtex
-@article{lamm2017finding,
-  title   = {Finding Near-Optimal Independent Sets at Scale},
-  author  = {Sebastian Lamm and Peter Sanders and Christian Schulz and Darren Strash and Renato F. Werneck},
-  journal = {Journal of Heuristics},
-  volume  = {23},
-  number  = {4},
-  pages   = {207--229},
-  year    = {2017}
-}
-
-@article{hespe2019scalable,
-  title   = {Scalable Kernelization for Maximum Independent Sets},
-  author  = {Demian Hespe and Christian Schulz and Darren Strash},
-  journal = {ACM Journal of Experimental Algorithmics},
-  volume  = {24},
-  number  = {1},
-  year    = {2019}
-}
-
-@inproceedings{lamm2019exactly,
-  title     = {Exactly Solving the Maximum Weight Independent Set Problem on Large Real-World Graphs},
-  author    = {Sebastian Lamm and Christian Schulz and Darren Strash and Robert Williger and Huashuo Zhang},
-  booktitle = {Proceedings of ALENEX'19},
-  pages     = {144--158},
-  year      = {2019}
-}
-
-@inproceedings{grossmann2023mmwis,
-  title     = {Finding Near-Optimal Weight Independent Sets at Scale},
-  author    = {Ernestine Gro{\ss}mann and Sebastian Lamm and Christian Schulz and Darren Strash},
-  booktitle = {Proceedings of the Genetic and Evolutionary Computation Conference (GECCO'23)},
-  pages     = {293--302},
-  year      = {2023}
-}
-```
-
-### HyperMIS (Hypergraph Independent Set)
-
-```bibtex
-@software{grossmann2026hypermis,
-  title   = {HyperMIS: Hypergraph Maximum Independent Sets},
-  author  = {Ernestine Gro{\ss}mann and Christian Schulz},
-  year    = {2026},
-  url     = {https://github.com/KarlsruheMIS/HyperMIS}
+@inproceedings{ferizovic2020maxcut,
+  author    = {Damir Ferizovic and Demian Hespe and Sebastian Lamm and Matthias Mnich and Christian Schulz and Darren Strash},
+  title     = {Engineering Kernelization for Maximum Cut},
+  booktitle = {Proceedings of the 22nd Symposium on Algorithm Engineering and Experiments ({ALENEX})},
+  pages     = {27--41},
+  publisher = {SIAM},
+  year      = {2020},
+  doi       = {10.1137/1.9781611976007.3}
 }
 ```
 
 ### SCC (Correlation Clustering)
 
 ```bibtex
-@article{hausberger2024scalable,
-  title   = {Scalable Multilevel and Memetic Signed Graph Clustering},
-  author  = {Felix Hausberger and Marcelo Fonseca Faraj and Christian Schulz},
-  journal = {arXiv preprint arXiv:2208.13618},
-  year    = {2024}
-}
-```
-
-### HeiStream (Streaming Partitioning)
-
-```bibtex
-@article{faraj2022buffered,
-  title   = {Buffered Streaming Graph Partitioning},
-  author  = {Marcelo Fonseca Faraj and Christian Schulz},
-  journal = {ACM Journal of Experimental Algorithmics},
-  year    = {2022},
-  doi     = {10.1145/3546911}
-}
-```
-
-### HeiCut (Hypergraph Minimum Cut)
-
-```bibtex
-@inproceedings{chhabra2026heicut,
-  title     = {Exact Minimum Cuts in Hypergraphs at Scale},
-  author    = {Adil Chhabra and Christian Schulz},
-  booktitle = {Proceedings of SIAM ALENEX'26},
-  year      = {2026}
-}
-```
-
-### CluStRE (Streaming Graph Clustering)
-
-```bibtex
-@software{chhabra2026clustre,
-  title   = {CluStRE: Streaming Graph Clustering with Multi-Stage Refinement},
-  author  = {Adil Chhabra and Christian Schulz},
-  year    = {2026},
-  url     = {https://github.com/KaHIP/CluStRE}
+@inproceedings{hausberger2025scalable,
+  author    = {Felix Hausberger and Marcelo Fonseca Faraj and Christian Schulz},
+  title     = {Scalable Multilevel and Memetic Signed Graph Clustering},
+  booktitle = {Proceedings of the 27th Symposium on Algorithm Engineering and Experiments ({ALENEX})},
+  pages     = {81--94},
+  publisher = {SIAM},
+  year      = {2025},
+  doi       = {10.1137/1.9781611978339.7}
 }
 ```
 
@@ -1500,29 +1434,183 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
 
 ```bibtex
 @inproceedings{chhabra2023local,
-  title     = {Local Motif Clustering via (Hyper)Graph Partitioning},
   author    = {Adil Chhabra and Marcelo Fonseca Faraj and Christian Schulz},
-  booktitle = {Proceedings of SIAM ALENEX'23},
+  title     = {Local Motif Clustering via (Hyper)Graph Partitioning},
+  booktitle = {Proceedings of the 25th Symposium on Algorithm Engineering and Experiments ({ALENEX})},
+  pages     = {96--109},
+  publisher = {SIAM},
   year      = {2023},
   doi       = {10.1137/1.9781611977561.ch9}
 }
 
 @inproceedings{chhabra2023faster,
-  title     = {Faster Local Motif Clustering via Maximum Flows},
   author    = {Adil Chhabra and Marcelo Fonseca Faraj and Christian Schulz},
-  booktitle = {Proceedings of the 31st European Symposium on Algorithms (ESA'23)},
+  title     = {Faster Local Motif Clustering via Maximum Flows},
+  booktitle = {31st Annual European Symposium on Algorithms ({ESA})},
   series    = {LIPIcs},
-  year      = {2023}
+  volume    = {274},
+  pages     = {34:1--34:16},
+  publisher = {Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
+  year      = {2023},
+  doi       = {10.4230/LIPIcs.ESA.2023.34}
+}
+```
+
+### HeiStream (Streaming Partitioning)
+
+```bibtex
+@article{faraj2022buffered,
+  author  = {Marcelo Fonseca Faraj and Christian Schulz},
+  title   = {Buffered Streaming Graph Partitioning},
+  journal = {ACM Journal of Experimental Algorithmics},
+  volume  = {27},
+  pages   = {1.10:1--1.10:26},
+  year    = {2022},
+  doi     = {10.1145/3546911}
+}
+```
+
+### CluStRE (Streaming Graph Clustering)
+
+```bibtex
+@inproceedings{chhabra2025clustre,
+  author    = {Adil Chhabra and Shai Dorian Peretz and Christian Schulz},
+  title     = {{CluStRE}: Streaming Graph Clustering with Multi-Stage Refinement},
+  booktitle = {23rd International Symposium on Experimental Algorithms ({SEA})},
+  series    = {LIPIcs},
+  volume    = {338},
+  pages     = {11:1--11:20},
+  publisher = {Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
+  year      = {2025},
+  doi       = {10.4230/LIPIcs.SEA.2025.11}
+}
+```
+
+### HeiCut (Hypergraph Minimum Cut)
+
+```bibtex
+@inproceedings{chhabra2026heicut,
+  author    = {Adil Chhabra and Christian Schulz and Bora U{\c{c}}ar and Loris Wilwert},
+  title     = {Near-Optimal Minimum Cuts in Hypergraphs at Scale},
+  booktitle = {Proceedings of the 28th Symposium on Algorithm Engineering and Experiments ({ALENEX})},
+  publisher = {SIAM},
+  year      = {2026}
+}
+```
+
+### CHILS (Weighted Independent Set)
+
+```bibtex
+@inproceedings{grossmann2025chils,
+  author    = {Ernestine Gro{\ss}mann and Kenneth Langedal and Christian Schulz},
+  title     = {Concurrent Iterated Local Search for the Maximum Weight Independent Set Problem},
+  booktitle = {23rd International Symposium on Experimental Algorithms ({SEA})},
+  series    = {LIPIcs},
+  volume    = {338},
+  pages     = {22:1--22:18},
+  publisher = {Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
+  year      = {2025},
+  doi       = {10.4230/LIPIcs.SEA.2025.22}
+}
+
+@inproceedings{grossmann2025reductions,
+  author    = {Ernestine Gro{\ss}mann and Kenneth Langedal and Christian Schulz},
+  title     = {Accelerating Reductions Using Graph Neural Networks for the Maximum Weight Independent Set Problem},
+  booktitle = {Conference on Applied and Computational Discrete Algorithms ({ACDA})},
+  pages     = {155--168},
+  publisher = {SIAM},
+  year      = {2025},
+  doi       = {10.1137/1.9781611978759.12}
+}
+```
+
+### KaMIS (Maximum Independent Set)
+
+```bibtex
+@article{lamm2017finding,
+  author  = {Sebastian Lamm and Peter Sanders and Christian Schulz and Darren Strash and Renato F. Werneck},
+  title   = {Finding Near-Optimal Independent Sets at Scale},
+  journal = {Journal of Heuristics},
+  volume  = {23},
+  number  = {4},
+  pages   = {207--229},
+  year    = {2017},
+  doi     = {10.1007/s10732-017-9337-x}
+}
+
+@article{hespe2019scalable,
+  author  = {Demian Hespe and Christian Schulz and Darren Strash},
+  title   = {Scalable Kernelization for Maximum Independent Sets},
+  journal = {ACM Journal of Experimental Algorithmics},
+  volume  = {24},
+  number  = {1},
+  pages   = {1.16:1--1.16:22},
+  year    = {2019},
+  doi     = {10.1145/3355502}
+}
+
+@inproceedings{lamm2019exactly,
+  author    = {Sebastian Lamm and Christian Schulz and Darren Strash and Robert Williger and Huashuo Zhang},
+  title     = {Exactly Solving the Maximum Weight Independent Set Problem on Large Real-World Graphs},
+  booktitle = {Proceedings of the 21st Workshop on Algorithm Engineering and Experiments ({ALENEX})},
+  pages     = {144--158},
+  publisher = {SIAM},
+  year      = {2019},
+  doi       = {10.1137/1.9781611975499.12}
+}
+
+@inproceedings{grossmann2023mmwis,
+  author    = {Ernestine Gro{\ss}mann and Sebastian Lamm and Christian Schulz and Darren Strash},
+  title     = {Finding Near-Optimal Weight Independent Sets at Scale},
+  booktitle = {Proceedings of the Genetic and Evolutionary Computation Conference ({GECCO})},
+  pages     = {293--302},
+  publisher = {ACM},
+  year      = {2023},
+  doi       = {10.1145/3583131.3590353}
+}
+```
+
+### HyperMIS (Hypergraph Independent Set)
+
+```bibtex
+@article{grossmann2026hypermis,
+  author  = {Ernestine Gro{\ss}mann and Christian Schulz and Darren Strash and Antonie Wagner},
+  title   = {Data Reductions for the Strong Maximum Independent Set Problem in Hypergraphs},
+  journal = {CoRR},
+  volume  = {abs/2602.10781},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2602.10781}
 }
 ```
 
 ### HeiHGM (Hypergraph B-Matching & Streaming Matching)
 
 ```bibtex
-@article{grossmann2025heihgm,
-  title     = {Engineering Hypergraph b-Matching Algorithms},
-  author    = {Ernestine Gro{\ss}mann and Felix Joos and Henrik Reinst{\"a}dtler and Christian Schulz},
-  year      = {2025}
+@article{grossmann2026heihgm,
+  author  = {Ernestine Gro{\ss}mann and Felix Joos and Henrik Reinst{\"a}dtler and Christian Schulz},
+  title   = {Engineering Hypergraph $b$-Matching Algorithms},
+  journal = {Journal of Graph Algorithms and Applications},
+  volume  = {30},
+  number  = {1},
+  pages   = {1--24},
+  year    = {2026},
+  doi     = {10.7155/jgaa.v30i1.3166}
+}
+```
+
+### HeiOrient (Edge Orientation)
+
+```bibtex
+@inproceedings{reinstadtler2024heiorient,
+  author    = {Henrik Reinst{\"a}dtler and Christian Schulz and Bora U{\c{c}}ar},
+  title     = {Engineering Edge Orientation Algorithms},
+  booktitle = {32nd Annual European Symposium on Algorithms ({ESA})},
+  series    = {LIPIcs},
+  volume    = {308},
+  pages     = {97:1--97:18},
+  publisher = {Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
+  year      = {2024},
+  doi       = {10.4230/LIPIcs.ESA.2024.97}
 }
 ```
 
@@ -1538,28 +1626,34 @@ This library would not be possible without the original algorithm implementation
 - **Sonja Biedermann** — VieClus
 - **Adil Chhabra** — HeiCut, CluStRE, HeiStream, HeidelbergMotifClustering, KaHIP
 - **Jakob Dahlum** — KaMIS
+- **Damir Ferizovic** — fpt-max-cut
 - **Marcelo Fonseca Faraj** — SCC, HeiStream, HeidelbergMotifClustering, KaHIP
 - **Alexander Gellner** — KaMIS
 - **Ernestine Großmann** — CHILS, HyperMIS, KaMIS (MMWIS), HeiHGM/Bmatching
 - **Felix Hausberger** — SCC
 - **Monika Henzinger** — VieCut, VieClus
 - **Alexandra Henzinger** — KaHIP
-- **Demian Hespe** — KaMIS
+- **Demian Hespe** — KaMIS, fpt-max-cut
 - **Felix Joos** — HeiHGM/Bmatching
-- **Sebastian Lamm** — KaMIS
+- **Sebastian Lamm** — KaMIS, fpt-max-cut
 - **Kenneth Langedal** — CHILS
 - **Henning Meyerhenke** — KaHIP
+- **Matthias Mnich** — fpt-max-cut
 - **Alexander Noe** — VieCut, KaHIP
-- **Henrik Reinstädtler** — HeiHGM/Bmatching, HeiHGM/Streaming
+- **Shai Dorian Peretz** — CluStRE
+- **Henrik Reinstädtler** — HeiOrient, HeiHGM/Bmatching, HeiHGM/Streaming
 - **Peter Sanders** — KaHIP, KaMIS
 - **Sebastian Schlag** — KaHIP
 - **Christian Schulz** — All libraries
 - **Bernhard Schuster** — VieClus
 - **Daniel Seemaier** — KaHIP, HeiStream
-- **Darren Strash** — VieCut, KaMIS, KaHIP
+- **Darren Strash** — VieCut, KaMIS, fpt-max-cut, HyperMIS, KaHIP
 - **Jesper Larsson Träff** — KaHIP
+- **Bora Uçar** — HeiOrient, HeiCut
+- **Antonie Wagner** — HyperMIS
 - **Renato F. Werneck** — KaMIS
 - **Robert Williger** — KaMIS
+- **Loris Wilwert** — HeiCut
 - **Huashuo Zhang** — KaMIS
 - **Bogdán Zaválnij** — KaMIS
 
