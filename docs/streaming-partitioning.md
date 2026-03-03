@@ -131,4 +131,18 @@ print(result.assignment)  # array of partition IDs
 
 ## References
 
-- Marcelo Fonseca Faraj, Alexander van der Grinten, Henning Meyerhenke, Jesper Larsson Tr\"aff, and Christian Schulz. "Buffered Streaming Graph Partitioning." *ACM Journal of Experimental Algorithmics*, 2022.
+```bibtex
+@article{heistream,
+  author   = {Marcelo Fonseca Faraj and Christian Schulz},
+  title    = {Buffered Streaming Graph Partitioning},
+  year     = {2022},
+  publisher = {Association for Computing Machinery},
+  address  = {New York, NY, USA},
+  issn     = {1084-6654},
+  url      = {https://doi.org/10.1145/3546911},
+  doi      = {10.1145/3546911},
+  journal  = {ACM Journal of Experimental Algorithmics},
+  month    = {jun},
+  keywords = {streaming algorithms, multilevel algorithms, graph partitioning}
+}
+```

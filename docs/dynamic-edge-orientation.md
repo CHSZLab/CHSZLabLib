@@ -205,5 +205,31 @@ print(f"Max out-degree: {max_degree}")
 
 ## References
 
-- Monika Henzinger, Stefan Neumann, and Christian Schulz. "Dynamic Edge Orientation." *Proceedings of the 22nd Workshop on Algorithm Engineering and Experiments (ALENEX)*, 2020.
-- Jingbang Chen, Li Chen, Rudy Huang, Xiaorui Sun, and Mikkel Thorup. "CCHHQRS: An Improved Algorithm for Dynamic Edge Orientation." *Proceedings of SODA*, 2024.
+```bibtex
+@inproceedings{DBLP:conf/acda/BorowitzG023,
+  author    = {Jannick Borowitz and Ernestine Gro{\ss}mann and Christian Schulz},
+  title     = {Engineering Fully Dynamic {\(\Delta\)}-Orientation Algorithms},
+  booktitle = {{ACDA}},
+  pages     = {25--37},
+  publisher = {{SIAM}},
+  year      = {2023}
+}
+
+@article{grossmann2024engineering,
+  title   = {Engineering Fully Dynamic Exact $\Delta$-Orientation Algorithms},
+  author  = {Gro{\ss}mann, Ernestine and Reinst{\"a}dtler, Henrik and Schulz, Christian and Walliser, Fabian},
+  journal = {arXiv preprint arXiv:2407.12595},
+  year    = {2024}
+}
+
+@inproceedings{DynamicOrientationAdaptive,
+  author    = {Ernestine Grossmann and Ivor van der Hoog and Henrik Reinst{\"a}dtler and Eva Rotenberg and Christian Schulz and Juliette Vlieghe},
+  title     = {From Theory to Practice: Engineering Approximation Algorithms for Dynamic Orientation},
+  booktitle = {33rd Annual European Symposium on Algorithms ({ESA} 2025)},
+  series    = {Leibniz International Proceedings in Informatics (LIPIcs)},
+  volume    = {351},
+  publisher = {Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
+  year      = {2025},
+  doi       = {10.4230/LIPIcs.ESA.2025.63}
+}
+```

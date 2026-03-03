@@ -130,4 +130,14 @@ result = Decomposition.process_map(
 
 ## References
 
-- Henning Woydt and Christian Schulz. "SharedMap: Shared-Memory Process Mapping." *arXiv preprint*, 2024.
+```bibtex
+@inbook{schulz2025sharedmap,
+  author    = {Christian Schulz and Henning Woydt},
+  title     = {Shared-Memory Hierarchical Process Mapping},
+  booktitle = {2025 Proceedings of the Conference on Applied and Computational Discrete Algorithms (ACDA)},
+  pages     = {18--31},
+  doi       = {10.1137/1.9781611978759.2},
+  url       = {https://epubs.siam.org/doi/abs/10.1137/1.9781611978759.2},
+  year      = {2025}
+}
+```

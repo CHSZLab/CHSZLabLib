@@ -98,4 +98,15 @@ print(f"Min cut: {result.cut_value}")
 
 ## References
 
-- Florian Heuer and Christian Schulz. "HeiCut: An Efficient Framework for Exact Hypergraph Minimum Cuts." *Proceedings of the International Conference on Parallel Processing (ICPP)*, 2024.
+```bibtex
+@misc{chhabra2025heicut,
+  title         = {Near-Optimal Minimum Cuts in Hypergraphs at Scale},
+  author        = {Adil Chhabra and Christian Schulz and Bora U\c{c}ar and Pia Wilwert},
+  year          = {2025},
+  eprint        = {2504.19842},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.DS},
+  url           = {https://arxiv.org/abs/2504.19842},
+  note          = {To appear in ALENEX 2026}
+}
+```

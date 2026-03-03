@@ -90,4 +90,22 @@ result = Decomposition.motif_cluster(
 
 ## References
 
-- Adil Chhabra, Marcelo Fonseca Faraj, and Christian Schulz. "Local Motif Clustering via (Hyper)Graph Partitioning." *Proceedings of the Symposium on Algorithm Engineering and Experiments (ALENEX)*, 2024.
+```bibtex
+@inproceedings{LocMotifClusHyperGraphPartition2023,
+  author    = {Adil Chhabra and Marcelo Fonseca Faraj and Christian Schulz},
+  title     = {Local Motif Clustering via (Hyper)Graph Partitioning},
+  booktitle = {Symposium on Algorithm Engineering and Experiments (ALENEX 23), January 22-23, 2023},
+  publisher = {{SIAM}},
+  doi       = {10.1137/1.9781611977561.ch9},
+  year      = {2023}
+}
+
+@inproceedings{FastLocMotifClusMaxFlows2023,
+  author    = {Adil Chhabra and Marcelo Fonseca Faraj and Christian Schulz},
+  title     = {Faster Local Motif Clustering via Maximum Flows},
+  booktitle = {European Symposium on Algorithms ({ESA} 2023), September 4-6, 2023},
+  publisher = {Schloss Dagstuhl - Leibniz-Zentrum f{\"u}r Informatik},
+  series    = {LIPIcs},
+  year      = {2023}
+}
+```

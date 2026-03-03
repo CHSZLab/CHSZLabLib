@@ -173,4 +173,25 @@ print(f"Matched {result.num_matched} edges, total weight: {result.total_weight}"
 
 ## References
 
-- Ernestine Gro{\ss}mann, Henrik M\"uhe, Christian Schulz, and Manuel Penschuck. "Hypergraph B-Matching." *arXiv preprint*, 2024.
+```bibtex
+@misc{grossmann2024bmatching,
+  title         = {Engineering Hypergraph $b$-Matching Algorithms},
+  author        = {Ernestine Gro{\ss}mann and Felix Joos and Henrik Reinst{\"a}dtler and Christian Schulz},
+  year          = {2024},
+  eprint        = {2408.06924},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.DS},
+  url           = {https://arxiv.org/abs/2408.06924}
+}
+
+@inproceedings{reinstaedtler2025streaming,
+  author    = {Henrik Reinst{\"a}dtler and Sm. Mahmudul Hasan Ferdous and Alex Pothen and Bora U\c{c}ar and Christian Schulz},
+  title     = {Semi-Streaming Algorithms for Hypergraph Matching},
+  booktitle = {33rd Annual European Symposium on Algorithms ({ESA} 2025)},
+  series    = {Leibniz International Proceedings in Informatics (LIPIcs)},
+  volume    = {351},
+  publisher = {Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
+  year      = {2025},
+  doi       = {10.4230/LIPIcs.ESA.2025.79}
+}
+```

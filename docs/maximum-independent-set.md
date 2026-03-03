@@ -187,5 +187,50 @@ print(f"Approx MWIS weight: {approx.weight}")
 
 ## References
 
-- Sebastian Lamm, Christian Schulz, Darren Strash, Robert Williger, and Huashuo Zhang. "Exactly Solving the Maximum Weight Independent Set Problem on Large Real-World Graphs." *Proceedings of the 21st Workshop on Algorithm Engineering and Experiments (ALENEX)*, 2019.
-- Demian Hespe, Sebastian Lamm, Christian Schulz, and Darren Strash. "WeGotYouCovered: The Winning Solver from the PACE 2019 Challenge, Vertex Cover Track." *CSC*, 2020.
+```bibtex
+@article{DBLP:journals/heuristics/LammSSSW17,
+  author  = {Sebastian Lamm and Peter Sanders and Christian Schulz and Darren Strash and Renato F. Werneck},
+  title   = {Finding near-optimal independent sets at scale},
+  journal = {J. Heuristics},
+  volume  = {23},
+  number  = {4},
+  pages   = {207--229},
+  year    = {2017},
+  url     = {https://doi.org/10.1007/s10732-017-9337-x},
+  doi     = {10.1007/s10732-017-9337-x}
+}
+
+@article{DBLP:journals/jea/Hespe0S19,
+  author  = {Demian Hespe and Christian Schulz and Darren Strash},
+  title   = {Scalable Kernelization for Maximum Independent Sets},
+  journal = {{ACM} Journal of Experimental Algorithmics},
+  volume  = {24},
+  number  = {1},
+  pages   = {1.16:1--1.16:22},
+  year    = {2019},
+  url     = {https://doi.org/10.1145/3355502},
+  doi     = {10.1145/3355502}
+}
+
+@inproceedings{DBLP:conf/alenex/Lamm0SWZ19,
+  author    = {Sebastian Lamm and Christian Schulz and Darren Strash and Robert Williger and Huashuo Zhang},
+  title     = {Exactly Solving the Maximum Weight Independent Set Problem on Large Real-World Graphs},
+  booktitle = {Proceedings of the Twenty-First Workshop on Algorithm Engineering and Experiments, {ALENEX} 2019},
+  pages     = {144--158},
+  publisher = {{SIAM}},
+  year      = {2019},
+  url       = {https://doi.org/10.1137/1.9781611975499.12},
+  doi       = {10.1137/1.9781611975499.12}
+}
+
+@inproceedings{dblp:conf/gecco/grossmannl0s23,
+  author    = {Ernestine Gro{\ss}mann and Sebastian Lamm and Christian Schulz and Darren Strash},
+  title     = {Finding Near-Optimal Weight Independent Sets at Scale},
+  booktitle = {Proceedings of the Genetic and Evolutionary Computation Conference, {GECCO} 2023},
+  pages     = {293--302},
+  publisher = {{ACM}},
+  year      = {2023},
+  url       = {https://doi.org/10.1145/3583131.3590353},
+  doi       = {10.1145/3583131.3590353}
+}
+```

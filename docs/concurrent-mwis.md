@@ -80,4 +80,11 @@ print(f"Selected vertices: {result.vertices}")
 
 ## References
 
-- Alexander Gro{\ss}mann, Christian Schulz, and Darren Strash. "CHILS: Concurrent Heuristic Independent set Local Search." *arXiv preprint*, 2024.
+```bibtex
+@article{grossmann2024accelerating,
+  title   = {Accelerating Reductions Using Graph Neural Networks and a New Concurrent Local Search for the Maximum Weight Independent Set Problem},
+  author  = {Gro{\ss}mann, Ernestine and Langedal, Kenneth and Schulz, Christian},
+  journal = {arXiv preprint arXiv:2412.14198},
+  year    = {2024}
+}
+```

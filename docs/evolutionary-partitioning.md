@@ -112,4 +112,25 @@ final_result = Decomposition.evolutionary_partition(
 
 ## References
 
-- Peter Sanders and Christian Schulz. "Distributed Evolutionary Graph Partitioning." *Proceedings of the 12th Workshop on Algorithm Engineering and Experiments (ALENEX)*, 2012.
+```bibtex
+@inproceedings{sandersschulz2013,
+  author    = {Sanders, Peter and Schulz, Christian},
+  title     = {{Think Locally, Act Globally: Highly Balanced Graph Partitioning}},
+  booktitle = {Proceedings of the 12th International Symposium on Experimental Algorithms (SEA'13)},
+  series    = {LNCS},
+  publisher = {Springer},
+  year      = {2013},
+  volume    = {7933},
+  pages     = {164--175}
+}
+
+@inproceedings{meyerhenkesandersschulz2017,
+  author  = {Meyerhenke, Henning and Sanders, Peter and Schulz, Christian},
+  title   = {{Parallel Graph Partitioning for Complex Networks}},
+  journal = {IEEE Transactions on Parallel and Distributed Systems (TPDS)},
+  volume  = {28},
+  number  = {9},
+  pages   = {2625--2638},
+  year    = {2017}
+}
+```

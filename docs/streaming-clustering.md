@@ -131,4 +131,14 @@ print(f"{result.num_clusters} clusters, modularity={result.modularity:.4f}")
 
 ## References
 
-- Christian Schulz and Fabian Seidl. "CluStRE: Clustering via Streaming and Refinement." *arXiv preprint*, 2024.
+```bibtex
+@misc{chhabra2025clustre,
+  title         = {CluStRE: Streaming Graph Clustering with Multi-Stage Refinement},
+  author        = {Adil Chhabra and Dani\"el Peretz and Christian Schulz},
+  year          = {2025},
+  eprint        = {2502.06879},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.DS},
+  url           = {https://arxiv.org/abs/2502.06879}
+}
+```

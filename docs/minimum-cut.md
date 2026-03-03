@@ -85,5 +85,26 @@ side_b = [i for i, v in enumerate(mc_exact.partition) if v == 1]
 
 ## References
 
-- Monika Henzinger, Alexander Noe, Christian Schulz, and Darren Strash. "Practical Minimum Cut Algorithms." *ACM Journal of Experimental Algorithmics*, 2020.
-- Monika Henzinger, Alexander Noe, and Christian Schulz. "Shared-Memory Exact Minimum Cuts." *Proceedings of the IEEE International Parallel and Distributed Processing Symposium (IPDPS)*, 2020.
+```bibtex
+@article{henzinger2018practical,
+  author  = {Monika Henzinger and Alexander Noe and Christian Schulz and Darren Strash},
+  title   = {Practical Minimum Cut Algorithms},
+  journal = {{ACM} Journal of Experimental Algorithmics},
+  volume  = {23},
+  year    = {2018}
+}
+
+@inproceedings{henzinger2019shared,
+  author    = {Henzinger, Monika and Noe, Alexander and Schulz, Christian},
+  title     = {{Shared-memory Exact Minimum Cuts}},
+  booktitle = {Proceedings of the 33rd International Parallel and Distributed Processing Symposium (IPDPS)},
+  year      = {2019}
+}
+
+@article{henzinger2020finding,
+  title     = {Finding All Global Minimum Cuts in Practice},
+  author    = {Henzinger, Monika and Noe, Alexander and Schulz, Christian and Strash, Darren},
+  booktitle = {28th Annual European Symposium on Algorithms, {ESA} 2020},
+  year      = {2020}
+}
+```

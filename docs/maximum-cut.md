@@ -79,4 +79,13 @@ print(f"Exact max-cut: {mc_exact.cut_value}")
 
 ## References
 
-- Jonas Lill, Ernestine Gro{\ss}mann, Sebastian Lamm, Christian Schulz, and Darren Strash. "Engineering Data Reduction for Weighted Maximum Cut." *Proceedings of the Symposium on Algorithm Engineering and Experiments (ALENEX)*, 2024.
+```bibtex
+@inproceedings{ferizovic2020engineering,
+  author    = {Ferizovic, Damir and Hespe, Demian and Lamm, Sebastian and Mnich, Matthias and Schulz, Christian and Strash, Darren},
+  title     = {Engineering Kernelization for Maximum Cut},
+  booktitle = {Proceedings of the Symposium on Algorithm Engineering and Experiments (ALENEX)},
+  publisher = {{SIAM}},
+  year      = {2020},
+  doi       = {10.1137/1.9781611976007.3}
+}
+```

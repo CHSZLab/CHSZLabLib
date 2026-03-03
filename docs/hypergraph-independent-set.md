@@ -108,4 +108,11 @@ if IndependenceProblems.HYPERMIS_ILP_AVAILABLE:
 
 ## References
 
-- Freja Bj\"ork Christensen, Alexander Gro{\ss}mann, and Christian Schulz. "Finding Maximum Independent Sets in Hypergraphs." *arXiv preprint*, 2024.
+```bibtex
+@misc{christensen2024hypermis,
+  title         = {Finding Maximum Independent Sets in Hypergraphs},
+  author        = {Freja Bj{\"o}rk Christensen and Ernestine Gro{\ss}mann and Christian Schulz},
+  year          = {2024},
+  note          = {Manuscript}
+}
+```

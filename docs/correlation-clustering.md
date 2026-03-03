@@ -117,4 +117,14 @@ print(f"Evo:  {evo.num_clusters} clusters, {evo.edge_cut} disagreements")
 
 ## References
 
-- M. Predari, M. Elhaj, C. Rieger, and C. Schulz. "Scalable Correlation Clustering." *Proceedings of the Symposium on Algorithm Engineering and Experiments (ALENEX)*, 2024.
+```bibtex
+@misc{hausberger2024scalablemultilevelmemeticsigned,
+  title         = {Scalable Multilevel and Memetic Signed Graph Clustering},
+  author        = {Felix Hausberger and Marcelo Fonseca Faraj and Christian Schulz},
+  year          = {2024},
+  eprint        = {2208.13618},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.DS},
+  url           = {https://arxiv.org/abs/2208.13618}
+}
+```

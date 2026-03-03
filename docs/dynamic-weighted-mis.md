@@ -124,4 +124,14 @@ print(f"Weight after deletion: {result.weight}")
 
 ## References
 
-- Jannick Borowitz, Christian Schulz, and Bernhard Schuster. "Dynamic Weighted Independent Sets." *arXiv preprint*, 2024.
+```bibtex
+@misc{borowitz2024optimalneighborhoodexplorationdynamic,
+  title         = {Optimal Neighborhood Exploration for Dynamic Independent Sets},
+  author        = {Jannick Borowitz and Ernestine Gro{\ss}mann and Christian Schulz},
+  year          = {2024},
+  eprint        = {2407.06912},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.DS},
+  url           = {https://arxiv.org/abs/2407.06912}
+}
+```

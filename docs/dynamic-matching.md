@@ -112,4 +112,14 @@ print(f"Matching size after deletion: {result.matching_size}")
 
 ## References
 
-- Monika Henzinger, Stefan Neumann, and Christian Schulz. "Dynamic Matching Algorithms in Practice." *Proceedings of the 28th European Symposium on Algorithms (ESA)*, 2020.
+```bibtex
+@inproceedings{DBLP:conf/esa/Henzinger0P020,
+  author    = {Monika Henzinger and Shahbaz Khan and Richard Paul and Christian Schulz},
+  title     = {Dynamic Matching Algorithms in Practice},
+  booktitle = {28th Annual European Symposium on Algorithms, {ESA} 2020},
+  pages     = {58:1--58:20},
+  year      = {2020},
+  url       = {https://doi.org/10.4230/LIPIcs.ESA.2020.58},
+  doi       = {10.4230/LIPIcs.ESA.2020.58}
+}
+```
