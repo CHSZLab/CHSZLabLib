@@ -8,3 +8,6 @@ __pycache__/
 .venv/
 test_env/
 build-mtkahypar/
+report.md
+summary.md
+docs/plans/
