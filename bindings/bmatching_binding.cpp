@@ -59,8 +59,8 @@ static std::unique_ptr<Graph> build_hypergraph(
     return g;
 }
 
-// Run a static b-matching algorithm and return (matched_edge_indices, total_weight)
-static std::tuple<py::array_t<int32_t>, double>
+// Run a static b-matching algorithm and return (matched_edge_indices, total_weight, is_optimal)
+static std::tuple<py::array_t<int32_t>, double, bool>
 py_bmatching(
     py::array_t<int64_t, py::array::c_style> eptr,
     py::array_t<int32_t, py::array::c_style> everts,
@@ -93,6 +93,7 @@ py_bmatching(
     }
 
     BMatch bm(graph.get());
+    bool is_optimal = false;
 
     using EdgeID = typename BMatch::EdgeID_t;
 
@@ -157,12 +158,11 @@ py_bmatching(
     } else if (algorithm == "reductions") {
         // Reductions → ILP on reduced instance → unfold
         HeiHGM::BMatching::bmatching::reductions_sorted::all_removals_exhaustive(bm, *graph);
-        bool optimal = false;
         // Restore stdout/stderr for Gurobi (gurobipy needs Python I/O)
         std::cout.rdbuf(old_cout);
         std::cerr.rdbuf(old_cerr);
         HeiHGM::BMatching::bmatching::ilp::computeIlp<BMatch>(
-            graph.get(), bm, optimal, ILP_time_limit);
+            graph.get(), bm, is_optimal, ILP_time_limit);
         // Re-suppress stdout/stderr
         std::cout.rdbuf(null_stream.rdbuf());
         std::cerr.rdbuf(null_stream.rdbuf());
@@ -200,7 +200,7 @@ py_bmatching(
         r(i) = matched[i];
     }
 
-    return std::make_tuple(result, total_weight);
+    return std::make_tuple(result, total_weight, is_optimal);
 }
 
 PYBIND11_MODULE(_bmatching, m) {
@@ -241,7 +241,7 @@ PYBIND11_MODULE(_bmatching, m) {
 
           Returns
           -------
-          tuple[ndarray[int32], float]
-              (matched_edge_indices, total_weight).
+          tuple[ndarray[int32], float, bool]
+              (matched_edge_indices, total_weight, is_optimal).
           )doc");
 }
