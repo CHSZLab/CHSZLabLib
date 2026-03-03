@@ -63,9 +63,7 @@ echo
 rm -rf "${WORK_DIR}"
 mkdir -p "${WORK_DIR}" "${DEST_DIR}"
 
-git clone "${MTK_REPO}" "${SRC_DIR}"
-git -C "${SRC_DIR}" checkout "${MTK_TAG}"
-git -C "${SRC_DIR}" submodule update --init --recursive
+git clone --recursive --branch "${MTK_TAG}" "${MTK_REPO}" "${SRC_DIR}"
 
 test -d "${SRC_DIR}/external_tools" || {
     echo "!!! external_tools/ missing. Submodules not fetched correctly."
