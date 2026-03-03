@@ -87,7 +87,15 @@ class TestStaticBMatching:
     ])
     def test_all_algorithms(self, algorithm):
         hg = make_small_hypergraph()
-        r = IndependenceProblems.bmatching(hg, algorithm=algorithm, seed=42)
+        if algorithm == "reductions":
+            try:
+                r = IndependenceProblems.bmatching(hg, algorithm=algorithm, seed=42)
+            except RuntimeError as e:
+                if "Gurobi" in str(e) or "ILP" in str(e):
+                    pytest.skip("Gurobi not available")
+                raise
+        else:
+            r = IndependenceProblems.bmatching(hg, algorithm=algorithm, seed=42)
         assert isinstance(r, BMatchingResult)
         assert r.num_matched >= 0
         assert r.total_weight >= 0
