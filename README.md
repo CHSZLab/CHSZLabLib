@@ -14,6 +14,7 @@
   <img src="https://img.shields.io/badge/macOS-arm64-000000?logo=apple&logoColor=white" alt="macOS arm64">
   <img src="https://img.shields.io/badge/OpenMP-parallel-blue?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg==" alt="OpenMP">
   <img src="https://img.shields.io/badge/%F0%9F%A4%96-agent--ready-8A2BE2" alt="Agent-ready">
+  <img src="https://img.shields.io/badge/C%2B%2B_LOC-350k%2B-informational?logo=cplusplus&logoColor=white" alt="350k+ lines of C++ shipped">
   <br>
   <a href="https://github.com/CHSZLab/CHSZLabLib/actions/workflows/build-wheels.yml"><img src="https://github.com/CHSZLab/CHSZLabLib/actions/workflows/build-wheels.yml/badge.svg" alt="Build wheels"></a>
   <a href="https://pypi.org/project/chszlablib/"><img src="https://img.shields.io/pypi/v/chszlablib" alt="PyPI version"></a>

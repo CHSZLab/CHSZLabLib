@@ -23,6 +23,7 @@ from chszlablib.decomposition import (
     StreamPartitionResult,
     StreamClusterResult,
     HypergraphMincutResult,
+    ProcessMappingResult,
 )
 from chszlablib.independence import (
     IndependenceProblems, MISResult, MWISResult, HyperMISResult,
@@ -123,6 +124,7 @@ def describe() -> str:
         "  CorrelationClusteringResult  edge_cut, num_clusters, assignment",
         "  MotifClusterResult      cluster_nodes, motif_conductance",
         "  HypergraphMincutResult  cut_value, time",
+        "  ProcessMappingResult    comm_cost, assignment",
         "  MISResult               size, weight, vertices",
         "  MWISResult              size, weight, vertices",
         "  HyperMISResult          size, weight, vertices, offset, reduction_time",
@@ -195,6 +197,7 @@ __all__ = [
     "StreamPartitionResult",
     "StreamClusterResult",
     "HypergraphMincutResult",
+    "ProcessMappingResult",
     "MISResult",
     "MWISResult",
     "HyperMISResult",

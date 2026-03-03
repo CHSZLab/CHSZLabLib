@@ -1976,6 +1976,106 @@ set_target_properties(_heicut PROPERTIES
 install(TARGETS _heicut DESTINATION chszlablib)
 
 # =============================================================================
+# SharedMap  (Hierarchical Process Mapping)
+# =============================================================================
+set(SHAREDMAP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/SharedMap)
+
+# Use SharedMap's own Mt-KaHyPar v1.5.3 build (matches CLI exactly).
+set(SHAREDMAP_MTKAHYPAR_DIR ${SHAREDMAP_DIR}/extern/local/mt-kahypar)
+set(SHAREDMAP_MTKAHYPAR_INCLUDE ${SHAREDMAP_MTKAHYPAR_DIR}/include)
+# Try lib/ first, fall back to lib64/
+if(EXISTS "${SHAREDMAP_MTKAHYPAR_DIR}/lib/libmtkahypar.so")
+    set(SHAREDMAP_MTKAHYPAR_LIB_DIR ${SHAREDMAP_MTKAHYPAR_DIR}/lib)
+elseif(EXISTS "${SHAREDMAP_MTKAHYPAR_DIR}/lib64/libmtkahypar.so")
+    set(SHAREDMAP_MTKAHYPAR_LIB_DIR ${SHAREDMAP_MTKAHYPAR_DIR}/lib64)
+else()
+    message(WARNING "SharedMap's Mt-KaHyPar library not found, falling back to HeiCut's")
+    set(SHAREDMAP_MTKAHYPAR_LIB_DIR "")
+endif()
+
+add_library(sharedmap_static STATIC
+    ${SHAREDMAP_DIR}/lib/libsharedmap.cpp
+    ${SHAREDMAP_DIR}/src/utility/build_anchor.cpp
+)
+
+# Use SharedMap's own v1.5.3 headers (no shims needed — native API match).
+target_include_directories(sharedmap_static PUBLIC
+    ${SHAREDMAP_DIR}                                       # for "include/...", "src/..." includes
+    ${SHAREDMAP_MTKAHYPAR_INCLUDE}                         # mtkahypar.h, mtkahypartypes.h (v1.5.3)
+    ${TBB_INCLUDE_DIR}                                     # TBB headers
+    ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/KaHIP/interface  # kaHIP_interface.h
+)
+
+target_compile_features(sharedmap_static PUBLIC cxx_std_17)
+target_compile_options(sharedmap_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>)
+target_compile_definitions(sharedmap_static PRIVATE NDEBUG)
+
+target_link_libraries(sharedmap_static PUBLIC kahip_static)
+if(SHAREDMAP_MTKAHYPAR_LIB_DIR)
+    # Link against SharedMap's own Mt-KaHyPar v1.5.3 (same as CLI)
+    target_link_libraries(sharedmap_static PUBLIC ${SHAREDMAP_MTKAHYPAR_LIB_DIR}/libmtkahypar.so)
+elseif(MTKAHYPAR_LIB)
+    target_link_libraries(sharedmap_static PUBLIC ${MTKAHYPAR_LIB})
+endif()
+if(TBB_LIB)
+    target_link_libraries(sharedmap_static PUBLIC ${TBB_LIB})
+endif()
+if(HWLOC_LIB)
+    target_link_libraries(sharedmap_static PUBLIC ${HWLOC_LIB})
+endif()
+if(Threads_FOUND)
+    target_link_libraries(sharedmap_static PUBLIC Threads::Threads)
+endif()
+
+# --- _sharedmap pybind11 module ---
+pybind11_add_module(_sharedmap bindings/sharedmap_binding.cpp)
+target_link_libraries(_sharedmap PRIVATE sharedmap_static)
+set_target_properties(_sharedmap PROPERTIES
+    BUILD_RPATH "${SHAREDMAP_MTKAHYPAR_LIB_DIR};${TBB_DIR}/lib/intel64/gcc4.8"
+    INSTALL_RPATH "$ORIGIN"
+)
+install(TARGETS _sharedmap DESTINATION chszlablib)
+
+# Install SharedMap's Mt-KaHyPar .so into chszlablib/ for runtime loading.
+# Only install versioned files (soname libmtkahypar.so.1) to avoid conflict
+# with HeiCut's unversioned libmtkahypar.so.
+if(SHAREDMAP_MTKAHYPAR_LIB_DIR)
+    install(FILES
+        "${SHAREDMAP_MTKAHYPAR_LIB_DIR}/libmtkahypar.so.1.5.3"
+        DESTINATION chszlablib)
+    # Also install the soname symlink
+    install(CODE "
+        execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
+            libmtkahypar.so.1.5.3 \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/chszlablib/libmtkahypar.so.1)
+    ")
+    # Install bundled dependencies (required by Mt-KaHyPar v1.5.3)
+    file(GLOB _SHAREDMAP_BOOST_LIBS "${SHAREDMAP_MTKAHYPAR_LIB_DIR}/libboost_program_options.so*")
+    if(_SHAREDMAP_BOOST_LIBS)
+        install(FILES ${_SHAREDMAP_BOOST_LIBS} DESTINATION chszlablib)
+    endif()
+    # Install bundled TBB (v1.5.3 needs newer TBB than system may have)
+    file(GLOB _SHAREDMAP_TBB_LIBS
+        "${SHAREDMAP_MTKAHYPAR_LIB_DIR}/libtbb.so*"
+        "${SHAREDMAP_MTKAHYPAR_LIB_DIR}/libtbbmalloc.so*")
+    if(_SHAREDMAP_TBB_LIBS)
+        install(FILES ${_SHAREDMAP_TBB_LIBS} DESTINATION chszlablib)
+    endif()
+    # Patch libmtkahypar.so.1.5.3 RPATH so it finds bundled TBB/Boost
+    find_program(PATCHELF_EXECUTABLE patchelf)
+    if(PATCHELF_EXECUTABLE)
+        install(CODE "
+            execute_process(COMMAND ${PATCHELF_EXECUTABLE} --set-rpath \"\\$ORIGIN\"
+                \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/chszlablib/libmtkahypar.so.1.5.3)
+        ")
+    endif()
+endif()
+
+# Install HeiCut's Mt-KaHyPar .so into chszlablib/ for _heicut runtime loading.
+if(MTKAHYPAR_LIB)
+    install(FILES "${MTKAHYPAR_LIB}" DESTINATION chszlablib)
+endif()
+
+# =============================================================================
 # HeiHGM  (Hypergraph B-Matching — Static + Streaming)
 # =============================================================================
 set(HEIHGM_BMATCHING_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/HeiHGM_Bmatching)

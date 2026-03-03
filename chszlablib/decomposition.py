@@ -38,6 +38,19 @@ _ORIENTATION_ALGO_MAP = {"two_approx", "dfs", "combined"}
 
 _MOTIF_METHOD_MAP = {"social", "lmchgp"}
 
+_PROCESS_MAP_MODE_MAP = {
+    "fast": ("nb_layer", "mtkahypar_default", "kaffpa_fast"),
+    "eco": ("nb_layer", "mtkahypar_default", "kaffpa_eco"),
+    "strong": ("nb_layer", "mtkahypar_quality", "kaffpa_strong"),
+}
+
+_PROCESS_MAP_STRATEGY_SET = {"naive", "layer", "queue", "nb_layer"}
+
+_PROCESS_MAP_ALGORITHM_SET = {
+    "kaffpa_fast", "kaffpa_eco", "kaffpa_strong",
+    "mtkahypar_default", "mtkahypar_quality", "mtkahypar_highest_quality",
+}
+
 # ---------------------------------------------------------------------------
 # Type aliases
 # ---------------------------------------------------------------------------
@@ -56,6 +69,7 @@ MaxcutMethod = Literal["heuristic", "exact"]
 MotifMethod = Literal["social", "lmchgp"]
 HypergraphMincutAlgorithm = Literal["kernelizer", "ilp", "submodular", "trimmer"]
 StreamClusterMode = Literal["light", "light_plus", "evo", "strong"]
+ProcessMapMode = Literal["fast", "eco", "strong"]
 
 # ---------------------------------------------------------------------------
 # Validation helpers
@@ -174,6 +188,17 @@ class HypergraphMincutResult:
     time: float
 
 
+@dataclass
+class ProcessMappingResult:
+    """Result of a hierarchical process mapping computation."""
+
+    comm_cost: int
+    """Total communication cost of the mapping."""
+
+    assignment: np.ndarray
+    """Process assignment for each node (0-indexed)."""
+
+
 # ---------------------------------------------------------------------------
 # Decomposition namespace
 # ---------------------------------------------------------------------------
@@ -209,6 +234,20 @@ class Decomposition:
     MOTIF_METHODS: tuple[str, ...] = ("social", "lmchgp")
     """Valid methods for :meth:`motif_cluster`."""
 
+    PROCESS_MAP_MODES: tuple[str, ...] = ("fast", "eco", "strong")
+    """Valid modes for :meth:`process_map`."""
+
+    PROCESS_MAP_STRATEGIES: tuple[str, ...] = (
+        "naive", "layer", "queue", "nb_layer",
+    )
+    """Valid strategies for :meth:`process_map`."""
+
+    PROCESS_MAP_ALGORITHMS: tuple[str, ...] = (
+        "kaffpa_fast", "kaffpa_eco", "kaffpa_strong",
+        "mtkahypar_default", "mtkahypar_quality", "mtkahypar_highest_quality",
+    )
+    """Valid algorithms for :meth:`process_map`."""
+
     def __new__(cls):
         raise TypeError(f"{cls.__name__} is a namespace and cannot be instantiated")
 
@@ -232,6 +271,7 @@ class Decomposition:
             "motif_cluster": "Local motif clustering (HeidelbergMotifClustering)",
             "stream_cluster": "Streaming graph clustering (CluStRE)",
             "hypergraph_mincut": "Exact hypergraph minimum cut (HeiCut)",
+            "process_map": "Hierarchical process mapping (SharedMap)",
         }
 
     # --- KaHIP: Graph Partitioning ---
@@ -1369,6 +1409,172 @@ class Decomposition:
             )
 
         return HypergraphMincutResult(cut_value=int(cut), time=float(t))
+
+    # --- SharedMap: Process Mapping ---
+
+    @staticmethod
+    def process_map(
+        g: Graph,
+        hierarchy: Sequence[int],
+        distance: Sequence[int],
+        *,
+        mode: ProcessMapMode | None = "eco",
+        strategy: str | None = None,
+        parallel_algorithm: str | None = None,
+        serial_algorithm: str | None = None,
+        imbalance: float = 0.03,
+        threads: int = 1,
+        seed: int = 0,
+        verbose: bool = False,
+    ) -> ProcessMappingResult:
+        """Map graph vertices to a hierarchical machine topology using SharedMap.
+
+        Given a communication graph and a hierarchical description of the
+        target machine (e.g. 4 nodes x 8 cores), computes an assignment of
+        vertices to processing elements that minimizes total communication
+        cost. Uses KaHIP for serial partitioning and Mt-KaHyPar for parallel
+        partitioning internally.
+
+        Parameters
+        ----------
+        g : Graph
+            Communication graph (undirected, weighted edges represent
+            communication volume).
+        hierarchy : sequence of int
+            Machine hierarchy levels, e.g. ``[4, 8]`` means 4 nodes with 8
+            cores each (32 PEs total). The product of all levels determines the
+            total number of processing elements.
+        distance : sequence of int
+            Communication cost per hierarchy level. Must have the same length
+            as *hierarchy*. ``distance[i]`` is the cost of communicating across
+            level *i* of the hierarchy.
+        mode : str or None
+            Preset that selects (strategy, parallel_algorithm, serial_algorithm).
+
+            ==========  ==========  ==========  ==========
+            Mode        Strategy    Parallel    Serial
+            ==========  ==========  ==========  ==========
+            ``"fast"``  nb_layer    mtkahypar_default  kaffpa_fast
+            ``"eco"``   nb_layer    mtkahypar_default  kaffpa_eco
+            ``"strong"``nb_layer    mtkahypar_quality  kaffpa_strong
+            ==========  ==========  ==========  ==========
+
+            Set to ``None`` to specify all three individually.
+        strategy : str or None
+            Thread distribution strategy. Overrides mode preset.
+            One of: ``"naive"``, ``"layer"``, ``"queue"``, ``"nb_layer"``.
+        parallel_algorithm : str or None
+            Parallel partitioning algorithm. Overrides mode preset.
+            One of: ``"mtkahypar_default"``, ``"mtkahypar_quality"``,
+            ``"mtkahypar_highest_quality"``.
+        serial_algorithm : str or None
+            Serial partitioning algorithm. Overrides mode preset.
+            One of: ``"kaffpa_fast"``, ``"kaffpa_eco"``, ``"kaffpa_strong"``.
+        imbalance : float
+            Allowed weight imbalance as a fraction (0.03 means 3%).
+        threads : int
+            Number of threads to use for parallel partitioning.
+        seed : int
+            Random seed for reproducibility.
+        verbose : bool
+            If ``True``, print statistics from the C++ algorithm.
+
+        Returns
+        -------
+        ProcessMappingResult
+            ``comm_cost`` (int) -- total communication cost.
+            ``assignment`` (ndarray) -- PE assignment for each vertex.
+
+        Raises
+        ------
+        InvalidModeError
+            If ``mode``, ``strategy``, or algorithm strings are not recognized.
+        ValueError
+            If ``hierarchy`` and ``distance`` have different lengths, or are
+            empty, or contain non-positive values.
+
+        Examples
+        --------
+        >>> g = Graph.from_edge_list([(0,1,10),(1,2,20),(2,3,10),(3,0,20)])
+        >>> r = Decomposition.process_map(
+        ...     g, hierarchy=[2, 2], distance=[1, 10], mode="fast", threads=4
+        ... )
+        >>> print(f"Comm cost: {r.comm_cost}, assignment: {r.assignment}")
+        """
+        from chszlablib._sharedmap import shared_map
+
+        hierarchy = list(hierarchy)
+        distance = list(distance)
+
+        if len(hierarchy) != len(distance):
+            raise ValueError(
+                f"hierarchy and distance must have the same length, "
+                f"got {len(hierarchy)} vs {len(distance)}"
+            )
+        if len(hierarchy) == 0:
+            raise ValueError("hierarchy must not be empty")
+        if any(h <= 0 for h in hierarchy):
+            raise ValueError(f"All hierarchy values must be > 0, got {hierarchy}")
+        if any(d < 0 for d in distance):
+            raise ValueError(f"All distance values must be >= 0, got {distance}")
+        if imbalance < 0:
+            raise ValueError(f"imbalance must be >= 0, got {imbalance}")
+        if threads < 1:
+            raise ValueError(f"threads must be >= 1, got {threads}")
+
+        # Resolve mode preset
+        if mode is not None:
+            if mode not in _PROCESS_MAP_MODE_MAP:
+                raise InvalidModeError(
+                    f"Unknown mode {mode!r}. "
+                    f"Choose from: {', '.join(sorted(_PROCESS_MAP_MODE_MAP))}"
+                )
+            preset_strat, preset_par, preset_ser = _PROCESS_MAP_MODE_MAP[mode]
+        else:
+            preset_strat = preset_par = preset_ser = None
+
+        strat = strategy if strategy is not None else preset_strat
+        par_alg = parallel_algorithm if parallel_algorithm is not None else preset_par
+        ser_alg = serial_algorithm if serial_algorithm is not None else preset_ser
+
+        if strat is None or par_alg is None or ser_alg is None:
+            raise ValueError(
+                "When mode=None, strategy, parallel_algorithm, and "
+                "serial_algorithm must all be specified."
+            )
+
+        if strat not in _PROCESS_MAP_STRATEGY_SET:
+            raise InvalidModeError(
+                f"Unknown strategy {strat!r}. "
+                f"Choose from: {', '.join(sorted(_PROCESS_MAP_STRATEGY_SET))}"
+            )
+        if par_alg not in _PROCESS_MAP_ALGORITHM_SET:
+            raise InvalidModeError(
+                f"Unknown parallel_algorithm {par_alg!r}. "
+                f"Choose from: {', '.join(sorted(_PROCESS_MAP_ALGORITHM_SET))}"
+            )
+        if ser_alg not in _PROCESS_MAP_ALGORITHM_SET:
+            raise InvalidModeError(
+                f"Unknown serial_algorithm {ser_alg!r}. "
+                f"Choose from: {', '.join(sorted(_PROCESS_MAP_ALGORITHM_SET))}"
+            )
+
+        g.finalize()
+        vwgt = g.node_weights.astype(np.int32, copy=False)
+        xadj = g.xadj.astype(np.int32, copy=False)
+        adjwgt = g.edge_weights.astype(np.int32, copy=False)
+        adjncy = g.adjncy.astype(np.int32, copy=False)
+        hier_arr = np.array(hierarchy, dtype=np.int32)
+        dist_arr = np.array(distance, dtype=np.int32)
+
+        comm_cost, assignment = shared_map(
+            vwgt, xadj, adjwgt, adjncy,
+            hier_arr, dist_arr,
+            float(imbalance), threads, seed,
+            strat, par_alg, ser_alg,
+            verbose,
+        )
+        return ProcessMappingResult(comm_cost=comm_cost, assignment=assignment)
 
 
 # ---------------------------------------------------------------------------

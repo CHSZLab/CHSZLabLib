@@ -60,3 +60,6 @@
 [submodule "external_repositories/DynWMIS"]
 	path = external_repositories/DynWMIS
 	url = https://github.com/DynGraphLab/DynWMIS.git
+[submodule "external_repositories/SharedMap"]
+	path = external_repositories/SharedMap
+	url = https://github.com/HenningWoydt/SharedMap.git
