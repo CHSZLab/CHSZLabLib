@@ -73,33 +73,29 @@ public:
         iparams["b"] = b;
         iparams["bfs_depth"] = bfs_depth;
 
+        // Use reset(new ...) instead of make_unique because the constructors
+        // are templated on MapType/StringType and Clang cannot deduce those
+        // template parameters through make_unique's perfect forwarding.
         if (algorithm == "cchhqrs") {
-            auto p = std::make_unique<CCHHQRS>(g, dparams, iparams);
-            algo_cchhqrs_ = std::move(p);
+            algo_cchhqrs_.reset(new CCHHQRS(g, dparams, iparams));
             which_ = ALG_CCHHQRS;
         } else if (algorithm == "limited_bfs") {
-            auto p = std::make_unique<LimitedBFS>(g, dparams, iparams);
-            algo_limited_bfs_ = std::move(p);
+            algo_limited_bfs_.reset(new LimitedBFS(g, dparams, iparams));
             which_ = ALG_LIMITED_BFS;
         } else if (algorithm == "strong_bfs") {
-            auto p = std::make_unique<StrongBFS>(g, dparams, iparams);
-            algo_strong_bfs_ = std::move(p);
+            algo_strong_bfs_.reset(new StrongBFS(g, dparams, iparams));
             which_ = ALG_STRONG_BFS;
         } else if (algorithm == "improved_bfs") {
-            auto p = std::make_unique<ImprovedBFS>(g, dparams, iparams);
-            algo_improved_bfs_ = std::move(p);
+            algo_improved_bfs_.reset(new ImprovedBFS(g, dparams, iparams));
             which_ = ALG_IMPROVED_BFS;
         } else if (algorithm == "packed_cchhqrs") {
-            auto p = std::make_unique<PackedVector>(g, dparams, iparams);
-            algo_packed_vector_ = std::move(p);
+            algo_packed_vector_.reset(new PackedVector(g, dparams, iparams));
             which_ = ALG_PACKED_VECTOR;
         } else if (algorithm == "packed_cchhqrs_list") {
-            auto p = std::make_unique<PackedList>(g, dparams, iparams);
-            algo_packed_list_ = std::move(p);
+            algo_packed_list_.reset(new PackedList(g, dparams, iparams));
             which_ = ALG_PACKED_LIST;
         } else if (algorithm == "packed_cchhqrs_map") {
-            auto p = std::make_unique<PackedMap>(g, dparams, iparams);
-            algo_packed_map_ = std::move(p);
+            algo_packed_map_.reset(new PackedMap(g, dparams, iparams));
             which_ = ALG_PACKED_MAP;
         } else {
             std::cout.rdbuf(old_cout);
