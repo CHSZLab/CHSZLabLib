@@ -116,7 +116,7 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 | [KaMIS](https://github.com/KarlsruheMIS/KaMIS) | Independent set | ReduMIS, OnlineMIS, Branch&Reduce, MMWIS |
 | [CHILS](https://github.com/KennethLangedal/CHILS) | Weighted independent set | Concurrent heuristic independent local search |
 | [HyperMIS](https://github.com/KarlsruheMIS/HyperMIS) | Hypergraph independent set | Kernelization reductions (+ optional ILP via Gurobi) |
-| [HeiHGM/Bmatching](https://github.com/HeiHGM/Bmatching) | Hypergraph b-matching | Greedy (7 orderings), reductions+unfold, ILS |
+| [HeiHGM/Bmatching](https://github.com/HeiHGM/Bmatching) | Hypergraph b-matching | Greedy (7 orderings), reductions+ILP+unfold, ILS |
 | [HeiHGM/Streaming](https://github.com/HeiHGM/Streaming) | Streaming hypergraph matching | Naive, greedy, greedy\_set, best\_evict, lenient |
 
 **Orientation** — Edge orientation for minimum maximum out-degree.
@@ -214,7 +214,7 @@ print(f"Streaming matching: {r.num_matched} edges, weight {r.total_weight}")
 | Find a large independent set | `IndependenceProblems.redumis` | `time_limit` |
 | Find max-weight independent set | `IndependenceProblems.chils` | `time_limit`, `num_concurrent` |
 | Independent set on a hypergraph | `IndependenceProblems.hypermis` | `method`, `time_limit`, `strong_reductions` |
-| Find max-weight b-matching on hypergraph | `IndependenceProblems.bmatching` | `algorithm`, `seed` |
+| Find max-weight b-matching on hypergraph | `IndependenceProblems.bmatching` | `algorithm`, `seed`, `ILP_time_limit` |
 | Stream hypergraph edges for matching | `StreamingBMatcher` | `algorithm`, `epsilon` |
 | Orient edges (min max out-degree) | `Orientation.orient_edges` | `algorithm` |
 
@@ -248,7 +248,7 @@ Decomposition.hypergraph_mincut(hg, algorithm="submodular")             # hyperg
 hg = HyperGraph.from_edge_list([[0,1],[1,2],[2,3],[3,4]], num_nodes=5, edge_weights=[5,3,7,2])
 IndependenceProblems.bmatching(hg)                                      # greedy b-matching
 IndependenceProblems.bmatching(hg, algorithm="ils")                     # ILS b-matching
-IndependenceProblems.bmatching(hg, algorithm="reductions")              # reductions + unfold
+IndependenceProblems.bmatching(hg, algorithm="reductions")              # reductions + ILP + unfold
 
 from chszlablib import StreamingBMatcher
 sm = StreamingBMatcher(5, algorithm="greedy")                           # streaming matcher
@@ -891,7 +891,7 @@ Maximum independent set and maximum weight independent set solvers.
 | `mmwis` | Maximum weight independent set (evolutionary) | KaMIS |
 | `chils` | Maximum weight independent set (concurrent local search) | CHILS |
 | `hypermis` | Maximum independent set on hypergraphs (heuristic or exact) | HyperMIS |
-| `bmatching` | Hypergraph b-matching (greedy, reductions, ILS) | HeiHGM/Bmatching |
+| `bmatching` | Hypergraph b-matching (greedy, reductions+ILP, ILS) | HeiHGM/Bmatching |
 
 #### `IndependenceProblems.redumis(g, ...)` — Maximum Independent Set (KaMIS)
 
@@ -1011,7 +1011,8 @@ When all capacities are 1, this is a standard maximum weight matching.
 
 ```python
 IndependenceProblems.bmatching(hg, algorithm="greedy_weight_desc", seed=0,
-                               ils_iterations=15, ils_time_limit=1800.0) -> BMatchingResult
+                               ils_iterations=15, ils_time_limit=1800.0,
+                               ILP_time_limit=1000.0) -> BMatchingResult
 ```
 
 | Parameter | Type | Default | Description |
@@ -1021,8 +1022,9 @@ IndependenceProblems.bmatching(hg, algorithm="greedy_weight_desc", seed=0,
 | `seed` | `int` | `0` | Random seed |
 | `ils_iterations` | `int` | `15` | Max ILS perturbation iterations (only for `"ils"`) |
 | `ils_time_limit` | `float` | `1800.0` | ILS time limit in seconds (only for `"ils"`) |
+| `ILP_time_limit` | `float` | `1000.0` | ILP time limit in seconds (only for `"reductions"`) |
 
-**Returns** `BMatchingResult` with fields: `matched_edges` (int array of edge indices), `total_weight` (float), `num_matched` (int).
+**Returns** `BMatchingResult` with fields: `matched_edges` (int array of edge indices), `total_weight` (float), `num_matched` (int), `is_optimal` (bool — `True` if the ILP solver proved optimality, only for `"reductions"`).
 
 ```python
 from chszlablib import HyperGraph, IndependenceProblems
@@ -1041,7 +1043,7 @@ result = IndependenceProblems.bmatching(hg2, algorithm="ils")
 print(f"B-matching: {result.num_matched} edges, weight: {result.total_weight}")
 ```
 
-> **Note:** Valid algorithms are listed in `IndependenceProblems.BMATCHING_ALGORITHMS`. The `"reductions"` algorithm applies preprocessing reductions (edge folding, domination removal), solves the reduced instance via ILP (requires `gurobipy`), and unfolds to recover a valid matching in the original hypergraph. Use `ILP_time_limit` to set the ILP time limit (default 1000 s). The `"ils"` algorithm uses iterated local search with perturbation.
+> **Note:** Valid algorithms are listed in `IndependenceProblems.BMATCHING_ALGORITHMS`. The `"reductions"` algorithm applies preprocessing reductions (edge folding, domination removal), solves the reduced instance exactly via ILP (requires `gurobipy` and a valid [Gurobi license](https://www.gurobi.com/downloads/)), and unfolds to recover a valid matching in the original hypergraph. The result's `is_optimal` flag indicates whether Gurobi proved optimality within the time limit. The `"ils"` algorithm uses iterated local search with perturbation.
 
 ---
 
