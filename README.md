@@ -42,7 +42,7 @@ The [Algorithm Engineering Group Heidelberg](https://ae.ifi.uni-heidelberg.de/) 
 
 **CHSZLabLib wraps some of these libraries into a single, easy-to-use Python interface.** `Graph` and `HyperGraph` objects, consistent method signatures, typed result objects, and zero-copy NumPy arrays — designed to be productive for end users and fully discoverable by AI agents (LLMs).
 
-For full algorithmic control (custom parameter tuning, every possible knob), use the underlying C/C++ repositories directly. TThis library prioritizes convenience and a unified interface -- not for full speed.
+For full algorithmic control (custom parameter tuning, every possible knob), use the underlying C/C++ repositories directly. This library prioritizes convenience and a unified interface -- not for full speed.
 
 ### Group Members (Main Contributors)
 
