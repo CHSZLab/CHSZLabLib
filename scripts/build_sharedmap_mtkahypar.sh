@@ -42,12 +42,16 @@ esac
 
 # ---- Skip if already built --------------------------------------------
 # Check both lib/ and lib64/ — install location varies by platform
+# On macOS, the library is renamed to libmtkahypar_sm.dylib to avoid
+# collision with HeiCut's libmtkahypar.dylib.
 for _dir in "${DEST_DIR}/lib" "${DEST_DIR}/lib64"; do
-    if [ -f "${_dir}/libmtkahypar.${LIB_EXT}" ]; then
-        echo ">>> libmtkahypar.${LIB_EXT} already exists at ${_dir}, skipping build."
-        echo "    To rebuild, delete it first: rm ${_dir}/libmtkahypar.${LIB_EXT}"
-        exit 0
-    fi
+    for _name in "libmtkahypar.${LIB_EXT}" "libmtkahypar_sm.${LIB_EXT}"; do
+        if [ -f "${_dir}/${_name}" ]; then
+            echo ">>> ${_name} already exists at ${_dir}, skipping build."
+            echo "    To rebuild, delete it first: rm ${_dir}/${_name}"
+            exit 0
+        fi
+    done
 done
 
 echo ">>> Building Mt-KaHyPar v1.5.3 for SharedMap (libmtkahypar.${LIB_EXT})"
@@ -152,16 +156,14 @@ if $IS_LINUX; then
     echo ">>> Bundled libs in ${DEST_LIBDIR}:"
     ls -1 "${DEST_LIBDIR}" | grep -E 'mtkahypar|libboost_|libtbb' || true
 else
-    # macOS: copy .dylib (no versioned soname scheme)
-    cp -a "${STAGE_LIBDIR}"/libmtkahypar.${LIB_EXT}* "${DEST_LIBDIR}/"
+    # macOS: copy and rename to avoid collision with HeiCut's libmtkahypar.dylib
+    cp "${STAGE_LIBDIR}/libmtkahypar.${LIB_EXT}" "${DEST_LIBDIR}/libmtkahypar_sm.${LIB_EXT}"
 
     # Fix install name to use @rpath for relocatable wheels
-    for f in "${DEST_LIBDIR}"/libmtkahypar.${LIB_EXT}*; do
-        [ -f "$f" ] && [ ! -L "$f" ] && \
-            install_name_tool -id "@rpath/$(basename "$f")" "$f" 2>/dev/null || true
-    done
+    install_name_tool -id "@rpath/libmtkahypar_sm.${LIB_EXT}" \
+        "${DEST_LIBDIR}/libmtkahypar_sm.${LIB_EXT}" 2>/dev/null || true
 
-    echo ">>> Installed: ${DEST_LIBDIR}/libmtkahypar.${LIB_EXT}"
+    echo ">>> Installed: ${DEST_LIBDIR}/libmtkahypar_sm.${LIB_EXT}"
 fi
 
 # ---- Clean up build directory -----------------------------------------

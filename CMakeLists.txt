@@ -1991,9 +1991,16 @@ else()
     set(_SM_LIB_EXT "so")
 endif()
 # Try lib/ first, fall back to lib64/
-if(EXISTS "${SHAREDMAP_MTKAHYPAR_DIR}/lib/libmtkahypar.${_SM_LIB_EXT}")
+# On macOS, the library is renamed to libmtkahypar_sm.dylib to avoid
+# collision with HeiCut's libmtkahypar.dylib.
+if(APPLE)
+    set(_SM_LIB_NAME "mtkahypar_sm")
+else()
+    set(_SM_LIB_NAME "mtkahypar")
+endif()
+if(EXISTS "${SHAREDMAP_MTKAHYPAR_DIR}/lib/lib${_SM_LIB_NAME}.${_SM_LIB_EXT}")
     set(SHAREDMAP_MTKAHYPAR_LIB_DIR ${SHAREDMAP_MTKAHYPAR_DIR}/lib)
-elseif(EXISTS "${SHAREDMAP_MTKAHYPAR_DIR}/lib64/libmtkahypar.${_SM_LIB_EXT}")
+elseif(EXISTS "${SHAREDMAP_MTKAHYPAR_DIR}/lib64/lib${_SM_LIB_NAME}.${_SM_LIB_EXT}")
     set(SHAREDMAP_MTKAHYPAR_LIB_DIR ${SHAREDMAP_MTKAHYPAR_DIR}/lib64)
 else()
     set(SHAREDMAP_MTKAHYPAR_LIB_DIR "")
@@ -2043,7 +2050,8 @@ target_compile_definitions(sharedmap_static PRIVATE NDEBUG)
 target_link_libraries(sharedmap_static PUBLIC kahip_static)
 if(SHAREDMAP_MTKAHYPAR_LIB_DIR)
     # Link against SharedMap's own Mt-KaHyPar v1.5.3 (same as CLI)
-    find_library(SHAREDMAP_MTKAHYPAR_LIB mtkahypar
+    # On macOS, uses renamed libmtkahypar_sm.dylib to avoid HeiCut collision.
+    find_library(SHAREDMAP_MTKAHYPAR_LIB ${_SM_LIB_NAME}
         PATHS ${SHAREDMAP_MTKAHYPAR_LIB_DIR} NO_DEFAULT_PATH)
     target_link_libraries(sharedmap_static PUBLIC ${SHAREDMAP_MTKAHYPAR_LIB})
 elseif(MTKAHYPAR_LIB)
@@ -2071,12 +2079,12 @@ install(TARGETS _sharedmap DESTINATION chszlablib)
 # Install SharedMap's Mt-KaHyPar into chszlablib/ for runtime loading.
 if(SHAREDMAP_MTKAHYPAR_LIB_DIR)
     if(APPLE)
-        # macOS: install .dylib; delocate-wheel handles bundling
-        file(GLOB _SM_MTKAHYPAR_DYLIBS "${SHAREDMAP_MTKAHYPAR_LIB_DIR}/libmtkahypar.dylib*")
+        # macOS: install renamed libmtkahypar_sm.dylib to avoid collision with HeiCut's
+        file(GLOB _SM_MTKAHYPAR_DYLIBS "${SHAREDMAP_MTKAHYPAR_LIB_DIR}/libmtkahypar_sm.dylib*")
         if(_SM_MTKAHYPAR_DYLIBS)
             install(FILES ${_SM_MTKAHYPAR_DYLIBS} DESTINATION chszlablib)
         endif()
-        # Set RPATH so _sharedmap.so finds libmtkahypar.dylib next to itself
+        # Set RPATH so _sharedmap.so finds libmtkahypar_sm.dylib next to itself
         install(CODE "
             execute_process(COMMAND install_name_tool -add_rpath @loader_path
                 \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/chszlablib/_sharedmap\${CMAKE_SHARED_MODULE_SUFFIX}
