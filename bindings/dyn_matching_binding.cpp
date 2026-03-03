@@ -2,7 +2,9 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
+#include <climits>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -11,6 +13,7 @@
 #include "data_structure/dyn_graph_access.h"
 #include "match_config.h"
 #include "definitions.h"
+#include "tools/random_functions.h"
 #include "algorithms/dyn_matching.h"
 #include "algorithms/rw_dyn_matching.h"
 #include "algorithms/baswanaguptasen_dyn_matching.h"
@@ -44,24 +47,34 @@ public:
         std::cout.rdbuf(null_stream.rdbuf());
         std::cerr.rdbuf(null_stream.rdbuf());
 
+        // Match CLI PRNG initialization
+        srand(seed);
+        random_functions::setSeed(seed);
+
         G_ = std::make_unique<dyn_graph_access>(static_cast<NodeID>(num_nodes));
 
         MatchConfig config;
         config.algorithm = parse_algorithm(algorithm);
         config.seed = seed;
+        // Match CLI defaults (configuration.h standard())
         config.post_blossom = false;
-        config.fast_rw = true;
-        config.dynblossom_speedheuristic = true;
+        config.fast_rw = false;
+        config.dynblossom_speedheuristic = false;
         config.dynblossom_weakspeedheuristic = false;
-        config.blossom_init = BLOSSOMGREEDY;
-        config.rw_max_length = 1000;
-        config.rw_low_degree_settle = true;
-        config.rw_low_degree_value = 3;
-        config.rw_ending_additional_settle = true;
+        config.blossom_init = BLOSSOMEXTRAGREEDY;
+        config.rw_max_length = 10;
+        config.rw_low_degree_settle = false;
+        config.rw_low_degree_value = 10000000;
+        config.rw_ending_additional_settle = false;
         config.rw_repetitions_per_node = 1;
-        config.naive_settle_on_insertion = true;
+        config.naive_settle_on_insertion = false;
         config.bgs_factor = 1.0;
         config.maintain_opt = false;
+
+        // CLI parse_parameters.h: dynblossom overrides rw_max_length
+        if (config.algorithm == DYNBLOSSOM) {
+            config.rw_max_length = std::numeric_limits<int>::max() / 2;
+        }
 
         switch (config.algorithm) {
             case RANDOM_WALK:

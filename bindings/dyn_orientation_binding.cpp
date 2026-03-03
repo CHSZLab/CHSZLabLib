@@ -13,6 +13,7 @@
 #include "DeltaOrientationsResult.h"
 #include "algorithms/DynEdgeOrientation.h"
 #include "tools/algorithm_factory.h"
+#include "tools/random_functions.h"
 
 namespace py = pybind11;
 
@@ -35,7 +36,7 @@ static DeltaOrientationsAlgorithmType parse_algorithm(const std::string& name) {
 class DynOrientationSolver {
 public:
     DynOrientationSolver(int num_nodes, const std::string& algorithm, int seed)
-        : num_nodes_(num_nodes), algorithm_name_(algorithm)
+        : num_nodes_(num_nodes), algorithm_name_(algorithm), finalized_(false)
     {
         // Suppress stdout/stderr from C++ library
         std::streambuf* old_cout = std::cout.rdbuf();
@@ -43,6 +44,10 @@ public:
         std::ostringstream null_stream;
         std::cout.rdbuf(null_stream.rdbuf());
         std::cerr.rdbuf(null_stream.rdbuf());
+
+        // Match CLI PRNG initialization
+        srand(seed);
+        random_functions::setSeed(seed);
 
         G_ = std::make_shared<dyn_graph_access>(static_cast<NodeID>(num_nodes));
 
@@ -65,6 +70,7 @@ public:
         std::cerr.rdbuf(null_stream.rdbuf());
 
         solver_->handleInsertion(static_cast<NodeID>(u), static_cast<NodeID>(v));
+        finalized_ = false;
 
         std::cout.rdbuf(old_cout);
         std::cerr.rdbuf(old_cerr);
@@ -78,16 +84,19 @@ public:
         std::cerr.rdbuf(null_stream.rdbuf());
 
         solver_->handleDeletion(static_cast<NodeID>(u), static_cast<NodeID>(v));
+        finalized_ = false;
 
         std::cout.rdbuf(old_cout);
         std::cerr.rdbuf(old_cerr);
     }
 
     int get_max_out_degree() {
+        ensure_finalized();
         return static_cast<int>(G_->maxDegree());
     }
 
     py::array_t<int32_t> get_out_degrees() {
+        ensure_finalized();
         py::array_t<int32_t> degrees(num_nodes_);
         auto d = degrees.mutable_unchecked<1>();
         for (int i = 0; i < num_nodes_; i++) {
@@ -97,12 +106,33 @@ public:
     }
 
     int get_num_edges() {
+        ensure_finalized();
         return static_cast<int>(G_->number_of_edges());
     }
 
 private:
+    void ensure_finalized() {
+        if (!finalized_) {
+            // Algorithms maintain their own internal adjacency lists and only
+            // copy edges to GOrientation in end().  We must call end() before
+            // querying the graph, matching CLI behaviour.
+            std::streambuf* old_cout = std::cout.rdbuf();
+            std::streambuf* old_cerr = std::cerr.rdbuf();
+            std::ostringstream null_stream;
+            std::cout.rdbuf(null_stream.rdbuf());
+            std::cerr.rdbuf(null_stream.rdbuf());
+
+            solver_->end();
+            finalized_ = true;
+
+            std::cout.rdbuf(old_cout);
+            std::cerr.rdbuf(old_cerr);
+        }
+    }
+
     int num_nodes_;
     std::string algorithm_name_;
+    bool finalized_;
     std::shared_ptr<dyn_graph_access> G_;
     std::unique_ptr<DeltaOrientationsResult> result_;
     std::shared_ptr<dyn_edge_orientation> solver_;

@@ -2,7 +2,9 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
+#include <climits>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -13,15 +15,18 @@
 #include "definitions_wmis.h"
 #include "algorithms/dyn_wmis_algorithm.h"
 #include "tools/algorithm_factory.h"
+#include "tools/random_functions.h"
 
 namespace py = pybind11;
 
 static DynWMISAlgorithmType parse_algorithm(const std::string& name) {
-    if (name == "simple" || name == "one_fast")   return DYNWMIS_SIMPLE;
-    if (name == "greedy")                         return DYNWMIS_GREEDY;
-    if (name == "deg_greedy")                     return DYNWMIS_GREEDY_DEG;
-    if (name == "bfs")                            return DYNWMIS_BFS;
-    if (name == "static" || name == "one_strong") return DYNWMIS_STATIC;
+    if (name == "simple")      return DYNWMIS_SIMPLE;
+    if (name == "greedy")      return DYNWMIS_GREEDY;
+    if (name == "deg_greedy")  return DYNWMIS_GREEDY_DEG;
+    if (name == "bfs")         return DYNWMIS_BFS;
+    if (name == "one_fast")    return DYNWMIS_BFS;     // CLI: DynamicOneFast → BFS + settings
+    if (name == "one_strong")  return DYNWMIS_BFS;     // CLI: DynamicOneStrong → BFS + settings
+    if (name == "static")      return DYNWMIS_STATIC;
     throw std::invalid_argument("Unknown algorithm: " + name);
 }
 
@@ -41,6 +46,10 @@ public:
         std::cout.rdbuf(null_stream.rdbuf());
         std::cerr.rdbuf(null_stream.rdbuf());
 
+        // Match CLI PRNG initialization
+        srand(seed);
+        random_functions::setSeed(seed);
+
         G_ = std::make_shared<dyn_graph_access>(static_cast<NodeID>(num_nodes));
 
         // Set node weights
@@ -53,9 +62,31 @@ public:
         DynWMISConfig config;
         config.algorithmType = parse_algorithm(algorithm);
         config.seed = seed;
+        // Match CLI defaults (parse_parameters.h)
         config.bfs_depth = bfs_depth;
         config.local_solver_time_limit = time_limit;
+        config.local_problem_size_limit = std::numeric_limits<int>::max();
         config.unit_weights = false;
+        config.local_algorithmType = MIS_BRANCH_AND_REDUCE;
+
+        // Apply algorithm-specific overrides matching CLI parse_parameters
+        if (algorithm == "one_fast") {
+            config.prune_updates = true;
+            config.rare_update_counter = 3;
+            config.rare_update_factor = 1.2;
+            config.limit_degree_parameter_factor = 1.35;
+            config.local_solver_time_limit = 10;
+            config.local_problem_size_limit = 200;
+        } else if (algorithm == "one_strong") {
+            config.prune_updates = true;
+            config.local_solver_time_limit = 10;
+            config.limit_degree_parameter_factor = 1.35;
+            config.local_problem_size_limit = 2500;
+        }
+
+        // Propagate time limit to sub-solvers (matches CLI)
+        config.kamis_wmis.time_limit = config.local_solver_time_limit;
+        config.onlinemis.time_limit = config.local_solver_time_limit;
 
         solver_ = getdyn_wmis_instance(config.algorithmType, G_, config);
 

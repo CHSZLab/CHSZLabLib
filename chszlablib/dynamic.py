@@ -259,9 +259,9 @@ class DynWeightedMIS:
     seed : int, optional
         Random seed (default 0).
     bfs_depth : int, optional
-        BFS depth for local algorithms (default 2).
+        BFS depth for local algorithms (default 10).
     time_limit : float, optional
-        Time limit for local solver in seconds (default 1.0).
+        Time limit for local solver in seconds (default 1000.0).
     """
 
     ALGORITHMS: tuple[str, ...] = (
@@ -278,8 +278,8 @@ class DynWeightedMIS:
         node_weights: np.ndarray | list[int],
         algorithm: str = "deg_greedy",
         seed: int = 0,
-        bfs_depth: int = 2,
-        time_limit: float = 1.0,
+        bfs_depth: int = 10,
+        time_limit: float = 1000.0,
     ) -> None:
         if algorithm not in self.ALGORITHMS:
             from chszlablib.exceptions import InvalidModeError
@@ -432,8 +432,8 @@ class DynamicProblems:
         node_weights: np.ndarray | list[int],
         algorithm: str = "deg_greedy",
         seed: int = 0,
-        bfs_depth: int = 2,
-        time_limit: float = 1.0,
+        bfs_depth: int = 10,
+        time_limit: float = 1000.0,
     ) -> DynWeightedMIS:
         """Create a dynamic weighted MIS solver.
 
@@ -449,9 +449,9 @@ class DynamicProblems:
         seed : int, optional
             Random seed (default 0).
         bfs_depth : int, optional
-            BFS depth for local algorithms (default 2).
+            BFS depth for local algorithms (default 10).
         time_limit : float, optional
-            Time limit for local solver in seconds (default 1.0).
+            Time limit for local solver in seconds (default 1000.0).
 
         Returns
         -------
