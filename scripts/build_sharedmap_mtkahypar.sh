@@ -73,9 +73,12 @@ if $IS_LINUX; then
     )
 else
     # On macOS, use system TBB and Boost from Homebrew.
+    # AppleClang treats unsigned-long-long → int64_t narrowing as fatal error
+    # in contraction_tree.cpp when 64-bit IDs are enabled.
     CMAKE_EXTRA_FLAGS=(
         -DKAHYPAR_DOWNLOAD_TBB="${KAHYPAR_DOWNLOAD_TBB:-OFF}"
         -DKAHYPAR_DOWNLOAD_BOOST="${KAHYPAR_DOWNLOAD_BOOST:-OFF}"
+        -DCMAKE_CXX_FLAGS="-Wno-c++11-narrowing"
     )
 fi
 
