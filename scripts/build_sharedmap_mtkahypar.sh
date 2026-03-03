@@ -3,18 +3,16 @@
 # Clones mt-kahypar at tag v1.5.3, builds the C library,
 # and installs it to SharedMap's extern/local/mt-kahypar/ directory.
 #
-# System dependencies (macOS): brew install hwloc tbb boost
-# System dependencies (Linux): hwloc-devel (TBB & Boost downloaded automatically)
+# v1.5.3 uses CMake FetchContent for dependencies (no git submodules).
 #
-# Based on SharedMap's build.sh and scripts/build_mtkahypar.sh (HeiCut).
+# System dependencies (macOS): brew install hwloc tbb boost
+# System dependencies (Linux): hwloc-devel (TBB & Boost downloaded via FetchContent)
 set -euo pipefail
 
 # ---- Config (override via env vars) -----------------------------------
 MTK_REPO="${MTK_REPO:-https://github.com/kahypar/mt-kahypar.git}"
 MTK_TAG="${MTK_TAG:-v1.5.3}"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
-TBB_URL="https://github.com/oneapi-src/oneTBB/releases/download/v2021.7.0/oneapi-tbb-2021.7.0-lin.tgz"
-BOOST_URL="https://sourceforge.net/projects/boost/files/boost/1.69.0/boost_1_69_0.tar.bz2/download"
 
 # ---- Paths ------------------------------------------------------------
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -60,72 +58,24 @@ echo "    dest   : ${DEST_DIR}"
 echo
 
 # ---- Clone at pinned tag ----------------------------------------------
+# v1.5.3 has no git submodules; dependencies are fetched via CMake FetchContent.
 rm -rf "${WORK_DIR}"
 mkdir -p "${WORK_DIR}" "${DEST_DIR}"
 
-git clone --recursive --branch "${MTK_TAG}" "${MTK_REPO}" "${SRC_DIR}"
+git clone --branch "${MTK_TAG}" --depth 1 "${MTK_REPO}" "${SRC_DIR}"
 
-test -d "${SRC_DIR}/external_tools" || {
-    echo "!!! external_tools/ missing. Submodules not fetched correctly."
-    exit 1
-}
-
-# ---- Platform-specific dependency setup & cmake flags -----------------
+# ---- Platform-specific cmake flags ------------------------------------
 if $IS_LINUX; then
-    # On Linux (manylinux containers), system TBB/Boost are too old.
-    # mt-KaHyPar's cmake download scripts are broken in containers
-    # (FetchContent extracts to / instead of source dir).
-    # We download both ourselves and patch cmake to find them.
-
-    TBB_DIR="${SRC_DIR}/external_tools/tbb"
-    BOOST_DIR="${SRC_DIR}/external_tools/boost"
-
-    echo ">>> Downloading TBB..."
-    mkdir -p "${TBB_DIR}"
-    curl -sL "${TBB_URL}" | tar xz --strip-components=1 -C "${TBB_DIR}"
-
-    echo ">>> Downloading Boost..."
-    mkdir -p "${BOOST_DIR}"
-    curl -sL "${BOOST_URL}" | tar xj --strip-components=1 -C "${BOOST_DIR}"
-
-    # Patch CMakeLists: fix paths and add -fPIC for mini_boost
-    python3 -c "
-import pathlib
-f = pathlib.Path('${SRC_DIR}/CMakeLists.txt')
-txt = f.read_text()
-# Fix Boost paths: glob and include use BINARY_DIR but files are in SOURCE_DIR
-txt = txt.replace(
-    '\${CMAKE_CURRENT_BINARY_DIR}/external_tools/boost/',
-    '\${CMAKE_CURRENT_SOURCE_DIR}/external_tools/boost/')
-# Fix TBB path
-txt = txt.replace(
-    'set(TBB_ROOT \${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)',
-    'set(TBB_ROOT \${CMAKE_CURRENT_SOURCE_DIR}/external_tools/tbb)')
-# Disable the broken execute_process download calls (files already exist)
-txt = txt.replace(
-    'execute_process(COMMAND cmake -P \${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_boost.cmake)',
-    '# download_boost.cmake skipped (pre-downloaded)')
-txt = txt.replace(
-    'execute_process(COMMAND cmake -P \${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tbb_linux.cmake)',
-    '# download_tbb_linux.cmake skipped (pre-downloaded)')
-# Fix mini_boost: needs -fPIC to link into shared library
-txt = txt.replace(
-    'set_target_properties(mini_boost PROPERTIES LINKER_LANGUAGE CXX)',
-    'set_target_properties(mini_boost PROPERTIES LINKER_LANGUAGE CXX POSITION_INDEPENDENT_CODE ON)')
-f.write_text(txt)
-"
-
+    # On Linux (manylinux containers), use FetchContent to download TBB & Boost.
     CMAKE_EXTRA_FLAGS=(
         -DKAHYPAR_DOWNLOAD_TBB=ON
         -DKAHYPAR_DOWNLOAD_BOOST=ON
-        -DMT_KAHYPAR_DISABLE_BOOST=OFF
     )
 else
     # On macOS, use system TBB and Boost from Homebrew.
     CMAKE_EXTRA_FLAGS=(
         -DKAHYPAR_DOWNLOAD_TBB="${KAHYPAR_DOWNLOAD_TBB:-OFF}"
         -DKAHYPAR_DOWNLOAD_BOOST="${KAHYPAR_DOWNLOAD_BOOST:-OFF}"
-        -DMT_KAHYPAR_DISABLE_BOOST=OFF
     )
 fi
 
@@ -139,7 +89,6 @@ cmake -S "${SRC_DIR}" -B "${BLD_DIR}" \
     -DKAHYPAR_USE_64_BIT_IDS=ON \
     -DKAHYPAR_ENABLE_THREAD_PINNING=OFF \
     -DKAHYPAR_DISABLE_ASSERTIONS=ON \
-    -DKAHYPAR_ENFORCE_MINIMUM_TBB_VERSION=OFF \
     -DKAHYPAR_PYTHON=OFF \
     "${CMAKE_EXTRA_FLAGS[@]}"
 
@@ -170,15 +119,15 @@ if [ -d "${STAGE_DIR}/include" ]; then
 fi
 echo ">>> Installed headers to ${DEST_DIR}/include/"
 
-# Determine destination lib directory (match what cmake installed)
+# Determine destination lib directory
 DEST_LIBDIR="${DEST_DIR}/lib"
 mkdir -p "${DEST_LIBDIR}"
 
 if $IS_LINUX; then
-    # Copy versioned .so and create symlinks (same as SharedMap's build.sh)
+    # Copy versioned .so and create symlinks
     cp -a "${STAGE_LIBDIR}"/libmtkahypar.so* "${DEST_LIBDIR}/"
 
-    # Bundle downloaded TBB + Boost runtime deps
+    # Bundle FetchContent-downloaded TBB + Boost runtime deps
     for pattern in libtbb.so* libtbbmalloc.so* libboost_program_options.so* \
                    libboost_system.so* libboost_filesystem.so* \
                    libboost_thread.so* libboost_container.so*; do
