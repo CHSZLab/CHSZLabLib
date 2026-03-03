@@ -65,6 +65,7 @@ mkdir -p "${WORK_DIR}" "${DEST_DIR}"
 git clone --branch "${MTK_TAG}" --depth 1 "${MTK_REPO}" "${SRC_DIR}"
 
 # ---- Platform-specific cmake flags ------------------------------------
+USE_64BIT_IDS=ON
 if $IS_LINUX; then
     # On Linux (manylinux containers), use FetchContent to download TBB & Boost.
     CMAKE_EXTRA_FLAGS=(
@@ -73,12 +74,13 @@ if $IS_LINUX; then
     )
 else
     # On macOS, use system TBB and Boost from Homebrew.
-    # AppleClang treats unsigned-long-long → int64_t narrowing as fatal error
-    # in contraction_tree.cpp when 64-bit IDs are enabled.
+    # Disable 64-bit IDs on macOS: unsigned long is already 8 bytes on arm64,
+    # but KAHYPAR_USE_64_BIT_IDS changes typedefs to unsigned long long which
+    # causes type mismatches with size_t (unsigned long) in std::max etc.
+    USE_64BIT_IDS=OFF
     CMAKE_EXTRA_FLAGS=(
         -DKAHYPAR_DOWNLOAD_TBB="${KAHYPAR_DOWNLOAD_TBB:-OFF}"
         -DKAHYPAR_DOWNLOAD_BOOST="${KAHYPAR_DOWNLOAD_BOOST:-OFF}"
-        -DCMAKE_CXX_FLAGS="-Wno-c++11-narrowing"
     )
 fi
 
@@ -89,7 +91,7 @@ cmake -S "${SRC_DIR}" -B "${BLD_DIR}" \
     -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
     -DCMAKE_INSTALL_PREFIX="${STAGE_DIR}" \
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-    -DKAHYPAR_USE_64_BIT_IDS=ON \
+    -DKAHYPAR_USE_64_BIT_IDS="${USE_64BIT_IDS}" \
     -DKAHYPAR_ENABLE_THREAD_PINNING=OFF \
     -DKAHYPAR_DISABLE_ASSERTIONS=ON \
     -DKAHYPAR_PYTHON=OFF \
