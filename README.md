@@ -74,7 +74,7 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 ## Table of Contents
 
 - [About](#about)
-- [Integrated Libraries](#integrated-libraries)
+- [Overview of Integrated Libraries](#integrated-libraries)
 - [Quick Start](#quick-start)
 - [Agent Quick Reference](#agent-quick-reference)
 - [Installation](#installation)
@@ -93,7 +93,7 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 
 ---
 
-## Integrated Libraries
+## Overview of Integrated Libraries
 
 **Decomposition** — Partitioning, cuts, clustering, and community detection.
 
