@@ -1041,7 +1041,7 @@ result = IndependenceProblems.bmatching(hg2, algorithm="ils")
 print(f"B-matching: {result.num_matched} edges, weight: {result.total_weight}")
 ```
 
-> **Note:** Valid algorithms are listed in `IndependenceProblems.BMATCHING_ALGORITHMS`. The `"reductions"` algorithm applies preprocessing reductions (edge folding, domination removal) before maximizing. The `"ils"` algorithm uses iterated local search with perturbation.
+> **Note:** Valid algorithms are listed in `IndependenceProblems.BMATCHING_ALGORITHMS`. The `"reductions"` algorithm applies preprocessing reductions (edge folding, domination removal) followed by unfolding to recover a valid matching in the original hypergraph. The `"ils"` algorithm uses iterated local search with perturbation.
 
 ---
 

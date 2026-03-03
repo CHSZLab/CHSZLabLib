@@ -17,6 +17,7 @@
 #include "bmatching/greedy/ordered.h"
 #include "bmatching/ils/ils.h"
 #include "bmatching/reductions_sorted/driver.h"
+#include "bmatching/reductions_sorted/foldings.h"
 
 namespace py = pybind11;
 
@@ -148,8 +149,9 @@ py_bmatching(
                 return -static_cast<double>(graph->edgeWeight(e)) / cap_product;
             });
     } else if (algorithm == "reductions") {
-        // Reductions only — matches CLI "reductions" standalone behavior
+        // Reductions + unfold — matches CLI chain: reductions → unfold
         HeiHGM::BMatching::bmatching::reductions_sorted::all_removals_exhaustive(bm, *graph);
+        HeiHGM::BMatching::bmatching::reductions_sorted::weighted_vertex_unfolding(*graph, bm);
     } else if (algorithm == "ils") {
         // Greedy init + ILS — matches CLI chain: greedy(bweight) → ils
         HeiHGM::BMatching::bmatching::greedy_static_ordered_matching<BMatch>(
