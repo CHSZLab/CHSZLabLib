@@ -522,6 +522,7 @@ class IndependenceProblems:
         seed: int = 0,
         ils_iterations: int = 15,
         ils_time_limit: float = 1800.0,
+        ILP_time_limit: float = 1000.0,
     ) -> BMatchingResult:
         """Compute a maximum weight b-matching on a hypergraph.
 
@@ -549,6 +550,9 @@ class IndependenceProblems:
             Max ILS iterations (default 15, only for ``"ils"``).
         ils_time_limit : float, optional
             ILS time budget in seconds (default 1800, only for ``"ils"``).
+        ILP_time_limit : float, optional
+            ILP time limit in seconds for the ``"reductions"`` algorithm
+            (default 1000).
 
         Returns
         -------
@@ -582,6 +586,7 @@ class IndependenceProblems:
             eptr, everts, edge_weights, capacities,
             hg.num_nodes, algorithm, seed,
             ils_iterations, ils_time_limit,
+            ILP_time_limit,
         )
 
         return BMatchingResult(

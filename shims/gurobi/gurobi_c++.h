@@ -48,6 +48,7 @@ constexpr int GRB_DoubleParam_IntFeasTol    = 4002;
 constexpr int GRB_DoubleParam_FeasibilityTol= 4003;
 constexpr int GRB_DoubleParam_TimeLimit     = 4004;
 constexpr int GRB_IntParam_LogToConsole     = 5001;
+constexpr int GRB_IntParam_OutputFlag       = 5001;  // alias for LogToConsole
 constexpr int GRB_IntParam_Seed             = 5002;
 constexpr int GRB_IntParam_Threads          = 5003;
 
@@ -163,8 +164,11 @@ class GRBEnv {
 public:
     GRBEnv() = default;
     explicit GRBEnv(bool /*start*/) {}
+    explicit GRBEnv(const std::string& /*logFileName*/) {}
+    explicit GRBEnv(const char* /*logFileName*/) {}
     void start() {}
     void set(const std::string& /*param*/, const std::string& /*value*/) {}
+    void set(int /*param*/, int /*value*/) {}
 };
 
 // ---------------------------------------------------------------------------

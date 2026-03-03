@@ -1744,6 +1744,10 @@ target_compile_features(bmatching_headers INTERFACE cxx_std_17)
 # --- _bmatching pybind11 module ---
 pybind11_add_module(_bmatching bindings/bmatching_binding.cpp)
 target_link_libraries(_bmatching PRIVATE bmatching_headers)
+target_include_directories(_bmatching BEFORE PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/shims/gurobi          # Gurobi C++ shim (gurobipy backend)
+)
+target_compile_definitions(_bmatching PRIVATE USE_GUROBI_ENABLED)
 target_compile_options(_bmatching PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>)
 install(TARGETS _bmatching DESTINATION chszlablib)
 

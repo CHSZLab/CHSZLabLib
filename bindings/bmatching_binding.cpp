@@ -18,6 +18,11 @@
 #include "bmatching/ils/ils.h"
 #include "bmatching/reductions_sorted/driver.h"
 #include "bmatching/reductions_sorted/foldings.h"
+// Prevent computeIlp from calling exit() on Gurobi exceptions —
+// rethrow as a C++ exception so Python can handle it gracefully.
+#define exit(code) throw std::runtime_error("ILP solver failed (Gurobi error)")
+#include "bmatching/ilp/ilp_exact.h"
+#undef exit
 
 namespace py = pybind11;
 
@@ -65,7 +70,8 @@ py_bmatching(
     const std::string& algorithm,
     int seed,
     int ils_iterations,
-    double ils_time_limit)
+    double ils_time_limit,
+    double ILP_time_limit)
 {
     // Suppress stdout/stderr
     std::streambuf *old_cout = std::cout.rdbuf();
@@ -149,8 +155,17 @@ py_bmatching(
                 return -static_cast<double>(graph->edgeWeight(e)) / cap_product;
             });
     } else if (algorithm == "reductions") {
-        // Reductions + unfold — matches CLI chain: reductions → unfold
+        // Reductions → ILP on reduced instance → unfold
         HeiHGM::BMatching::bmatching::reductions_sorted::all_removals_exhaustive(bm, *graph);
+        bool optimal = false;
+        // Restore stdout/stderr for Gurobi (gurobipy needs Python I/O)
+        std::cout.rdbuf(old_cout);
+        std::cerr.rdbuf(old_cerr);
+        HeiHGM::BMatching::bmatching::ilp::computeIlp<BMatch>(
+            graph.get(), bm, optimal, ILP_time_limit);
+        // Re-suppress stdout/stderr
+        std::cout.rdbuf(null_stream.rdbuf());
+        std::cerr.rdbuf(null_stream.rdbuf());
         HeiHGM::BMatching::bmatching::reductions_sorted::weighted_vertex_unfolding(*graph, bm);
     } else if (algorithm == "ils") {
         // Greedy init + ILS — matches CLI chain: greedy(bweight) → ils
@@ -197,6 +212,7 @@ PYBIND11_MODULE(_bmatching, m) {
           py::arg("num_nodes"),
           py::arg("algorithm"), py::arg("seed"),
           py::arg("ils_iterations"), py::arg("ils_time_limit"),
+          py::arg("ILP_time_limit"),
           R"doc(
           Run a hypergraph b-matching algorithm.
 
@@ -220,6 +236,8 @@ PYBIND11_MODULE(_bmatching, m) {
               Max ILS iterations (only for "ils").
           ils_time_limit : float
               ILS time limit in seconds (only for "ils").
+          ILP_time_limit : float
+              ILP time limit in seconds for "reductions" algorithm.
 
           Returns
           -------
