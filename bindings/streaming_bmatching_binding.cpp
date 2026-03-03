@@ -10,6 +10,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace py = pybind11;
@@ -116,9 +117,11 @@ struct GreedySetState {
 
     void stream(size_t edge_idx, const Hyperedge& e) {
         double weight = 0.0;
+        std::unordered_set<int> seen;
         for (auto p : e.pins) {
-            if (short_cut[p] >= 0 && alive[short_cut[p]]) {
+            if (short_cut[p] >= 0 && alive[short_cut[p]] && !seen.count(short_cut[p])) {
                 weight += edges[short_cut[p]].weight;
+                seen.insert(short_cut[p]);
             }
         }
         if (e.weight > weight * (1.0 + eps)) {

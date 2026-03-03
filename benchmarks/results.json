@@ -1,0 +1,486 @@
+{
+  "clustre": [
+    {
+      "instance": "delaunay_n15",
+      "mode": "light",
+      "py_modularity": 0.5794046323658081,
+      "cli_modularity": 0.579405,
+      "py_clusters": 4301,
+      "cli_clusters": 4301,
+      "py_time_s": 0.005739029496908188,
+      "cli_algo_time_s": 0.031157,
+      "cli_wall_time_s": 0.0544796846807003
+    },
+    {
+      "instance": "delaunay_n15",
+      "mode": "strong",
+      "py_modularity": 0.6213809031843682,
+      "cli_modularity": 0.621381,
+      "py_clusters": 3714,
+      "cli_clusters": 3714,
+      "py_time_s": 0.01683965139091015,
+      "cli_algo_time_s": 0.135302,
+      "cli_wall_time_s": 0.15856066718697548
+    },
+    {
+      "instance": "astro-ph",
+      "mode": "light",
+      "py_modularity": 0.6266091233269248,
+      "cli_modularity": 0.626609,
+      "py_clusters": 1425,
+      "cli_clusters": 1425,
+      "py_time_s": 0.0034179240465164185,
+      "cli_algo_time_s": 0.018266,
+      "cli_wall_time_s": 0.038597188889980316
+    },
+    {
+      "instance": "astro-ph",
+      "mode": "strong",
+      "py_modularity": 0.6884606832162136,
+      "cli_modularity": 0.688461,
+      "py_clusters": 1374,
+      "cli_clusters": 1374,
+      "py_time_s": 0.01065770536661148,
+      "cli_algo_time_s": 0.0754058,
+      "cli_wall_time_s": 0.09623011015355587
+    },
+    {
+      "instance": "as-22july06",
+      "mode": "light",
+      "py_modularity": 0.5407068403996098,
+      "cli_modularity": 0.540707,
+      "py_clusters": 48,
+      "cli_clusters": 48,
+      "py_time_s": 0.0022404752671718597,
+      "cli_algo_time_s": 0.018328,
+      "cli_wall_time_s": 0.036167657002806664
+    },
+    {
+      "instance": "as-22july06",
+      "mode": "strong",
+      "py_modularity": 0.5752747035964462,
+      "cli_modularity": 0.575275,
+      "py_clusters": 48,
+      "cli_clusters": 48,
+      "py_time_s": 0.005973825231194496,
+      "cli_algo_time_s": 0.0545452,
+      "cli_wall_time_s": 0.07244967855513096
+    }
+  ],
+  "heicut": [
+    {
+      "instance": "ibm01",
+      "algorithm": "submodular",
+      "py_cut_value": 1,
+      "cli_cut_value": 1,
+      "quality_match": true,
+      "py_time_s": 23.630997370928526,
+      "py_algo_time_s": 23.591837882995605,
+      "cli_algo_time_s": 24.8829,
+      "cli_wall_time_s": 25.022152956575155
+    },
+    {
+      "instance": "ibm01",
+      "algorithm": "kernelizer",
+      "py_cut_value": 1,
+      "cli_cut_value": 1,
+      "quality_match": true,
+      "py_time_s": 0.049174947664141655,
+      "py_algo_time_s": 0.010158061981201172,
+      "cli_algo_time_s": 0.013468,
+      "cli_wall_time_s": 0.15304703637957573
+    },
+    {
+      "instance": "powersim",
+      "algorithm": "submodular",
+      "py_cut_value": 1,
+      "cli_cut_value": 1,
+      "quality_match": true,
+      "py_time_s": 22.347214052453637,
+      "py_algo_time_s": 22.311658143997192,
+      "cli_algo_time_s": 23.6746,
+      "cli_wall_time_s": 23.818270532414317
+    },
+    {
+      "instance": "powersim",
+      "algorithm": "kernelizer",
+      "py_cut_value": 1,
+      "cli_cut_value": 1,
+      "quality_match": true,
+      "py_time_s": 0.0514592919498682,
+      "py_algo_time_s": 0.010526180267333984,
+      "cli_algo_time_s": 0.0134509,
+      "cli_wall_time_s": 0.15499982610344887
+    },
+    {
+      "instance": "sat14_atco",
+      "algorithm": "submodular",
+      "py_cut_value": 0,
+      "cli_cut_value": 0,
+      "quality_match": true,
+      "py_time_s": 106.98696462996304,
+      "py_algo_time_s": 114.89808011054993,
+      "cli_algo_time_s": 119.119,
+      "cli_wall_time_s": 119.32497347705066
+    },
+    {
+      "instance": "sat14_atco",
+      "algorithm": "kernelizer",
+      "py_cut_value": 0,
+      "cli_cut_value": 0,
+      "quality_match": true,
+      "py_time_s": 0.18820378556847572,
+      "py_algo_time_s": 0.03038191795349121,
+      "cli_algo_time_s": 0.043355,
+      "cli_wall_time_s": 0.23793756775557995
+    },
+    {
+      "instance": "G67",
+      "algorithm": "submodular",
+      "py_cut_value": 0,
+      "cli_cut_value": 0,
+      "quality_match": true,
+      "py_time_s": 14.914794532582164,
+      "py_algo_time_s": 14.879194974899292,
+      "cli_algo_time_s": 15.7103,
+      "cli_wall_time_s": 15.847366943955421
+    },
+    {
+      "instance": "G67",
+      "algorithm": "kernelizer",
+      "py_cut_value": 0,
+      "cli_cut_value": 0,
+      "quality_match": true,
+      "py_time_s": 0.04956286400556564,
+      "py_algo_time_s": 0.008739948272705078,
+      "cli_algo_time_s": 0.0130932,
+      "cli_wall_time_s": 0.15070366859436035
+    },
+    {
+      "instance": "cryg10000",
+      "algorithm": "submodular",
+      "py_cut_value": 40,
+      "cli_cut_value": 40,
+      "quality_match": true,
+      "py_time_s": 15.8484973218292,
+      "py_algo_time_s": 15.802219867706299,
+      "cli_algo_time_s": 17.059,
+      "cli_wall_time_s": 17.197614395990968
+    },
+    {
+      "instance": "cryg10000",
+      "algorithm": "kernelizer",
+      "py_cut_value": 40,
+      "cli_cut_value": 40,
+      "quality_match": true,
+      "py_time_s": 0.05313453450798988,
+      "py_algo_time_s": 0.010032892227172852,
+      "cli_algo_time_s": 0.0140052,
+      "cli_wall_time_s": 0.15180439688265324
+    }
+  ],
+  "bmatching": [
+    {
+      "instance": "ibm01",
+      "algorithm": "greedy_weight_desc",
+      "py_weight": 2936.0,
+      "cli_weight": 2936.0,
+      "py_matched": 2936,
+      "cli_matched": 2936,
+      "py_time_s": 0.006064023822546005,
+      "cli_wall_time_s": 0.0262426920235157
+    },
+    {
+      "instance": "ibm01",
+      "algorithm": "reductions",
+      "py_weight": 472.0,
+      "cli_weight": 472.0,
+      "py_matched": 472,
+      "cli_matched": 472,
+      "py_time_s": 0.015147428959608078,
+      "cli_wall_time_s": 0.03661635145545006
+    },
+    {
+      "instance": "ibm01",
+      "algorithm": "ils",
+      "py_weight": 4127.0,
+      "cli_weight": 4133.0,
+      "py_matched": 4127,
+      "cli_matched": 4133,
+      "py_time_s": 0.05352841131389141,
+      "cli_wall_time_s": 0.2191132716834545
+    },
+    {
+      "instance": "powersim",
+      "algorithm": "greedy_weight_desc",
+      "py_weight": 5043.0,
+      "cli_weight": 5043.0,
+      "py_matched": 5043,
+      "cli_matched": 5043,
+      "py_time_s": 0.005494510754942894,
+      "cli_wall_time_s": 0.027763715013861656
+    },
+    {
+      "instance": "powersim",
+      "algorithm": "reductions",
+      "py_weight": 4924.0,
+      "cli_weight": 4924.0,
+      "py_matched": 4924,
+      "cli_matched": 4924,
+      "py_time_s": 0.01015327125787735,
+      "cli_wall_time_s": 0.033028408885002136
+    },
+    {
+      "instance": "powersim",
+      "algorithm": "ils",
+      "py_weight": 5289.0,
+      "cli_weight": 5288.0,
+      "py_matched": 5289,
+      "cli_matched": 5288,
+      "py_time_s": 0.04867013916373253,
+      "cli_wall_time_s": 0.0704498216509819
+    },
+    {
+      "instance": "sat14_atco",
+      "algorithm": "greedy_weight_desc",
+      "py_weight": 3357.0,
+      "cli_weight": 3357.0,
+      "py_matched": 3357,
+      "cli_matched": 3357,
+      "py_time_s": 0.03601296804845333,
+      "cli_wall_time_s": 0.141309916973114
+    },
+    {
+      "instance": "sat14_atco",
+      "algorithm": "reductions",
+      "py_weight": 82.0,
+      "cli_weight": 82.0,
+      "py_matched": 82,
+      "cli_matched": 82,
+      "py_time_s": 0.09267434664070606,
+      "cli_wall_time_s": 0.20352768525481224
+    },
+    {
+      "instance": "sat14_atco",
+      "algorithm": "ils",
+      "py_weight": 4296.0,
+      "cli_weight": 4196.0,
+      "py_matched": 4296,
+      "cli_matched": 4196,
+      "py_time_s": 6.366715028882027,
+      "cli_wall_time_s": 1.8020835723727942
+    },
+    {
+      "instance": "G67",
+      "algorithm": "greedy_weight_desc",
+      "py_weight": 260552.0,
+      "cli_weight": 260552.0,
+      "py_matched": 3921,
+      "cli_matched": 3921,
+      "py_time_s": 0.0038488898426294327,
+      "cli_wall_time_s": 0.026577377691864967
+    },
+    {
+      "instance": "G67",
+      "algorithm": "reductions",
+      "py_weight": 107024.0,
+      "cli_weight": 107024.0,
+      "py_matched": 1531,
+      "cli_matched": 1531,
+      "py_time_s": 0.013089202344417572,
+      "cli_wall_time_s": 0.03632865287363529
+    },
+    {
+      "instance": "G67",
+      "algorithm": "ils",
+      "py_weight": 266783.0,
+      "cli_weight": 266783.0,
+      "py_matched": 4154,
+      "cli_matched": 4154,
+      "py_time_s": 0.07110791653394699,
+      "cli_wall_time_s": 0.09008185379207134
+    },
+    {
+      "instance": "cryg10000",
+      "algorithm": "greedy_weight_desc",
+      "py_weight": 235276.0,
+      "cli_weight": 235276.0,
+      "py_matched": 3488,
+      "cli_matched": 3488,
+      "py_time_s": 0.004638779908418655,
+      "cli_wall_time_s": 0.028313109651207924
+    },
+    {
+      "instance": "cryg10000",
+      "algorithm": "reductions",
+      "py_weight": 28915.0,
+      "cli_weight": 28915.0,
+      "py_matched": 391,
+      "cli_matched": 391,
+      "py_time_s": 0.012074360623955727,
+      "cli_wall_time_s": 0.035365233197808266
+    },
+    {
+      "instance": "cryg10000",
+      "algorithm": "ils",
+      "py_weight": 243932.0,
+      "cli_weight": 243932.0,
+      "py_matched": 3755,
+      "cli_matched": 3755,
+      "py_time_s": 0.11167390272021294,
+      "cli_wall_time_s": 0.1268116943538189
+    }
+  ],
+  "streaming": [
+    {
+      "instance": "ibm01",
+      "algorithm": "naive",
+      "py_weight": 3157.0,
+      "cli_weight": 3157.0,
+      "py_matched": 3157,
+      "cli_matched": 3157,
+      "py_time_s": 0.00896073505282402,
+      "cli_wall_time_s": 0.022471722215414047
+    },
+    {
+      "instance": "ibm01",
+      "algorithm": "greedy",
+      "py_weight": 3157.0,
+      "cli_weight": 3157.0,
+      "py_matched": 3157,
+      "cli_matched": 3157,
+      "py_time_s": 0.009312819689512253,
+      "cli_wall_time_s": 0.02230849303305149
+    },
+    {
+      "instance": "ibm01",
+      "algorithm": "greedy_set",
+      "py_weight": 3157.0,
+      "cli_weight": 3157.0,
+      "py_matched": 3157,
+      "cli_matched": 3157,
+      "py_time_s": 0.01109941117465496,
+      "cli_wall_time_s": 0.02427467331290245
+    },
+    {
+      "instance": "powersim",
+      "algorithm": "naive",
+      "py_weight": 5212.0,
+      "cli_weight": 5212.0,
+      "py_matched": 5212,
+      "cli_matched": 5212,
+      "py_time_s": 0.010292652994394302,
+      "cli_wall_time_s": 0.024646716192364693
+    },
+    {
+      "instance": "powersim",
+      "algorithm": "greedy",
+      "py_weight": 5212.0,
+      "cli_weight": 5212.0,
+      "py_matched": 5212,
+      "cli_matched": 5212,
+      "py_time_s": 0.010581716895103455,
+      "cli_wall_time_s": 0.02440491132438183
+    },
+    {
+      "instance": "powersim",
+      "algorithm": "greedy_set",
+      "py_weight": 5212.0,
+      "cli_weight": 5212.0,
+      "py_matched": 5212,
+      "cli_matched": 5212,
+      "py_time_s": 0.01201745867729187,
+      "cli_wall_time_s": 0.02526155300438404
+    },
+    {
+      "instance": "sat14_atco",
+      "algorithm": "naive",
+      "py_weight": 4137.0,
+      "cli_weight": 4137.0,
+      "py_matched": 4137,
+      "cli_matched": 4137,
+      "py_time_s": 0.10392220877110958,
+      "cli_wall_time_s": 0.11023014783859253
+    },
+    {
+      "instance": "sat14_atco",
+      "algorithm": "greedy",
+      "py_weight": 4137.0,
+      "cli_weight": 4137.0,
+      "py_matched": 4137,
+      "cli_matched": 4137,
+      "py_time_s": 0.10233135335147381,
+      "cli_wall_time_s": 0.11141462624073029
+    },
+    {
+      "instance": "sat14_atco",
+      "algorithm": "greedy_set",
+      "py_weight": 4137.0,
+      "cli_weight": 4137.0,
+      "py_matched": 4137,
+      "cli_matched": 4137,
+      "py_time_s": 0.1290862951427698,
+      "cli_wall_time_s": 0.13066213205456734
+    },
+    {
+      "instance": "G67",
+      "algorithm": "naive",
+      "py_weight": 125844.0,
+      "cli_weight": 125844.0,
+      "py_matched": 2500,
+      "cli_matched": 2500,
+      "py_time_s": 0.006285503506660461,
+      "cli_wall_time_s": 0.020467104390263557
+    },
+    {
+      "instance": "G67",
+      "algorithm": "greedy",
+      "py_weight": 145799.0,
+      "cli_weight": 145799.0,
+      "py_matched": 2069,
+      "cli_matched": 2069,
+      "py_time_s": 0.00697280652821064,
+      "cli_wall_time_s": 0.02065093070268631
+    },
+    {
+      "instance": "G67",
+      "algorithm": "greedy_set",
+      "py_weight": 129227.0,
+      "cli_weight": 129227.0,
+      "py_matched": 1556,
+      "cli_matched": 1556,
+      "py_time_s": 0.00766059011220932,
+      "cli_wall_time_s": 0.020515864714980125
+    },
+    {
+      "instance": "cryg10000",
+      "algorithm": "naive",
+      "py_weight": 81414.0,
+      "cli_weight": 81414.0,
+      "py_matched": 1675,
+      "cli_matched": 1675,
+      "py_time_s": 0.0065061599016189575,
+      "cli_wall_time_s": 0.02101241610944271
+    },
+    {
+      "instance": "cryg10000",
+      "algorithm": "greedy",
+      "py_weight": 110382.0,
+      "cli_weight": 110382.0,
+      "py_matched": 1535,
+      "cli_matched": 1535,
+      "py_time_s": 0.006734687834978104,
+      "cli_wall_time_s": 0.020776920020580292
+    },
+    {
+      "instance": "cryg10000",
+      "algorithm": "greedy_set",
+      "py_weight": 98583.0,
+      "cli_weight": 98583.0,
+      "py_matched": 1152,
+      "cli_matched": 1152,
+      "py_time_s": 0.007748696953058243,
+      "cli_wall_time_s": 0.02117447555065155
+    }
+  ]
+}

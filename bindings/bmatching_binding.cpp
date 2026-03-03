@@ -35,7 +35,8 @@ static std::unique_ptr<Graph> build_hypergraph(
     auto ew = edge_weights.unchecked<1>();
     int num_edges = static_cast<int>(eptr.size() - 1);
 
-    auto g = std::make_unique<Graph>(num_edges, num_nodes, false, false);
+    // Match CLI: nodesInEdgesSorted=true, edgesInNodesSorted=true
+    auto g = std::make_unique<Graph>(num_edges, num_nodes, true, true);
 
     for (int e = 0; e < num_edges; e++) {
         int start = static_cast<int>(ep(e));
@@ -45,9 +46,10 @@ static std::unique_ptr<Graph> build_hypergraph(
         for (int i = start; i < end; i++) {
             pins.push_back(static_cast<size_t>(ev(i)));
         }
+        // Sort pins to match CLI's sorted insertion
+        std::sort(pins.begin(), pins.end());
         g->addEdge(pins, static_cast<int>(ew(e)));
     }
-    g->sort();
     return g;
 }
 
@@ -71,7 +73,9 @@ py_bmatching(
     std::cout.rdbuf(null_stream.rdbuf());
     std::cerr.rdbuf(null_stream.rdbuf());
 
-    HeiHGM::BMatching::utils::Randomize::instance().setSeed(seed);
+    // seed >= 0: explicit seed; seed < 0: reset to std::mt19937 default (5489)
+    // to match CLI behavior where seed is never set (fresh process)
+    HeiHGM::BMatching::utils::Randomize::instance().setSeed(seed >= 0 ? seed : 5489);
 
     auto graph = build_hypergraph(eptr, everts, edge_weights, num_nodes);
 
@@ -144,22 +148,16 @@ py_bmatching(
                 return -static_cast<double>(graph->edgeWeight(e)) / cap_product;
             });
     } else if (algorithm == "reductions") {
-        // Greedy initial solution, then reductions + unfold
-        HeiHGM::BMatching::bmatching::greedy_static_ordered_matching<BMatch>(
-            graph.get(), bm,
-            [&](EdgeID e) -> double {
-                return static_cast<double>(graph->edgeWeight(e));
-            });
+        // Reductions only — matches CLI "reductions" standalone behavior
         HeiHGM::BMatching::bmatching::reductions_sorted::all_removals_exhaustive(bm, *graph);
-        bm.maximize();
     } else if (algorithm == "ils") {
-        // Greedy initial solution, then ILS
+        // Greedy init + ILS — matches CLI chain: greedy(bweight) → ils
         HeiHGM::BMatching::bmatching::greedy_static_ordered_matching<BMatch>(
             graph.get(), bm,
             [&](EdgeID e) -> double {
                 return static_cast<double>(graph->edgeWeight(e));
             });
-        HeiHGM::BMatching::bmatching::ils::iterated_local_searc_inplace(
+        bm = HeiHGM::BMatching::bmatching::ils::iterated_local_search(
             bm, ils_iterations, ils_time_limit);
     } else {
         std::cout.rdbuf(old_cout);

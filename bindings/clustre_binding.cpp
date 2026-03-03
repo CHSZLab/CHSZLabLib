@@ -1,22 +1,21 @@
 /**
  * clustre_binding.cpp — pybind11 binding for CluStRE streaming graph clustering.
  *
- * Runs the CluStRE streaming clustering algorithm by writing a temporary METIS
- * file and driving the streaming pipeline.  The clustering result (assignment,
- * modularity, num_clusters) is returned to Python.
- *
- * Follows the same pattern as heistream_binding.cpp.
+ * Runs the CluStRE streaming clustering algorithm directly from CSR arrays,
+ * matching the exact code paths of the CLI tool (clustering.cpp) to produce
+ * identical results for the same configuration.
  */
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
-#include <cstdio>
+#include <algorithm>
+#include <chrono>
+#include <cmath>
 #include <cstdlib>
-#include <fstream>
 #include <iostream>
-#include <memory>
+#include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -29,104 +28,11 @@
 #include "partition/onepass_partitioning/leiden.h"
 #include "partition/onepass_partitioning/modularity.h"
 #include "definitions.h"
+#include "random_functions.h"
+
+#include "robin_hood.h"
 
 namespace py = pybind11;
-
-namespace {
-
-/**
- * Read METIS header and initialize the streaming config.
- * Sets total_nodes, total_edges, n_batches, and opens the stream.
- */
-void init_stream_config(HeiClus::PartitionConfig& config,
-                        const std::string& graph_file,
-                        std::ifstream& stream_in) {
-    stream_in.open(graph_file);
-    if (!stream_in.good()) {
-        throw std::runtime_error("CluStRE: cannot open graph file: " + graph_file);
-    }
-
-    /* Read the header line: "n m [fmt]" */
-    std::string line;
-    while (std::getline(stream_in, line)) {
-        if (line.empty() || line[0] == '%') continue;
-        break;
-    }
-    std::istringstream header(line);
-    uint64_t n = 0, m = 0;
-    header >> n >> m;
-
-    config.total_nodes = n;
-    config.total_edges = m;  /* undirected edges */
-    config.n_batches = n;
-    config.remaining_stream_nodes = n;
-    config.stream_n_nodes = n;
-    config.stream_in = &stream_in;
-}
-
-/**
- * Parse one adjacency line from the METIS file.
- * Returns the list of 1-indexed neighbor IDs (matching CluStRE convention).
- */
-std::vector<std::vector<uint64_t>>* read_one_node(std::ifstream& stream_in) {
-    auto* input = new std::vector<std::vector<uint64_t>>(1);
-    std::string line;
-    if (!std::getline(stream_in, line)) {
-        (*input)[0].clear();
-        return input;
-    }
-    /* Skip comment lines */
-    while (!line.empty() && line[0] == '%') {
-        if (!std::getline(stream_in, line)) {
-            (*input)[0].clear();
-            return input;
-        }
-    }
-    std::istringstream ss(line);
-    uint64_t val;
-    while (ss >> val) {
-        (*input)[0].push_back(val);  /* already 1-indexed in METIS format */
-    }
-    return input;
-}
-
-/**
- * Write a METIS graph file from CSR arrays (0-indexed).
- * CluStRE expects 1-indexed METIS format.
- */
-std::string write_temp_metis(
-    const py::array_t<int64_t>& xadj,
-    const py::array_t<int64_t>& adjncy)
-{
-    auto xa = xadj.unchecked<1>();
-    auto aj = adjncy.unchecked<1>();
-    int64_t n = xa.shape(0) - 1;
-    int64_t m2 = aj.shape(0);
-    int64_t m  = m2 / 2;
-
-    char tmpname[] = "/tmp/clustre_XXXXXX";
-    int fd = mkstemp(tmpname);
-    if (fd < 0) throw std::runtime_error("Cannot create temp file for METIS graph");
-
-    FILE* fp = fdopen(fd, "w");
-    if (!fp) { close(fd); throw std::runtime_error("fdopen failed"); }
-
-    fprintf(fp, "%lld %lld\n", (long long)n, (long long)m);
-    for (int64_t v = 0; v < n; ++v) {
-        if (xa(v) == xa(v + 1)) {
-            fputc(' ', fp);
-        }
-        for (int64_t e = xa(v); e < xa(v + 1); ++e) {
-            if (e > xa(v)) fputc(' ', fp);
-            fprintf(fp, "%lld", (long long)(aj(e) + 1));
-        }
-        fputc('\n', fp);
-    }
-    fclose(fp);
-    return std::string(tmpname);
-}
-
-} // namespace
 
 
 static py::tuple py_clustre(
@@ -142,61 +48,97 @@ static py::tuple py_clustre(
     double cut_off,
     bool suppress_output)
 {
-    /* 1. Write temp METIS file */
-    std::string graph_file = write_temp_metis(xadj, adjncy);
+    auto xa = xadj.unchecked<1>();
+    auto aj = adjncy.unchecked<1>();
+    int64_t n = xa.shape(0) - 1;
+    int64_t m2 = aj.shape(0);
+    int64_t m  = m2 / 2;   /* undirected edges */
 
-    /* 2. Initialize CluStRE config */
+    /* ── 1. Initialize config (matching CLI: standard → strong → stream_map) ── */
     HeiClus::PartitionConfig config;
     {
         HeiClus::configuration cfg;
-        cfg.standard(config);
-        cfg.strong(config);
-        cfg.stream_partition(config);
+        cfg.standard(config);          /* sets all defaults */
+        cfg.strong(config);            /* (calls standard again) */
+        cfg.stream_map(config);        /* same as CLI with MODE_FREIGHT_GRAPHS */
     }
 
+    config.stream_buffer_len = 1;      /* CLI sets this after stream_map */
+
+    /* Seed random number generators (matching CLI behavior) */
     config.seed = seed;
+    HeiClus::random_functions::setSeed(seed);
+
     config.suppress_output = true;
     config.suppress_file_output = true;
     config.stream_input = true;
-    config.rle_length = -1;   /* use std::vector, not compression */
+    config.rle_length = -1;            /* use std::vector, not compression */
     config.cpm_gamma = resolution_param;
     config.ls_time_limit = ls_time_limit;
     config.ls_frac_time = ls_frac_time;
     config.cut_off = cut_off;
     config.ext_clustering_algorithm = NO_EXT_ALGORITHM;
 
-    /* Parse mode string */
-    if (mode_str == "light") {
-        config.mode = LIGHT;
-        config.restream_amount = 0;
-        config.one_pass_algorithm = ONEPASS_MODULARITY;
-    } else if (mode_str == "light_plus") {
-        config.mode = LIGHT_PLUS;
-        config.one_pass_algorithm = ONEPASS_MODULARITY;
-    } else if (mode_str == "evo") {
-        config.mode = EVO;
-        config.restream_amount = 0;
-        config.one_pass_algorithm = ONEPASS_MODULARITY;
-    } else if (mode_str == "strong") {
-        config.mode = STRONG;
-        config.one_pass_algorithm = ONEPASS_MODULARITY;
-    } else {
-        std::remove(graph_file.c_str());
-        throw std::runtime_error("CluStRE: unknown mode '" + mode_str +
-                                 "'. Choose from: light, light_plus, evo, strong");
-    }
+    /* one_pass_algorithm: always modularity (CLI requires --one_pass_algorithm=modularity) */
+    config.one_pass_algorithm = ONEPASS_MODULARITY;
 
-    if (max_num_clusters > 0) {
-        config.max_num_clusters = max_num_clusters;
-    }
-
+    /* Override restream_amount from num_streams_passes first */
     if (num_streams_passes > 1) {
         config.restream_amount = num_streams_passes - 1;
     }
 
-    config.stream_buffer_len = 1;
+    /* Parse mode (matching CLI parse_parameters.h).
+     * Mode-specific restream settings override num_streams_passes:
+     * light/evo force restream_amount=0 (single pass, no restreaming). */
+    if (mode_str == "light") {
+        config.mode = LIGHT;
+        config.restream_amount = 0;
+    } else if (mode_str == "light_plus") {
+        config.mode = LIGHT_PLUS;
+    } else if (mode_str == "evo") {
+        config.mode = EVO;
+        config.restream_amount = 0;
+    } else if (mode_str == "strong") {
+        config.mode = STRONG;
+    } else {
+        throw std::runtime_error("CluStRE: unknown mode '" + mode_str +
+                                 "'. Choose from: light, light_plus, evo, strong");
+    }
 
-    /* Optionally suppress stdout/stderr */
+    /* ── 2. Initialize graph metadata (matching readFirstLineStreamClustering) ── */
+    config.total_nodes = n;
+    config.total_edges = m;
+    config.remaining_stream_nodes = n;
+    config.remaining_stream_edges = m;
+    config.stream_n_nodes = n;
+    config.nmbNodes = 1;               /* stream_buffer_len = 1 */
+    config.n_batches = n;              /* ceil(n / 1) = n */
+    config.curr_batch = 0;
+
+    if (max_num_clusters > 0) {
+        config.max_num_clusters = max_num_clusters;
+    } else {
+        config.max_num_clusters = static_cast<int>(n * config.cluster_fraction);
+    }
+
+    /* Allocate assignment vector */
+    std::vector<PartitionID> stream_nodes_assign(n, INVALID_PARTITION);
+    config.stream_nodes_assign = &stream_nodes_assign;
+
+    std::vector<NodeWeight> stream_blocks_weight;
+    config.stream_blocks_weight = &stream_blocks_weight;
+
+    config.neighbor_blocks.resize(1);
+    config.all_blocks_to_keys.resize(1);
+    config.next_key.resize(1);
+    config.next_key[0] = 0;
+
+    /* Initialize partitioner (matching CLI's initialize_onepass_partitioner) */
+    vertex_partitioning* onepass_partitioner = nullptr;
+    onepass_partitioner = new onepass_modularity(
+        0, 0, config.total_nodes, 1, config.mode, false, config.cpm_gamma);
+
+    /* Suppress stdout/stderr */
     std::streambuf* saved_cout = nullptr;
     std::streambuf* saved_cerr = nullptr;
     std::ofstream devnull;
@@ -206,59 +148,25 @@ static py::tuple py_clustre(
         saved_cerr = std::cerr.rdbuf(devnull.rdbuf());
     }
 
+    auto restore_output = [&]() {
+        if (suppress_output) {
+            std::cout.rdbuf(saved_cout);
+            std::cerr.rdbuf(saved_cerr);
+        }
+    };
+
     try {
-        /* 3. Read header and init */
-        std::ifstream stream_in;
-        init_stream_config(config, graph_file, stream_in);
+        /* Track total processing time for ls_frac_time check */
+        auto processing_start = std::chrono::steady_clock::now();
+        bool active_nodes_exist = false;
 
-        uint64_t n = config.total_nodes;
-
-        /* Allocate assignment vector */
-        std::vector<PartitionID> stream_nodes_assign(n, INVALID_PARTITION);
-        config.stream_nodes_assign = &stream_nodes_assign;
-
-        std::vector<NodeWeight> stream_blocks_weight;
-        config.stream_blocks_weight = &stream_blocks_weight;
-
-        config.neighbor_blocks.resize(1);
-        config.all_blocks_to_keys.resize(1);
-        config.next_key.resize(1);
-        config.next_key[0] = 0;
-
-        if (max_num_clusters <= 0) {
-            config.max_num_clusters = static_cast<int>(n);
-        }
-
-        /* Initialize partitioner */
-        vertex_partitioning* onepass_partitioner = nullptr;
-        onepass_partitioner = new onepass_modularity(
-            0, 0, config.total_nodes, 1, config.mode, false, config.cpm_gamma);
-
-        /* Partial offsets for local search (LIGHT_PLUS / STRONG modes) */
-        std::vector<std::streampos> partial_offsets;
-        if (config.mode == LIGHT_PLUS || config.mode == STRONG) {
-            config.partialOffsets = &partial_offsets;
-            config.activeNodes_set = new robin_hood::unordered_set<uint64_t>();
-        }
-
-        /* 4. Main streaming loop */
-        uint64_t num_lines = 1;
-
+        /* ── 3. Main streaming loop (matching CLI clustering.cpp) ── */
         for (int restreaming = 0; restreaming < config.restream_amount + 1; restreaming++) {
-            if (restreaming) {
-                /* Reset file for restreaming */
-                stream_in.clear();
-                stream_in.seekg(0);
-                /* Skip header */
-                std::string hdr;
-                while (std::getline(stream_in, hdr)) {
-                    if (hdr.empty() || hdr[0] == '%') continue;
-                    break;
-                }
-                config.remaining_stream_nodes = n;
 
-                /* Reset blocks edge weights */
-                while (onepass_partitioner->blocks.size() > stream_blocks_weight.size()) {
+            if (restreaming) {
+                /* Reset for restreaming (matching CLI restreamingFileReset + loop init) */
+                while (static_cast<int64_t>(onepass_partitioner->blocks.size()) >
+                       static_cast<int64_t>(stream_blocks_weight.size())) {
                     onepass_partitioner->blocks.pop_back();
                     config.clusters_to_ix_mapping.pop_back();
                     config.neighbor_blocks[0].pop_back();
@@ -267,23 +175,19 @@ static py::tuple py_clustre(
                     onepass_partitioner->blocks[p].e_weight = 0;
                 }
                 config.next_key[0] = 0;
+                config.remaining_stream_nodes = n;
+
+                /* Allocate activeNodes_set on last restream pass for STRONG/LIGHT_PLUS */
+                if (restreaming == config.restream_amount &&
+                    (config.mode == STRONG || config.mode == LIGHT_PLUS)) {
+                    config.activeNodes_set = new robin_hood::unordered_set<uint64_t>();
+                }
             }
 
-            for (uint64_t curr_node = 0; curr_node < n; curr_node++) {
+            for (int64_t curr_node = 0; curr_node < n; curr_node++) {
                 int my_thread = 0;
 
-                /* Read one node from file */
-                auto* input = read_one_node(stream_in);
-
-                /* Store partial offsets for local search */
-                if ((curr_node % config.offset_interval == 0 || curr_node == 0)
-                    && restreaming == 1
-                    && (config.mode == LIGHT_PLUS || config.mode == STRONG)) {
-                    // We record stream positions for offset-based access
-                    // but in our simplified binding, local search uses full re-read
-                }
-
-                /* Process node: build neighbor blocks */
+                /* ── readNodeOnePassClustering equivalent (from CSR arrays) ── */
                 auto& next_key = config.next_key[my_thread];
                 auto& neighbor_blocks_vec = config.neighbor_blocks[my_thread];
                 auto& clusters_to_ix_mapping = config.clusters_to_ix_mapping;
@@ -299,16 +203,18 @@ static py::tuple py_clustre(
                 onepass_partitioner->reset_streamed_edge_count();
                 next_key = 0;
 
-                std::vector<uint64_t>& line_numbers = (*input)[0];
+                /* Read neighbors from CSR arrays (0-indexed) */
+                int64_t edge_begin = xa(curr_node);
+                int64_t edge_end   = xa(curr_node + 1);
 
-                for (size_t col = 0; col < line_numbers.size(); col++) {
-                    uint64_t target = line_numbers[col];
+                for (int64_t e = edge_begin; e < edge_end; e++) {
+                    int64_t neighbor = aj(e);   /* 0-indexed */
                     EdgeWeight edge_weight = 1;
                     onepass_partitioner->increment_graph_edge_count(edge_weight, restreaming);
 
                     PartitionID targetPar = INVALID_PARTITION;
-                    if (target >= 1 && (target - 1) < n) {
-                        targetPar = stream_nodes_assign[target - 1];
+                    if (neighbor >= 0 && neighbor < n) {
+                        targetPar = stream_nodes_assign[neighbor];
                     }
 
                     if (targetPar != INVALID_PARTITION) {
@@ -341,7 +247,7 @@ static py::tuple py_clustre(
                     config.clusters_to_ix_mapping, config,
                     config.previous_assignment, config.kappa, false);
 
-                /* Update quotient graph for evo/strong modes */
+                /* Update quotient graph (matching CLI: only on first pass, not LIGHT/LIGHT_PLUS) */
                 if (restreaming == 0 && config.mode != LIGHT && config.mode != LIGHT_PLUS) {
                     onepass_partitioner->update_quotient_graph(block, config.neighbor_blocks[my_thread]);
                 }
@@ -352,22 +258,22 @@ static py::tuple py_clustre(
                 }
                 stream_nodes_assign[curr_node] = block;
 
-                /* Track active nodes for local search */
+                /* Track active nodes (matching CLI: only on last restream, STRONG/LIGHT_PLUS) */
                 if (restreaming == config.restream_amount
                     && orig_part != block
-                    && (config.mode == LIGHT_PLUS || config.mode == STRONG)
+                    && (config.mode == STRONG || config.mode == LIGHT_PLUS)
                     && config.activeNodes_set != nullptr) {
-                    for (auto& neighbour : line_numbers) {
-                        if (neighbour >= 1) {
-                            config.activeNodes_set->insert(neighbour - 1);
+                    active_nodes_exist = true;
+                    for (int64_t e = edge_begin; e < edge_end; e++) {
+                        int64_t neighbor = aj(e);
+                        if (neighbor >= 0 && neighbor < n) {
+                            config.activeNodes_set->insert(static_cast<uint64_t>(neighbor));
                         }
                     }
                 }
 
-                delete input;
-
                 config.previous_assignment = block;
-                if (stream_blocks_weight.size() <= static_cast<size_t>(block)) {
+                if (static_cast<int64_t>(stream_blocks_weight.size()) <= block) {
                     stream_blocks_weight.resize(block + 1, 0);
                 }
                 stream_blocks_weight[block] += 1;
@@ -377,16 +283,21 @@ static py::tuple py_clustre(
             }
         }
 
-        /* 5. Local search phase (STRONG / LIGHT_PLUS) */
+        /* ── 4. Local search (matching CLI clustering.cpp exactly) ── */
+        double ls_frac_time_elapsed = std::chrono::duration<double>(
+            std::chrono::steady_clock::now() - processing_start).count();
+        double ls_time_total = 0.0;
+
         if ((config.mode == STRONG || config.mode == LIGHT_PLUS)
             && config.activeNodes_set != nullptr
-            && !config.activeNodes_set->empty()) {
+            && active_nodes_exist) {
 
-            auto start_time = std::chrono::steady_clock::now();
+            auto ls_start_time = std::chrono::steady_clock::now();
             std::chrono::seconds TIME_LIMIT(config.ls_time_limit);
-            bool active_nodes_exist = true;
 
             while (active_nodes_exist) {
+                auto round_start = std::chrono::steady_clock::now();
+
                 auto* new_active = new robin_hood::unordered_set<uint64_t>();
                 onepass_partitioner->curr_round_delta_mod = 0;
                 active_nodes_exist = false;
@@ -395,27 +306,14 @@ static py::tuple py_clustre(
                     onepass_partitioner->blocks[p].e_weight = 0;
                 }
                 config.next_key[0] = 0;
+
+                uint64_t previous_node = static_cast<uint64_t>(-1);
                 bool timeStop = false;
 
                 for (const auto& curr_node : *config.activeNodes_set) {
-                    /* Re-read the node's neighbors from file using seekg */
-                    stream_in.clear();
-                    stream_in.seekg(0);
-                    /* Skip header */
-                    std::string hdr;
-                    while (std::getline(stream_in, hdr)) {
-                        if (hdr.empty() || hdr[0] == '%') continue;
-                        break;
-                    }
-                    /* Skip to the right line */
-                    for (uint64_t skip = 0; skip < curr_node; skip++) {
-                        std::string tmp;
-                        std::getline(stream_in, tmp);
-                    }
-                    auto* input = read_one_node(stream_in);
-
-                    /* Process node */
                     int my_thread = 0;
+
+                    /* Read neighbors from CSR (O(degree) random access) */
                     auto& next_key = config.next_key[my_thread];
                     auto& neighbor_blocks_vec = config.neighbor_blocks[my_thread];
                     auto& clusters_to_ix_mapping = config.clusters_to_ix_mapping;
@@ -430,15 +328,17 @@ static py::tuple py_clustre(
                     onepass_partitioner->reset_streamed_edge_count();
                     next_key = 0;
 
-                    std::vector<uint64_t>& line_numbers = (*input)[0];
-                    for (size_t col = 0; col < line_numbers.size(); col++) {
-                        uint64_t target = line_numbers[col];
+                    int64_t edge_begin = xa(static_cast<int64_t>(curr_node));
+                    int64_t edge_end   = xa(static_cast<int64_t>(curr_node) + 1);
+
+                    for (int64_t e = edge_begin; e < edge_end; e++) {
+                        int64_t neighbor = aj(e);
                         EdgeWeight edge_weight = 1;
                         onepass_partitioner->increment_graph_edge_count(edge_weight, 1);
 
                         PartitionID targetPar = INVALID_PARTITION;
-                        if (target >= 1 && (target - 1) < n) {
-                            targetPar = stream_nodes_assign[target - 1];
+                        if (neighbor >= 0 && neighbor < n) {
+                            targetPar = stream_nodes_assign[neighbor];
                         }
                         if (targetPar != INVALID_PARTITION) {
                             PartitionID key = clusters_to_ix_mapping[targetPar];
@@ -471,22 +371,29 @@ static py::tuple py_clustre(
 
                     if (orig_part != block) {
                         active_nodes_exist = true;
-                        for (auto& neighbour : line_numbers) {
-                            if (neighbour >= 1) {
-                                new_active->insert(neighbour - 1);
+                        for (int64_t e = edge_begin; e < edge_end; e++) {
+                            int64_t neighbor = aj(e);
+                            if (neighbor >= 0 && neighbor < n) {
+                                new_active->insert(static_cast<uint64_t>(neighbor));
                             }
                         }
                     }
 
-                    delete input;
                     config.previous_assignment = block;
-                    if (stream_blocks_weight.size() <= static_cast<size_t>(block)) {
+                    if (static_cast<int64_t>(stream_blocks_weight.size()) <= block) {
                         stream_blocks_weight.resize(block + 1, 0);
                     }
                     stream_blocks_weight[block] += 1;
                     stream_blocks_weight[orig_part] -= 1;
 
-                    auto elapsed = std::chrono::steady_clock::now() - start_time;
+                    /* Erase previous node from active set (matching CLI) */
+                    if (previous_node != static_cast<uint64_t>(-1)) {
+                        config.activeNodes_set->erase(previous_node);
+                    }
+                    previous_node = curr_node;
+
+                    /* Time limit check */
+                    auto elapsed = std::chrono::steady_clock::now() - ls_start_time;
                     if (elapsed > TIME_LIMIT) {
                         timeStop = true;
                         break;
@@ -495,7 +402,9 @@ static py::tuple py_clustre(
 
                 delete config.activeNodes_set;
                 config.activeNodes_set = new_active;
+                new_active = nullptr;
 
+                /* Convergence check (matching CLI) */
                 if (onepass_partitioner->curr_round_delta_mod <
                     onepass_partitioner->overall_delta_mod * config.cut_off) {
                     break;
@@ -503,22 +412,61 @@ static py::tuple py_clustre(
                 if (timeStop) {
                     active_nodes_exist = false;
                 }
+
+                /* ls_frac_time check (matching CLI: ls_time > ls_frac_time * total_time) */
+                ls_time_total = std::chrono::duration<double>(
+                    std::chrono::steady_clock::now() - ls_start_time).count();
+                if (ls_time_total > config.ls_frac_time * ls_frac_time_elapsed) {
+                    break;
+                }
+
+                /* Update overall delta mod */
                 onepass_partitioner->overall_delta_mod += onepass_partitioner->curr_round_delta_mod;
             }
         }
 
-        /* 6. Count clusters and compute approximate modularity */
+        /* ── 5. Compute exact modularity (matching CLI streamEvaluateClustering) ── */
+        std::vector<NodeID> blocks_weights;
+        std::vector<std::pair<EdgeWeight, EdgeWeight>> blocks_sigma;
+        /* blocks_sigma[c].first  = internal edges (both endpoints in cluster c) */
+        /* blocks_sigma[c].second = degree sum of cluster c */
+
+        for (int64_t node = 0; node < n; node++) {
+            PartitionID partSource = stream_nodes_assign[node];
+
+            while (static_cast<int64_t>(blocks_weights.size()) <= partSource) {
+                blocks_weights.emplace_back(0);
+                blocks_sigma.emplace_back(std::make_pair(0, 0));
+            }
+            blocks_weights[partSource]++;
+
+            int64_t edge_begin = xa(node);
+            int64_t edge_end   = xa(node + 1);
+            for (int64_t e = edge_begin; e < edge_end; e++) {
+                int64_t neighbor = aj(e);
+                EdgeWeight edge_weight = 1;
+
+                PartitionID partTarget = stream_nodes_assign[neighbor];
+                if (partSource == partTarget) {
+                    blocks_sigma[partSource].first++;
+                }
+                blocks_sigma[partSource].second++;
+            }
+        }
+
+        double modularity = onepass_partitioner->calculate_overall_score(
+            blocks_weights, blocks_sigma, m);
+
+        /* ── 6. Count clusters ── */
         int num_clusters = 0;
         for (auto& w : stream_blocks_weight) {
             if (w > 0) num_clusters++;
         }
 
-        double modularity = onepass_partitioner->overall_delta_mod;
-
-        /* 7. Extract result */
+        /* ── 7. Build result ── */
         py::array_t<int> result(n);
         auto r = result.mutable_unchecked<1>();
-        for (uint64_t i = 0; i < n; ++i) {
+        for (int64_t i = 0; i < n; ++i) {
             r(i) = static_cast<int>(stream_nodes_assign[i]);
         }
 
@@ -528,22 +476,17 @@ static py::tuple py_clustre(
             config.activeNodes_set = nullptr;
         }
         delete onepass_partitioner;
-        stream_in.close();
 
-        if (suppress_output) {
-            std::cout.rdbuf(saved_cout);
-            std::cerr.rdbuf(saved_cerr);
-        }
-        std::remove(graph_file.c_str());
-
+        restore_output();
         return py::make_tuple(num_clusters, modularity, result);
 
     } catch (...) {
-        if (suppress_output) {
-            std::cout.rdbuf(saved_cout);
-            std::cerr.rdbuf(saved_cerr);
+        restore_output();
+        if (config.activeNodes_set != nullptr) {
+            delete config.activeNodes_set;
+            config.activeNodes_set = nullptr;
         }
-        std::remove(graph_file.c_str());
+        delete onepass_partitioner;
         throw;
     }
 }
