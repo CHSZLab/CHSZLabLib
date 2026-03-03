@@ -84,6 +84,7 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
   - [Decomposition](#decomposition)
   - [IndependenceProblems](#independenceproblems)
   - [Orientation](#orientation)
+  - [DynamicProblems](#dynamicproblems)
 - [Use Cases & Examples](#use-cases--examples)
 - [I/O](#io)
 - [Running Tests](#running-tests)
@@ -125,12 +126,21 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 |:--------|:-------|:-----------|
 | [HeiOrient](https://github.com/KaHIP/HeiOrient) | Edge orientation | 2-approx greedy, DFS local search, Eager Path Search |
 
+**DynamicProblems** — Fully dynamic graph algorithms (insert/delete edges incrementally).
+
+| Library | Domain | Algorithms |
+|:--------|:-------|:-----------|
+| [DynDeltaOrientation](https://github.com/DynGraphLab/DynDeltaOrientation) | Dynamic edge orientation (exact) | BFS, K-Flips, Random Walk, Brodal-Fagerberg, Naive/Improved/Strong Opt |
+| [DynDeltaApprox](https://github.com/DynGraphLab/DynDeltaApprox) | Dynamic edge orientation (approx) | CCHHQRS, Limited/Strong/Improved BFS, Packed CCHHQRS variants |
+| [DynMatch](https://github.com/DynGraphLab/DynMatch) | Dynamic matching | Blossom, Random Walk, Baswana-Gupta-Sen, Neiman-Solomon, Static Blossom |
+| [DynWMIS](https://github.com/DynGraphLab/DynWMIS) | Dynamic weighted MIS | Simple, Greedy, Degree-Greedy, BFS, Static (with KaMIS fork) |
+
 ---
 
 ## Quick Start
 
 ```python
-from chszlablib import Graph, Decomposition, IndependenceProblems, Orientation
+from chszlablib import Graph, Decomposition, IndependenceProblems, Orientation, DynamicProblems
 
 # Build a small graph
 g = Graph(num_nodes=6)
@@ -185,6 +195,30 @@ for nodes, w in [([0,1], 5), ([1,2], 3), ([2,3], 7), ([3,4], 2)]:
     sm.add_edge(nodes, w)
 r = sm.finish()
 print(f"Streaming matching: {r.num_matched} edges, weight {r.total_weight}")
+
+# --- Dynamic graph algorithms ---
+import numpy as np
+
+# Dynamic matching: insert/delete edges incrementally
+dm = DynamicProblems.matching(6)
+dm.insert_edge(0, 1); dm.insert_edge(2, 3); dm.insert_edge(4, 5)
+r = dm.get_current_solution()
+print(f"Dynamic matching: {r.matching_size} edges")
+dm.delete_edge(0, 1)
+print(f"After deletion: {dm.get_current_solution().matching_size} edges")
+
+# Dynamic edge orientation
+eo = DynamicProblems.edge_orientation(5, algorithm="kflips")
+for u, v in [(0,1),(1,2),(2,3),(3,4),(4,0)]:
+    eo.insert_edge(u, v)
+print(f"Max out-degree: {eo.get_current_solution().max_out_degree}")
+
+# Dynamic weighted MIS
+wmis = DynamicProblems.weighted_mis(5, np.array([10,20,30,40,50], dtype=np.int32))
+for u, v in [(0,1),(1,2),(2,3),(3,4)]:
+    wmis.insert_edge(u, v)
+r = wmis.get_current_solution()
+print(f"Dynamic WMIS weight: {r.weight}, vertices: {r.vertices}")
 ```
 
 ---
@@ -217,11 +251,15 @@ print(f"Streaming matching: {r.num_matched} edges, weight {r.total_weight}")
 | Find max-weight b-matching on hypergraph | `IndependenceProblems.bmatching` | `algorithm`, `seed`, `ILP_time_limit` |
 | Stream hypergraph edges for matching | `StreamingBMatcher` | `algorithm`, `epsilon` |
 | Orient edges (min max out-degree) | `Orientation.orient_edges` | `algorithm` |
+| Dynamic edge orientation (exact) | `DynamicProblems.edge_orientation` | `algorithm`, `seed` |
+| Dynamic edge orientation (approx) | `DynamicProblems.approx_edge_orientation` | `algorithm`, `bfs_depth` |
+| Dynamic matching (insert/delete) | `DynamicProblems.matching` | `algorithm`, `seed` |
+| Dynamic weighted MIS (insert/delete) | `DynamicProblems.weighted_mis` | `node_weights`, `algorithm` |
 
 ### One-Liner Recipes
 
 ```python
-from chszlablib import Graph, HyperGraph, Decomposition, IndependenceProblems, Orientation
+from chszlablib import Graph, HyperGraph, Decomposition, IndependenceProblems, Orientation, DynamicProblems
 
 g = Graph.from_edge_list([(0,1),(1,2),(2,0),(2,3),(3,4),(4,5),(5,3)])
 
@@ -253,6 +291,15 @@ IndependenceProblems.bmatching(hg, algorithm="reductions")              # reduct
 from chszlablib import StreamingBMatcher
 sm = StreamingBMatcher(5, algorithm="greedy")                           # streaming matcher
 sm.add_edge([0,1], 5.0); sm.add_edge([2,3], 7.0); sm.finish()          # stream & collect
+
+# Dynamic graph algorithms (insert/delete edges)
+import numpy as np
+dm = DynamicProblems.matching(100)                                      # dynamic matching
+dm.insert_edge(0, 1); dm.get_current_solution()                        # insert & query
+
+eo = DynamicProblems.edge_orientation(100, algorithm="kflips")          # exact orientation
+ao = DynamicProblems.approx_edge_orientation(100)                       # approx orientation
+wmis = DynamicProblems.weighted_mis(5, np.ones(5, dtype=np.int32))      # dynamic WMIS
 ```
 
 ### Programmatic Introspection
@@ -265,9 +312,11 @@ Decomposition.PARTITION_MODES              # ("fast", "eco", "strong", "fastsoci
 Decomposition.MINCUT_ALGORITHMS            # ("inexact", "exact", "cactus")
 Decomposition.HYPERGRAPH_MINCUT_ALGORITHMS # ("kernelizer", "ilp", "submodular", "trimmer")
 
-from chszlablib import IndependenceProblems, StreamingBMatcher
+from chszlablib import IndependenceProblems, StreamingBMatcher, DynEdgeOrientation, DynMatching
 IndependenceProblems.BMATCHING_ALGORITHMS  # ("greedy_random", "greedy_weight_desc", ..., "reductions", "ils")
 StreamingBMatcher.ALGORITHMS               # ("naive", "greedy_set", "best_evict", "greedy", "lenient")
+DynEdgeOrientation.ALGORITHMS             # ("bfs", "naive_opt", "kflips", "rwalk", ...)
+DynMatching.ALGORITHMS                    # ("random_walk", "baswana_gupta_sen", "blossom", ...)
 
 # List all methods with descriptions
 Decomposition.available_methods()
@@ -1116,6 +1165,111 @@ Orientation.orient_edges(g, algorithm="combined", seed=0, eager_size=100) -> Edg
 
 ---
 
+### DynamicProblems
+
+Fully dynamic graph algorithms — insert and delete edges incrementally while maintaining solutions.
+
+| Method | Problem | Library |
+|:-------|:--------|:--------|
+| `edge_orientation` | Dynamic edge orientation (exact) | DynDeltaOrientation |
+| `approx_edge_orientation` | Dynamic edge orientation (approximate) | DynDeltaApprox |
+| `matching` | Dynamic matching | DynMatch |
+| `weighted_mis` | Dynamic weighted MIS | DynWMIS |
+
+#### `DynamicProblems.edge_orientation(num_nodes, ...)` — Dynamic Edge Orientation (DynDeltaOrientation)
+
+**Problem.** Maintain an orientation of edges such that the maximum out-degree is minimized, while edges are inserted and deleted dynamically.
+
+```python
+solver = DynamicProblems.edge_orientation(num_nodes, algorithm="kflips", seed=0)
+solver.insert_edge(u, v)
+solver.delete_edge(u, v)
+result = solver.get_current_solution()  # -> DynOrientationResult
+```
+
+| Algorithm | Identifier | Characteristics |
+|:----------|:-----------|:----------------|
+| BFS | `"bfs"` | BFS-based reorientation |
+| K-Flips | `"kflips"` | k-flip local search (default) |
+| Random Walk | `"rwalk"` | Random walk based |
+| Naive Opt | `"naive_opt"` | Optimized naive approach |
+| Improved Opt | `"impro_opt"` / `"improved_opt"` / `"improved_opt_dfs"` | Improved optimization variants |
+| Strong Opt | `"strong_opt"` / `"strong_opt_dfs"` | Strongest optimization |
+| Brodal-Fagerberg | `"brodal_fagerberg"` | Brodal-Fagerberg algorithm |
+| Max Descending | `"max_descending"` | Maximum descending approach |
+| Naive | `"naive"` | Simple baseline |
+
+**Result: `DynOrientationResult`** — `max_out_degree` (int), `out_degrees` (ndarray[int32]).
+
+#### `DynamicProblems.approx_edge_orientation(num_nodes, ...)` — Approximate Dynamic Edge Orientation (DynDeltaApprox)
+
+**Problem.** Maintain an *approximate* edge orientation with bounded maximum out-degree under dynamic edge insertions and deletions.
+
+```python
+solver = DynamicProblems.approx_edge_orientation(num_nodes, algorithm="improved_bfs", bfs_depth=20)
+solver.insert_edge(u, v)
+solver.delete_edge(u, v)
+max_deg = solver.get_current_solution()  # -> int (max out-degree)
+```
+
+| Algorithm | Identifier | Characteristics |
+|:----------|:-----------|:----------------|
+| CCHHQRS | `"cchhqrs"` | Christiansen et al. fractional relaxation |
+| Limited BFS | `"limited_bfs"` | BFS with depth limit |
+| Strong BFS | `"strong_bfs"` | Strong BFS variant |
+| Improved BFS | `"improved_bfs"` | Best BFS variant (default) |
+| Packed CCHHQRS | `"packed_cchhqrs"` / `"packed_cchhqrs_list"` / `"packed_cchhqrs_map"` | Memory-efficient CCHHQRS variants |
+
+**Result:** `int` — the current maximum out-degree.
+
+#### `DynamicProblems.matching(num_nodes, ...)` — Dynamic Matching (DynMatch)
+
+**Problem.** Maintain a matching on a graph where edges can be inserted and deleted dynamically.
+
+```python
+solver = DynamicProblems.matching(num_nodes, algorithm="blossom", seed=0)
+solver.insert_edge(u, v)
+solver.delete_edge(u, v)
+result = solver.get_current_solution()  # -> DynMatchingResult
+```
+
+| Algorithm | Identifier | Characteristics |
+|:----------|:-----------|:----------------|
+| Blossom | `"blossom"` | Dynamic blossom (default, best quality) |
+| Blossom Naive | `"blossom_naive"` | Simpler blossom variant |
+| Random Walk | `"random_walk"` | Random walk augmentation |
+| Baswana-Gupta-Sen | `"baswana_gupta_sen"` | Baswana-Gupta-Sen 2-approx |
+| Neiman-Solomon | `"neiman_solomon"` | Neiman-Solomon algorithm |
+| Naive | `"naive"` | Simple greedy baseline |
+| Static Blossom | `"static_blossom"` | Recomputes from scratch |
+
+**Result: `DynMatchingResult`** — `matching_size` (int), `matching` (ndarray[int32], matching[v] = mate or -1).
+
+#### `DynamicProblems.weighted_mis(num_nodes, node_weights, ...)` — Dynamic Weighted MIS (DynWMIS)
+
+**Problem.** Maintain a weighted independent set on a graph where edges can be inserted and deleted dynamically. Node weights are fixed at construction time.
+
+```python
+import numpy as np
+weights = np.array([10, 20, 30, 40, 50], dtype=np.int32)
+solver = DynamicProblems.weighted_mis(5, weights, algorithm="deg_greedy", bfs_depth=2, time_limit=1.0)
+solver.insert_edge(u, v)
+solver.delete_edge(u, v)
+result = solver.get_current_solution()  # -> DynWMISResult
+```
+
+| Algorithm | Identifier | Characteristics |
+|:----------|:-----------|:----------------|
+| Degree Greedy | `"deg_greedy"` | Greedy by degree (default) |
+| Greedy | `"greedy"` | Weight-based greedy |
+| Simple | `"simple"` / `"one_fast"` | Fast simple heuristic |
+| BFS | `"bfs"` | BFS-based local improvement |
+| Static | `"static"` / `"one_strong"` | Recomputes via KaMIS solver |
+
+**Result: `DynWMISResult`** — `weight` (int), `vertices` (ndarray[bool], True if vertex is in MIS).
+
+---
+
 ## Use Cases & Examples
 
 ### Distributed Computing: Domain Decomposition
@@ -1239,6 +1393,33 @@ result = sm.finish()
 print(f"Streaming matched {result.num_matched} edges")
 ```
 
+### Dynamic Graph Algorithms
+
+```python
+import numpy as np
+from chszlablib import DynamicProblems
+
+# Dynamic matching: track a matching as edges arrive and leave
+matcher = DynamicProblems.matching(num_nodes=1000, algorithm="blossom")
+for u, v in live_edge_stream():       # your real-time data source
+    matcher.insert_edge(u, v)
+print(f"Matching size: {matcher.get_current_solution().matching_size}")
+
+# Dynamic edge orientation: maintain low max out-degree
+orient = DynamicProblems.edge_orientation(num_nodes=1000, algorithm="kflips")
+for u, v in edge_insertions:
+    orient.insert_edge(u, v)
+print(f"Max out-degree: {orient.get_current_solution().max_out_degree}")
+
+# Dynamic weighted MIS: independent set under edge updates
+weights = np.ones(1000, dtype=np.int32)
+wmis = DynamicProblems.weighted_mis(num_nodes=1000, node_weights=weights)
+for u, v in edge_insertions:
+    wmis.insert_edge(u, v)
+result = wmis.get_current_solution()
+print(f"MIS weight: {result.weight}, size: {result.vertices.sum()}")
+```
+
 ---
 
 ## I/O
@@ -1301,6 +1482,7 @@ CHSZLabLib/
 │   ├── decomposition.py         # Decomposition namespace + HeiStreamPartitioner
 │   ├── independence.py          # IndependenceProblems namespace (MIS, MWIS, HyperMIS)
 │   ├── orientation.py           # Orientation namespace (edge orientation)
+│   ├── dynamic.py               # DynamicProblems namespace (dynamic graph algorithms)
 │   ├── exceptions.py            # Custom exception hierarchy
 │   └── io.py                    # METIS + hMETIS file I/O
 ├── bindings/                    # pybind11 C++ bindings
@@ -1323,7 +1505,11 @@ CHSZLabLib/
 │   ├── fpt-max-cut/             # Maximum cut
 │   ├── HeidelbergMotifClustering/ # Motif clustering
 │   ├── HeiHGM_Bmatching/        # Hypergraph b-matching
-│   └── HeiHGM_Streaming/        # Streaming hypergraph matching
+│   ├── HeiHGM_Streaming/        # Streaming hypergraph matching
+│   ├── DynDeltaOrientation/     # Dynamic edge orientation (exact)
+│   ├── DynDeltaApprox/          # Dynamic edge orientation (approximate)
+│   ├── DynMatch/                # Dynamic matching
+│   └── DynWMIS/                 # Dynamic weighted MIS
 ├── CMakeLists.txt               # Top-level CMake configuration
 ├── pyproject.toml               # Python package metadata
 ├── build.sh                     # One-step build script
@@ -1647,6 +1833,97 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
 }
 ```
 
+### DynDeltaOrientation (Dynamic Edge Orientation — Exact & Heuristic)
+
+```bibtex
+@inproceedings{DBLP:conf/alenex/GrossmannR0W25,
+  author       = {Ernestine Gro{\ss}mann and
+                  Henrik Reinst{\"a}dtler and
+                  Christian Schulz and
+                  Fabian Walliser},
+  title        = {Engineering Fully Dynamic Exact {$\Delta$}-Orientation Algorithms},
+  booktitle    = {Proceedings of the 27th Symposium on Algorithm Engineering and Experiments,
+                  {ALENEX} 2025, New Orleans, LA, USA, January 12-13, 2025},
+  pages        = {15--28},
+  publisher    = {{SIAM}},
+  year         = {2025},
+  doi          = {10.1137/1.9781611978339.2}
+}
+
+@inproceedings{DBLP:conf/acda/BorowitzG023,
+  author       = {Jannick Borowitz and
+                  Ernestine Gro{\ss}mann and
+                  Christian Schulz},
+  title        = {Engineering Fully Dynamic {$\Delta$}-Orientation Algorithms},
+  booktitle    = {{SIAM} Conference on Applied and Computational Discrete Algorithms,
+                  {ACDA} 2023, Seattle, WA, USA, May 31 - June 2, 2023},
+  pages        = {25--37},
+  publisher    = {{SIAM}},
+  year         = {2023},
+  doi          = {10.1137/1.9781611977714.3}
+}
+```
+
+### DynDeltaApprox (Dynamic Edge Orientation — Approximate)
+
+```bibtex
+@inproceedings{DBLP:conf/esa/GrossmannRR0HV25,
+  author       = {Ernestine Gro{\ss}mann and
+                  Henrik Reinst{\"a}dtler and
+                  Eva Rotenberg and
+                  Christian Schulz and
+                  Ivor {van der Hoog} and
+                  Juliette Vlieghe},
+  title        = {From Theory to Practice: Engineering Approximation Algorithms for
+                  Dynamic Orientation},
+  booktitle    = {33rd Annual European Symposium on Algorithms, {ESA} 2025, Warsaw,
+                  Poland, September 15-17, 2025},
+  series       = {LIPIcs},
+  volume       = {351},
+  pages        = {65:1--65:18},
+  publisher    = {Schloss Dagstuhl - Leibniz-Zentrum f{\"u}r Informatik},
+  year         = {2025},
+  doi          = {10.4230/LIPIcs.ESA.2025.65}
+}
+```
+
+### DynMatch (Dynamic Matching)
+
+```bibtex
+@inproceedings{DBLP:conf/esa/Henzinger0P020,
+  author       = {Monika Henzinger and
+                  Shahbaz Khan and
+                  Richard D. Paul and
+                  Christian Schulz},
+  title        = {Dynamic Matching Algorithms in Practice},
+  booktitle    = {28th Annual European Symposium on Algorithms, {ESA} 2020, Pisa, Italy
+                  (Virtual Conference), September 7-9, 2020},
+  series       = {LIPIcs},
+  volume       = {173},
+  pages        = {58:1--58:20},
+  publisher    = {Schloss Dagstuhl - Leibniz-Zentrum f{\"u}r Informatik},
+  year         = {2020},
+  doi          = {10.4230/LIPIcs.ESA.2020.58}
+}
+```
+
+### DynWMIS (Dynamic Weighted Independent Set)
+
+```bibtex
+@inproceedings{DBLP:conf/alenex/BorowitzG025,
+  author       = {Jannick Borowitz and
+                  Ernestine Gro{\ss}mann and
+                  Christian Schulz},
+  title        = {Optimal Neighborhood Exploration for Dynamic Independent Sets},
+  booktitle    = {Proceedings of the 27th Symposium on Algorithm Engineering and Experiments,
+                  {ALENEX} 2025, New Orleans, LA, USA, January 12-13, 2025},
+  pages        = {1--14},
+  publisher    = {{SIAM}},
+  year         = {2025},
+  doi          = {10.1137/1.9781611978339.1}
+}
+```
+
 ---
 
 ## Authors & Acknowledgments
@@ -1657,6 +1934,7 @@ This library would not be possible without the original algorithm implementation
 
 - **Yaroslav Akhremtsev** — KaHIP
 - **Linus Baumgärtner** — HeiStream
+- **Jannick Borowitz** — DynDeltaOrientation, DynWMIS
 - **Sonja Biedermann** — VieClus
 - **Adil Chhabra** — HeiCut, CluStRE, HeiStream, HeidelbergMotifClustering, KaHIP
 - **Jakob Dahlum** — KaMIS
@@ -1664,28 +1942,34 @@ This library would not be possible without the original algorithm implementation
 - **S. M. Ferdous** — HeiHGM/Streaming
 - **Marcelo Fonseca Faraj** — SCC, HeiStream, HeidelbergMotifClustering, KaHIP
 - **Alexander Gellner** — KaMIS
-- **Ernestine Großmann** — CHILS, HyperMIS, KaMIS (MMWIS), HeiHGM/Bmatching
+- **Ernestine Großmann** — CHILS, HyperMIS, KaMIS (MMWIS), HeiHGM/Bmatching, DynDeltaOrientation, DynDeltaApprox, DynWMIS
 - **Felix Hausberger** — SCC
-- **Monika Henzinger** — VieCut, VieClus
+- **Monika Henzinger** — VieCut, VieClus, DynMatch
+- **Ivor van der Hoog** — DynDeltaApprox
 - **Alexandra Henzinger** — KaHIP
 - **Demian Hespe** — KaMIS, fpt-max-cut
 - **Felix Joos** — HeiHGM/Bmatching
+- **Shahbaz Khan** — DynMatch
 - **Sebastian Lamm** — KaMIS, fpt-max-cut
 - **Kenneth Langedal** — CHILS
 - **Henning Meyerhenke** — KaHIP
 - **Matthias Mnich** — fpt-max-cut
 - **Alexander Noe** — VieCut, KaHIP
+- **Richard D. Paul** — DynMatch
 - **Shai Dorian Peretz** — CluStRE
 - **Alex Pothen** — HeiHGM/Streaming
-- **Henrik Reinstädtler** — HeiOrient, HeiHGM/Bmatching, HeiHGM/Streaming
+- **Henrik Reinstädtler** — HeiOrient, HeiHGM/Bmatching, HeiHGM/Streaming, DynDeltaOrientation, DynDeltaApprox
 - **Peter Sanders** — KaHIP, KaMIS
 - **Sebastian Schlag** — KaHIP
 - **Christian Schulz** — All libraries
 - **Bernhard Schuster** — VieClus
 - **Daniel Seemaier** — KaHIP, HeiStream
+- **Eva Rotenberg** — DynDeltaApprox
 - **Darren Strash** — VieCut, KaMIS, fpt-max-cut, HyperMIS, KaHIP
 - **Jesper Larsson Träff** — KaHIP
 - **Bora Uçar** — HeiOrient, HeiCut, HeiHGM/Streaming
+- **Juliette Vlieghe** — DynDeltaApprox
+- **Fabian Walliser** — DynDeltaOrientation
 - **Antonie Wagner** — HyperMIS
 - **Renato F. Werneck** — KaMIS
 - **Robert Williger** — KaMIS

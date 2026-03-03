@@ -29,6 +29,16 @@ from chszlablib.independence import (
     BMatchingResult, StreamingBMatcher,
 )
 from chszlablib.orientation import Orientation, EdgeOrientationResult
+from chszlablib.dynamic import (
+    DynamicProblems,
+    DynEdgeOrientation,
+    DynDeltaApproxOrientation,
+    DynMatching,
+    DynWeightedMIS,
+    DynOrientationResult,
+    DynMatchingResult,
+    DynWMISResult,
+)
 
 def describe() -> str:
     """Return a structured overview of the CHSZLabLib API.
@@ -79,6 +89,7 @@ def describe() -> str:
         (Decomposition, "DECOMPOSITION"),
         (IndependenceProblems, "INDEPENDENCE PROBLEMS"),
         (Orientation, "ORIENTATION"),
+        (DynamicProblems, "DYNAMIC GRAPH ALGORITHMS"),
     ]
 
     for cls, title in namespaces:
@@ -117,6 +128,9 @@ def describe() -> str:
         "  HyperMISResult          size, weight, vertices, offset, reduction_time",
         "  BMatchingResult         matched_edges, total_weight, num_matched",
         "  EdgeOrientationResult   max_out_degree, out_degrees, edge_heads",
+        "  DynOrientationResult    max_out_degree, out_degrees",
+        "  DynMatchingResult       matching_size, matching",
+        "  DynWMISResult           weight, vertices",
         "",
         "EXCEPTIONS",
         "-" * 48,
@@ -164,6 +178,11 @@ __all__ = [
     "IndependenceProblems",
     "StreamingBMatcher",
     "Orientation",
+    "DynamicProblems",
+    "DynEdgeOrientation",
+    "DynDeltaApproxOrientation",
+    "DynMatching",
+    "DynWeightedMIS",
     # Result dataclasses
     "PartitionResult",
     "SeparatorResult",
@@ -181,4 +200,7 @@ __all__ = [
     "HyperMISResult",
     "BMatchingResult",
     "EdgeOrientationResult",
+    "DynOrientationResult",
+    "DynMatchingResult",
+    "DynWMISResult",
 ]

@@ -47,3 +47,16 @@
 [submodule "external_repositories/HeiHGM_Streaming"]
 	path = external_repositories/HeiHGM_Streaming
 	url = https://github.com/HeiHGM/Streaming.git
+[submodule "external_repositories/DynDeltaApprox"]
+	path = external_repositories/DynDeltaApprox
+	url = https://github.com/DynGraphLab/DynDeltaApprox.git
+[submodule "external_repositories/DynDeltaOrientation"]
+	path = external_repositories/DynDeltaOrientation
+	url = https://github.com/DynGraphLab/DynDeltaOrientation.git
+[submodule "external_repositories/DynMatch"]
+	path = external_repositories/DynMatch
+	url = https://github.com/DynGraphLab/DynMatch.git
+	branch = master
+[submodule "external_repositories/DynWMIS"]
+	path = external_repositories/DynWMIS
+	url = https://github.com/DynGraphLab/DynWMIS.git

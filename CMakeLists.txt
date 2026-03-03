@@ -1315,18 +1315,26 @@ if f.exists():
 f = d / 'lib/partition/onepass_partitioning/vertex_partitioning.h'
 if f.exists():
     t = f.read_text()
-    t = t.replace('#include "absl/container/flat_hash_map.h"',
-                   '// #include "absl/container/flat_hash_map.h"  // patched out')
+    # Idempotent: replace absl include (clean up any prior repeated patching)
+    t = re.sub(r'(?://\s*)*#include "absl/container/flat_hash_map.h"(?:\s*//\s*patched out)*',
+               '// #include "absl/container/flat_hash_map.h"  // patched out', t)
     t = t.replace('absl::flat_hash_map', 'std::unordered_map')
     # Fix: bare 'return;' in non-void set_decision (clang error)
     t = re.sub(r'(set_decision\(PartitionID block,.*?my_thread, degree\);)\s*return;',
                r'\1 return block;', t, flags=re.DOTALL)
     # Fix: const correctness in get_block_address (declaration + definition)
-    t = t.replace('floating_block *get_block_address', 'const floating_block *get_block_address')
+    # Idempotent: collapse any multiple 'const' to single 'const'
+    t = re.sub(r'(?:const\s+)+floating_block \*get_block_address',
+               'const floating_block *get_block_address', t)
+    t = re.sub(r'(?:const\s+)+floating_block \*block_pointer',
+               'const floating_block *block_pointer', t)
+    # Also fix the non-const original if still present
+    t = re.sub(r'(?<!const )floating_block \*get_block_address',
+               'const floating_block *get_block_address', t)
     t = re.sub(r'inline floating_block \*\s*\n(\s*vertex_partitioning::get_block_address)',
                r'inline const floating_block *\n\1', t)
-    t = t.replace('  floating_block *block_pointer = &(blocks[block_id]);',
-                   '  const floating_block *block_pointer = &(blocks[block_id]);')
+    t = re.sub(r'(?<!const )floating_block \*block_pointer = &\(blocks\[block_id\]\);',
+               'const floating_block *block_pointer = &(blocks[block_id]);', t)
     f.write_text(t)
 
 f = d / 'lib/partition/onepass_partitioning/vertex_partitioning.cpp'
@@ -1349,12 +1357,24 @@ if f.exists():
     t = f.read_text()
     # build() is const but calls non-const redo() - remove const from build()
     t = t.replace('void build() const {', 'void build() {')
-    # comparison operators: add const qualifier
-    t = re.sub(r'bool operator([<>=!]+)\(const minimal_min_heap<U>& obj\) \{',
+    # comparison operators: add const qualifier (idempotent via negative lookbehind)
+    t = re.sub(r'bool operator([<>=!]+)\(const minimal_min_heap<U>& obj\)(?! const) \{',
                r'bool operator\1(const minimal_min_heap<U>& obj) const {', t)
-    # get_min() needs a const overload for const comparison operators
-    t = re.sub(r'(U& get_min\(\) \{[^}]+\})',
-               r'\1 const U& get_min() const { return (*this->fp)[0]; }', t)
+    # get_min(): ensure exactly one non-const + one const overload
+    # First, collapse any existing get_min definitions to canonical form
+    t = re.sub(
+        r'U& get_min\(\) \{ return \(\*this->fp\)\[0\]; \}(?:\s*const U& get_min\(\) const \{ return \(\*this->fp\)\[0\]; \})+',
+        r'U& get_min() { return (*this->fp)[0]; } const U& get_min() const { return (*this->fp)[0]; }',
+        t)
+    # If no const overload exists yet, add one
+    if 'const U& get_min() const' not in t:
+        t = t.replace(
+            'U& get_min() { return (*this->fp)[0]; }',
+            'U& get_min() { return (*this->fp)[0]; } const U& get_min() const { return (*this->fp)[0]; }')
+    # Remove any standalone duplicate const overload on subsequent line
+    t = re.sub(
+        r'(const U& get_min\(\) const \{ return \(\*this->fp\)\[0\]; \})\s*\n\s*const U& get_min\(\) const \{ return \(\*this->fp\)\[0\]; \}',
+        r'\1', t)
     f.write_text(t)
 ]=])
 execute_process(
@@ -1434,6 +1454,257 @@ target_include_directories(hypermis_static PUBLIC
     ${HYPERMIS_DIR}/include/datastructure
 )
 target_compile_options(hypermis_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -O2>)
+
+
+# =============================================================================
+# DynDeltaOrientation (Dynamic Edge Orientation — exact algorithms)
+# =============================================================================
+set(DYN_ORIENTATION_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/DynDeltaOrientation)
+
+set(DYN_ORIENTATION_SOURCES
+    ${DYN_ORIENTATION_DIR}/lib/data_structure/dyn_graph_access.cpp
+    # NOTE: BucketPriorityQueue.cpp excluded (only used by ILP, conflicts with forced cstdint include)
+    ${DYN_ORIENTATION_DIR}/lib/io/graph_io.cpp
+    ${DYN_ORIENTATION_DIR}/lib/tools/timer.cpp
+    ${DYN_ORIENTATION_DIR}/lib/tools/random_functions.cpp
+    ${DYN_ORIENTATION_DIR}/lib/algorithms/dyn_edge_orientation_BFSCS.cpp
+    ${DYN_ORIENTATION_DIR}/lib/algorithms/dyn_edge_orientation_BrodalFagerbergCS.cpp
+    ${DYN_ORIENTATION_DIR}/lib/algorithms/dyn_edge_orientation_KFlipsCS.cpp
+    ${DYN_ORIENTATION_DIR}/lib/algorithms/dyn_edge_orientation_MaxDecending.cpp
+    ${DYN_ORIENTATION_DIR}/lib/algorithms/dyn_edge_orientation_Naive.cpp
+    ${DYN_ORIENTATION_DIR}/lib/algorithms/dyn_edge_orientation_RWalkCS.cpp
+    ${DYN_ORIENTATION_DIR}/lib/algorithms/dyn_edge_orientation_impro_opt.cpp
+    ${DYN_ORIENTATION_DIR}/lib/algorithms/dyn_edge_orientation_improved_opt.cpp
+    ${DYN_ORIENTATION_DIR}/lib/algorithms/dyn_edge_orientation_improved_opt_dfs.cpp
+    ${DYN_ORIENTATION_DIR}/lib/algorithms/dyn_edge_orientation_naive_opt.cpp
+    ${DYN_ORIENTATION_DIR}/lib/algorithms/dyn_edge_orientation_strong_opt.cpp
+    ${DYN_ORIENTATION_DIR}/lib/algorithms/dyn_edge_orientation_strong_opt_dfs.cpp
+    # NOTE: dyn_edge_orientation_ILP.cpp and ilp.cpp excluded (require Gurobi)
+)
+
+add_library(dyn_orientation_static STATIC ${DYN_ORIENTATION_SOURCES})
+target_include_directories(dyn_orientation_static PUBLIC
+    ${DYN_ORIENTATION_DIR}/lib
+    ${DYN_ORIENTATION_DIR}/lib/algorithms
+    ${DYN_ORIENTATION_DIR}/lib/data_structure
+    ${DYN_ORIENTATION_DIR}/lib/io
+    ${DYN_ORIENTATION_DIR}/lib/tools
+    ${DYN_ORIENTATION_DIR}/extern/sparsehash/src
+)
+# Do NOT define USEILP — algorithm_factory.h guards ILP behind #ifdef USEILP
+target_compile_options(dyn_orientation_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -fpermissive -O2>)
+target_compile_definitions(dyn_orientation_static PRIVATE NDEBUG DELTAORI_IS_LOGGING=false)
+
+
+# =============================================================================
+# DynMatch (Dynamic Graph Matching)
+# =============================================================================
+set(DYN_MATCH_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/DynMatch)
+
+set(DYN_MATCH_SOURCES
+    ${DYN_MATCH_DIR}/lib/data_structure/dyn_graph_access.cpp
+    ${DYN_MATCH_DIR}/lib/data_structure/graph_access.cpp
+    ${DYN_MATCH_DIR}/lib/io/graph_io.cpp
+    ${DYN_MATCH_DIR}/lib/tools/quality_metrics.cpp
+    ${DYN_MATCH_DIR}/lib/tools/random_functions.cpp
+    ${DYN_MATCH_DIR}/lib/tools/timer.cpp
+    ${DYN_MATCH_DIR}/lib/algorithms/baswanaguptasen_dyn_matching.cpp
+    ${DYN_MATCH_DIR}/lib/algorithms/blossom_dyn_matching.cpp
+    ${DYN_MATCH_DIR}/lib/algorithms/blossom_dyn_matching_naive.cpp
+    ${DYN_MATCH_DIR}/lib/algorithms/dyn_matching.cpp
+    ${DYN_MATCH_DIR}/lib/algorithms/naive_dyn_matching.cpp
+    ${DYN_MATCH_DIR}/lib/algorithms/neimansolomon_dyn_matching.cpp
+    ${DYN_MATCH_DIR}/lib/algorithms/rw_dyn_matching.cpp
+    ${DYN_MATCH_DIR}/lib/algorithms/static_blossom.cpp
+)
+
+add_library(dyn_match_static STATIC ${DYN_MATCH_SOURCES})
+target_include_directories(dyn_match_static PUBLIC
+    ${DYN_MATCH_DIR}
+    ${DYN_MATCH_DIR}/lib
+    ${DYN_MATCH_DIR}/lib/algorithms
+    ${DYN_MATCH_DIR}/lib/data_structure
+    ${DYN_MATCH_DIR}/lib/io
+    ${DYN_MATCH_DIR}/lib/tools
+    ${DYN_MATCH_DIR}/extern/sparsehash/src
+    ${DYN_MATCH_DIR}/extern
+    ${DYN_MATCH_DIR}/extern/maxmatch_MV
+)
+target_compile_options(dyn_match_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -fpermissive -O2>)
+target_compile_definitions(dyn_match_static PRIVATE NDEBUG)
+
+
+# =============================================================================
+# DynWMIS (Dynamic Weighted Maximum Independent Set)
+# =============================================================================
+set(DYN_WMIS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/DynWMIS)
+set(DYN_WMIS_KAMIS_DIR ${DYN_WMIS_DIR}/extern/wmis)
+set(DYN_WMIS_KAHIP_DIR ${DYN_WMIS_KAMIS_DIR}/extern/KaHIP)
+
+# --- KaHIP sources (bundled fork inside DynWMIS, NO MPI files) ---
+set(DYN_WMIS_KAHIP_SOURCES
+    ${DYN_WMIS_KAHIP_DIR}/lib/data_structure/graph_hierarchy.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/algorithms/strongly_connected_components.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/algorithms/topological_sort.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/algorithms/push_relabel.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/algorithms/cycle_search.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/io/graph_io.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/tools/quality_metrics.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/tools/random_functions.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/tools/graph_extractor.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/tools/misc.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/tools/partition_snapshooter.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/graph_partitioner.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/w_cycles/wcycle_partitioner.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/coarsening/coarsening.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/coarsening/contraction.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/coarsening/edge_rating/edge_ratings.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/coarsening/matching/matching.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/coarsening/matching/random_matching.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/coarsening/matching/gpa/path.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/coarsening/matching/gpa/gpa_matching.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/coarsening/matching/gpa/path_set.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/coarsening/clustering/node_ordering.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/coarsening/clustering/size_constraint_label_propagation.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/initial_partitioning/initial_partitioning.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/initial_partitioning/initial_partitioner.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/initial_partitioning/initial_partition_bipartition.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/initial_partitioning/initial_refinement/initial_refinement.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/initial_partitioning/bipartition.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/initial_partitioning/initial_node_separator.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/uncoarsening.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/separator/area_bfs.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/separator/vertex_separator_algorithm.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/separator/vertex_separator_flow_solver.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/refinement.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/mixed_refinement.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/label_propagation_refinement/label_propagation_refinement.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/kway_graph_refinement/kway_graph_refinement.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/kway_graph_refinement/kway_graph_refinement_core.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/kway_graph_refinement/kway_graph_refinement_commons.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/kway_graph_refinement/multitry_kway_fm.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/2way_fm_refinement/two_way_fm.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement/two_way_flow_refinement.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement/boundary_bfs.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement/flow_solving_kernel/cut_flow_problem_solver.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement/most_balanced_minimum_cuts/most_balanced_minimum_cuts.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/quotient_graph_refinement.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/complete_boundary.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/partial_boundary.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/quotient_graph_scheduling/quotient_graph_scheduling.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/quotient_graph_scheduling/simple_quotient_graph_scheduler.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/quotient_graph_scheduling/active_block_quotient_graph_scheduler.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/greedy_neg_cycle.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/problem_factory.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/augmented_Qgraph.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/augmented_Qgraph_fabric.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/advanced_models.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/cycle_refinement.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/node_separators/greedy_ns_local_search.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/node_separators/fm_ns_local_search.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/node_separators/localized_fm_ns_local_search.cpp
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/tabu_search/tabu_search.cpp
+    # NOTE: Excluded MPI-dependent files: mpi_tools.cpp, graph_communication.cpp, parallel_mh/*
+)
+
+# --- WMIS (KaMIS MIS solvers) ---
+set(DYN_WMIS_KAMIS_SOURCES
+    ${DYN_WMIS_KAMIS_DIR}/lib/tools/mis_log.cpp
+    ${DYN_WMIS_KAMIS_DIR}/lib/mis/hils/Solution.cpp
+    ${DYN_WMIS_KAMIS_DIR}/lib/mis/ils/ils.cpp
+    ${DYN_WMIS_KAMIS_DIR}/lib/mis/ils/local_search.cpp
+    ${DYN_WMIS_KAMIS_DIR}/lib/mis/initial_mis/greedy_mis.cpp
+    ${DYN_WMIS_KAMIS_DIR}/lib/mis/initial_mis/greedy_vertex.cpp
+    ${DYN_WMIS_KAMIS_DIR}/lib/mis/initial_mis/random_mis.cpp
+    ${DYN_WMIS_KAMIS_DIR}/lib/mis/initial_mis/initial_mis.cpp
+    ${DYN_WMIS_KAMIS_DIR}/lib/data_structure/mis_permutation.cpp
+    ${DYN_WMIS_KAMIS_DIR}/lib/data_structure/candidate_list.cpp
+    ${DYN_WMIS_KAMIS_DIR}/lib/data_structure/operation_log.cpp
+    ${DYN_WMIS_KAMIS_DIR}/lib/data_structure/priority_queues/bucket_array.cpp
+    ${DYN_WMIS_KAMIS_DIR}/lib/mis/kernel/branch_and_reduce_algorithm.cpp
+    ${DYN_WMIS_KAMIS_DIR}/lib/mis/kernel/reductions.cpp
+    ${DYN_WMIS_KAMIS_DIR}/lib/mis/kernel/mwis_finder.cpp
+    ${DYN_WMIS_KAMIS_DIR}/lib/mis/kernel/original_struction.cpp
+    ${DYN_WMIS_KAMIS_DIR}/lib/mis/kernel/extended_struction.cpp
+    ${DYN_WMIS_KAMIS_DIR}/lib/mis/kernel/key_functions.cpp
+)
+
+# --- OnlineMIS ---
+set(DYN_WMIS_ONLINEMIS_SOURCES
+    ${DYN_WMIS_DIR}/extern/onlinemis/ils/local_search_online.cpp
+    ${DYN_WMIS_DIR}/extern/onlinemis/ils/online_ils.cpp
+    ${DYN_WMIS_DIR}/extern/onlinemis/tools/mis_log.cpp
+    ${DYN_WMIS_DIR}/extern/onlinemis/initial_mis/greedy_mis_online.cpp
+    ${DYN_WMIS_DIR}/extern/onlinemis/data_structure/candidate_list.cpp
+    ${DYN_WMIS_DIR}/extern/onlinemis/data_structure/mis_permutation_online.cpp
+    ${DYN_WMIS_DIR}/extern/onlinemis/data_structure/priority_queues/bucket_array.cpp
+)
+
+# --- DynWMIS core ---
+set(DYN_WMIS_CORE_SOURCES
+    ${DYN_WMIS_DIR}/lib/data_structure/dyn_graph_access.cpp
+    ${DYN_WMIS_DIR}/lib/io/mwis_graph_io.cpp
+    ${DYN_WMIS_DIR}/lib/tools/timer.cpp
+    ${DYN_WMIS_DIR}/lib/algorithms/dyn_wmis_simple.cpp
+    ${DYN_WMIS_DIR}/lib/algorithms/dyn_wmis_greedy.cpp
+    ${DYN_WMIS_DIR}/lib/algorithms/dyn_wmis_greedy_deg.cpp
+    ${DYN_WMIS_DIR}/lib/algorithms/dyn_wmis_bfs.cpp
+    ${DYN_WMIS_DIR}/lib/algorithms/dyn_wmis_static.cpp
+    ${DYN_WMIS_DIR}/lib/algorithms/solve_static_wmis.cpp
+    ${DYN_WMIS_DIR}/lib/algorithms/mis_branch_and_reduce_algorithm.cpp
+    ${DYN_WMIS_DIR}/lib/algorithms/modified.cpp
+)
+
+add_library(dyn_wmis_static STATIC
+    ${DYN_WMIS_CORE_SOURCES}
+    ${DYN_WMIS_KAMIS_SOURCES}
+    ${DYN_WMIS_KAHIP_SOURCES}
+    ${DYN_WMIS_ONLINEMIS_SOURCES}
+)
+target_include_directories(dyn_wmis_static PUBLIC
+    # DynWMIS core
+    ${DYN_WMIS_DIR}/lib
+    ${DYN_WMIS_DIR}/lib/algorithms
+    ${DYN_WMIS_DIR}/lib/data_structure
+    ${DYN_WMIS_DIR}/lib/io
+    ${DYN_WMIS_DIR}/lib/tools
+    ${DYN_WMIS_DIR}/extern/sparsehash/src
+    # WMIS (KaMIS fork)
+    ${DYN_WMIS_KAMIS_DIR}/app
+    ${DYN_WMIS_KAMIS_DIR}/lib
+    ${DYN_WMIS_KAMIS_DIR}/lib/io
+    ${DYN_WMIS_KAMIS_DIR}/lib/mis
+    ${DYN_WMIS_KAMIS_DIR}/lib/mis/hils
+    ${DYN_WMIS_KAMIS_DIR}/lib/mis/ils
+    ${DYN_WMIS_KAMIS_DIR}/lib/mis/initial_mis
+    ${DYN_WMIS_KAMIS_DIR}/lib/mis/kernel
+    ${DYN_WMIS_KAMIS_DIR}/lib/partition
+    ${DYN_WMIS_KAMIS_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement
+    ${DYN_WMIS_KAMIS_DIR}/lib/tools
+    ${DYN_WMIS_KAMIS_DIR}/lib/data_structure
+    ${DYN_WMIS_KAMIS_DIR}/lib/data_structure/priority_queues
+    ${DYN_WMIS_KAMIS_DIR}/extern
+    # KaHIP fork
+    ${DYN_WMIS_KAHIP_DIR}
+    ${DYN_WMIS_KAHIP_DIR}/lib
+    ${DYN_WMIS_KAHIP_DIR}/lib/io
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition
+    ${DYN_WMIS_KAHIP_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement
+    ${DYN_WMIS_KAHIP_DIR}/lib/tools
+    ${DYN_WMIS_KAHIP_DIR}/lib/data_structure
+    ${DYN_WMIS_KAHIP_DIR}/lib/data_structure/matrix
+    ${DYN_WMIS_KAHIP_DIR}/lib/data_structure/priority_queues
+    # OnlineMIS
+    ${DYN_WMIS_DIR}/extern/onlinemis
+    ${DYN_WMIS_DIR}/extern/onlinemis/ils
+    ${DYN_WMIS_DIR}/extern/onlinemis/initial_mis
+    ${DYN_WMIS_DIR}/extern/onlinemis/data_structure
+)
+target_compile_options(dyn_wmis_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -fpermissive -O2>)
+target_compile_definitions(dyn_wmis_static PRIVATE NDEBUG)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(dyn_wmis_static PUBLIC OpenMP::OpenMP_CXX)
+endif()
 
 
 # =============================================================================
@@ -1756,4 +2027,32 @@ install(TARGETS _bmatching DESTINATION chszlablib)
 pybind11_add_module(_streaming_bmatching bindings/streaming_bmatching_binding.cpp)
 target_compile_features(_streaming_bmatching PRIVATE cxx_std_17)
 install(TARGETS _streaming_bmatching DESTINATION chszlablib)
+
+# --- _dyn_orientation (Dynamic Edge Orientation — exact) ---
+pybind11_add_module(_dyn_orientation bindings/dyn_orientation_binding.cpp)
+target_link_libraries(_dyn_orientation PRIVATE dyn_orientation_static)
+target_compile_options(_dyn_orientation PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>)
+install(TARGETS _dyn_orientation DESTINATION chszlablib)
+
+# --- _dyn_delta_approx (Dynamic Edge Orientation — approximate, header-only) ---
+set(DYN_DELTA_APPROX_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/DynDeltaApprox)
+pybind11_add_module(_dyn_delta_approx bindings/dyn_delta_approx_binding.cpp)
+target_include_directories(_dyn_delta_approx PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/bindings/dyn_delta_approx_stubs
+    ${DYN_DELTA_APPROX_DIR}
+)
+target_compile_options(_dyn_delta_approx PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>)
+install(TARGETS _dyn_delta_approx DESTINATION chszlablib)
+
+# --- _dyn_matching (Dynamic Graph Matching) ---
+pybind11_add_module(_dyn_matching bindings/dyn_matching_binding.cpp)
+target_link_libraries(_dyn_matching PRIVATE dyn_match_static)
+target_compile_options(_dyn_matching PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>)
+install(TARGETS _dyn_matching DESTINATION chszlablib)
+
+# --- _dyn_wmis (Dynamic Weighted MIS) ---
+pybind11_add_module(_dyn_wmis bindings/dyn_wmis_binding.cpp)
+target_link_libraries(_dyn_wmis PRIVATE dyn_wmis_static)
+target_compile_options(_dyn_wmis PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>)
+install(TARGETS _dyn_wmis DESTINATION chszlablib)
 
