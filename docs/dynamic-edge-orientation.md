@@ -217,16 +217,15 @@ print(f"Max out-degree: {max_degree}")
   doi       = {10.1137/1.9781611977714.3}
 }
 
-@article{DBLP:journals/corr/abs-2407-12595,
-  author     = {Ernestine Gro{\ss}mann and Henrik Reinst{\"{a}}dtler
-                and Christian Schulz and Fabian Walliser},
-  title      = {Engineering Fully Dynamic Exact {\(\Delta\)}-Orientation Algorithms},
-  journal    = {CoRR},
-  volume     = {abs/2407.12595},
-  year       = {2024},
-  eprinttype = {arXiv},
-  eprint     = {2407.12595},
-  doi        = {10.48550/arXiv.2407.12595}
+@inproceedings{DBLP:conf/alenex/GrossmannR0W25,
+  author    = {Ernestine Gro{\ss}mann and Henrik Reinst{\"{a}}dtler
+               and Christian Schulz and Fabian Walliser},
+  title     = {Engineering Fully Dynamic Exact {\(\Delta\)}-Orientation Algorithms},
+  booktitle = {Algorithm Engineering and Experiments, {ALENEX} 2025},
+  pages     = {15--28},
+  publisher = {{SIAM}},
+  year      = {2025},
+  doi       = {10.1137/1.9781611978339.2}
 }
 
 @inproceedings{DBLP:conf/esa/GrossmannRR0HV25,
