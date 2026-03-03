@@ -1981,6 +1981,7 @@ install(TARGETS _heicut DESTINATION chszlablib)
 set(SHAREDMAP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/SharedMap)
 
 # Use SharedMap's own Mt-KaHyPar v1.5.3 build (matches CLI exactly).
+# SharedMap requires pre-built Mt-KaHyPar (Linux only; not available on macOS).
 set(SHAREDMAP_MTKAHYPAR_DIR ${SHAREDMAP_DIR}/extern/local/mt-kahypar)
 set(SHAREDMAP_MTKAHYPAR_INCLUDE ${SHAREDMAP_MTKAHYPAR_DIR}/include)
 # Try lib/ first, fall back to lib64/
@@ -1989,9 +1990,12 @@ if(EXISTS "${SHAREDMAP_MTKAHYPAR_DIR}/lib/libmtkahypar.so")
 elseif(EXISTS "${SHAREDMAP_MTKAHYPAR_DIR}/lib64/libmtkahypar.so")
     set(SHAREDMAP_MTKAHYPAR_LIB_DIR ${SHAREDMAP_MTKAHYPAR_DIR}/lib64)
 else()
-    message(WARNING "SharedMap's Mt-KaHyPar library not found, falling back to HeiCut's")
     set(SHAREDMAP_MTKAHYPAR_LIB_DIR "")
 endif()
+
+# Only build SharedMap when its pre-built Mt-KaHyPar headers are available.
+# On macOS (and fresh checkouts without a prior SharedMap build), skip it.
+if(EXISTS "${SHAREDMAP_MTKAHYPAR_INCLUDE}/mtkahypar.h")
 
 add_library(sharedmap_static STATIC
     ${SHAREDMAP_DIR}/lib/libsharedmap.cpp
@@ -2069,6 +2073,10 @@ if(SHAREDMAP_MTKAHYPAR_LIB_DIR)
         ")
     endif()
 endif()
+
+else()
+    message(STATUS "SharedMap: skipping (Mt-KaHyPar headers not found at ${SHAREDMAP_MTKAHYPAR_INCLUDE})")
+endif() # EXISTS mtkahypar.h
 
 # Install HeiCut's Mt-KaHyPar .so into chszlablib/ for _heicut runtime loading.
 if(MTKAHYPAR_LIB)
