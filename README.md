@@ -130,7 +130,7 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 
 | Library | Domain | Algorithms |
 |:--------|:-------|:-----------|
-| [DynDeltaOrientation](https://github.com/DynGraphLab/DynDeltaOrientation) | Dynamic edge orientation (exact) | BFS, K-Flips, Random Walk, Brodal-Fagerberg, Naive/Improved/Strong Opt |
+| [DynDeltaOrientation](https://github.com/DynGraphLab/DynDeltaOrientation) | Dynamic edge orientation | BFS, K-Flips, Random Walk, Brodal-Fagerberg, Naive/Improved/Strong Opt |
 | [DynDeltaApprox](https://github.com/DynGraphLab/DynDeltaApprox) | Dynamic edge orientation (approx) | CCHHQRS, Limited/Strong/Improved BFS, Packed CCHHQRS variants |
 | [DynMatch](https://github.com/DynGraphLab/DynMatch) | Dynamic matching | Blossom, Random Walk, Baswana-Gupta-Sen, Neiman-Solomon, Static Blossom |
 | [DynWMIS](https://github.com/DynGraphLab/DynWMIS) | Dynamic weighted MIS | Simple, Greedy, Degree-Greedy, BFS, Static (with KaMIS fork) |
@@ -251,7 +251,7 @@ print(f"Dynamic WMIS weight: {r.weight}, vertices: {r.vertices}")
 | Find max-weight b-matching on hypergraph | `IndependenceProblems.bmatching` | `algorithm`, `seed`, `ILP_time_limit` |
 | Stream hypergraph edges for matching | `StreamingBMatcher` | `algorithm`, `epsilon` |
 | Orient edges (min max out-degree) | `Orientation.orient_edges` | `algorithm` |
-| Dynamic edge orientation (exact) | `DynamicProblems.edge_orientation` | `algorithm`, `seed` |
+| Dynamic edge orientation | `DynamicProblems.edge_orientation` | `algorithm`, `seed` |
 | Dynamic edge orientation (approx) | `DynamicProblems.approx_edge_orientation` | `algorithm`, `bfs_depth` |
 | Dynamic matching (insert/delete) | `DynamicProblems.matching` | `algorithm`, `seed` |
 | Dynamic weighted MIS (insert/delete) | `DynamicProblems.weighted_mis` | `node_weights`, `algorithm` |
@@ -297,7 +297,7 @@ import numpy as np
 dm = DynamicProblems.matching(100)                                      # dynamic matching
 dm.insert_edge(0, 1); dm.get_current_solution()                        # insert & query
 
-eo = DynamicProblems.edge_orientation(100, algorithm="kflips")          # exact orientation
+eo = DynamicProblems.edge_orientation(100, algorithm="kflips")          # dynamic orientation
 ao = DynamicProblems.approx_edge_orientation(100)                       # approx orientation
 wmis = DynamicProblems.weighted_mis(5, np.ones(5, dtype=np.int32))      # dynamic WMIS
 ```
@@ -1171,7 +1171,7 @@ Fully dynamic graph algorithms — insert and delete edges incrementally while m
 
 | Method | Problem | Library |
 |:-------|:--------|:--------|
-| `edge_orientation` | Dynamic edge orientation (exact) | DynDeltaOrientation |
+| `edge_orientation` | Dynamic edge orientation | DynDeltaOrientation |
 | `approx_edge_orientation` | Dynamic edge orientation (approximate) | DynDeltaApprox |
 | `matching` | Dynamic matching | DynMatch |
 | `weighted_mis` | Dynamic weighted MIS | DynWMIS |
@@ -1506,7 +1506,7 @@ CHSZLabLib/
 │   ├── HeidelbergMotifClustering/ # Motif clustering
 │   ├── HeiHGM_Bmatching/        # Hypergraph b-matching
 │   ├── HeiHGM_Streaming/        # Streaming hypergraph matching
-│   ├── DynDeltaOrientation/     # Dynamic edge orientation (exact)
+│   ├── DynDeltaOrientation/     # Dynamic edge orientation
 │   ├── DynDeltaApprox/          # Dynamic edge orientation (approximate)
 │   ├── DynMatch/                # Dynamic matching
 │   └── DynWMIS/                 # Dynamic weighted MIS
@@ -1833,7 +1833,7 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
 }
 ```
 
-### DynDeltaOrientation (Dynamic Edge Orientation — Exact & Heuristic)
+### DynDeltaOrientation (Dynamic Edge Orientation)
 
 ```bibtex
 @inproceedings{DBLP:conf/alenex/GrossmannR0W25,
@@ -1934,8 +1934,8 @@ This library would not be possible without the original algorithm implementation
 
 - **Yaroslav Akhremtsev** — KaHIP
 - **Linus Baumgärtner** — HeiStream
-- **Jannick Borowitz** — DynDeltaOrientation, DynWMIS
 - **Sonja Biedermann** — VieClus
+- **Jannick Borowitz** — DynDeltaOrientation, DynWMIS
 - **Adil Chhabra** — HeiCut, CluStRE, HeiStream, HeidelbergMotifClustering, KaHIP
 - **Jakob Dahlum** — KaMIS
 - **Damir Ferizovic** — fpt-max-cut
@@ -1944,10 +1944,10 @@ This library would not be possible without the original algorithm implementation
 - **Alexander Gellner** — KaMIS
 - **Ernestine Großmann** — CHILS, HyperMIS, KaMIS (MMWIS), HeiHGM/Bmatching, DynDeltaOrientation, DynDeltaApprox, DynWMIS
 - **Felix Hausberger** — SCC
-- **Monika Henzinger** — VieCut, VieClus, DynMatch
-- **Ivor van der Hoog** — DynDeltaApprox
 - **Alexandra Henzinger** — KaHIP
+- **Monika Henzinger** — VieCut, VieClus, DynMatch
 - **Demian Hespe** — KaMIS, fpt-max-cut
+- **Ivor van der Hoog** — DynDeltaApprox
 - **Felix Joos** — HeiHGM/Bmatching
 - **Shahbaz Khan** — DynMatch
 - **Sebastian Lamm** — KaMIS, fpt-max-cut
@@ -1959,12 +1959,12 @@ This library would not be possible without the original algorithm implementation
 - **Shai Dorian Peretz** — CluStRE
 - **Alex Pothen** — HeiHGM/Streaming
 - **Henrik Reinstädtler** — HeiOrient, HeiHGM/Bmatching, HeiHGM/Streaming, DynDeltaOrientation, DynDeltaApprox
+- **Eva Rotenberg** — DynDeltaApprox
 - **Peter Sanders** — KaHIP, KaMIS
 - **Sebastian Schlag** — KaHIP
 - **Christian Schulz** — All libraries
 - **Bernhard Schuster** — VieClus
 - **Daniel Seemaier** — KaHIP, HeiStream
-- **Eva Rotenberg** — DynDeltaApprox
 - **Darren Strash** — VieCut, KaMIS, fpt-max-cut, HyperMIS, KaHIP
 - **Jesper Larsson Träff** — KaHIP
 - **Bora Uçar** — HeiOrient, HeiCut, HeiHGM/Streaming
@@ -1974,8 +1974,8 @@ This library would not be possible without the original algorithm implementation
 - **Renato F. Werneck** — KaMIS
 - **Robert Williger** — KaMIS
 - **Loris Wilwert** — HeiCut
-- **Huashuo Zhang** — KaMIS
 - **Bogdán Zaválnij** — KaMIS
+- **Huashuo Zhang** — KaMIS
 
 ---
 

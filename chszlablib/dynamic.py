@@ -38,7 +38,7 @@ class DynWMISResult:
 
 
 class DynEdgeOrientation:
-    """Dynamic edge orientation (exact algorithms).
+    """Dynamic edge orientation.
 
     Maintains an orientation of edges such that the maximum out-degree
     is minimized. Edges can be inserted and deleted incrementally.
@@ -333,7 +333,7 @@ class DynamicProblems:
     def available_methods(cls) -> dict[str, str]:
         """Return a dict mapping method names to short descriptions."""
         return {
-            "edge_orientation": "Dynamic edge orientation — exact (DynDeltaOrientation)",
+            "edge_orientation": "Dynamic edge orientation (DynDeltaOrientation)",
             "approx_edge_orientation": "Dynamic edge orientation — approximate (DynDeltaApprox)",
             "matching": "Dynamic graph matching (DynMatch)",
             "weighted_mis": "Dynamic weighted MIS (DynWMIS)",
@@ -345,7 +345,7 @@ class DynamicProblems:
         algorithm: str = "kflips",
         seed: int = 0,
     ) -> DynEdgeOrientation:
-        """Create a dynamic edge orientation solver (exact algorithms).
+        """Create a dynamic edge orientation solver.
 
         Parameters
         ----------
