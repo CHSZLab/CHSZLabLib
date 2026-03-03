@@ -682,11 +682,11 @@ Decomposition.maxcut(g, method="heuristic", time_limit=1.0) -> MaxCutResult
 
 #### `Decomposition.correlation_clustering(g, ...)` — Correlation Clustering (SCC)
 
-**Problem.** Given a graph $G = (V, E)$ with signed edge weights $\omega : E \to \mathbb{R}$ (positive edges indicate similarity, negative edges indicate dissimilarity), find a partition $\mathcal{C}$ of $V$ into an arbitrary number of clusters that minimizes the total number of **disagreements**
+**Problem.** Given a graph $G = (V, E)$ with signed edge weights $\omega : E \to \mathbb{R}$, find a partition $\mathcal{C}$ of $V$ into an arbitrary number of clusters that minimizes the **edge cut**, i.e., the sum of all edge weights between clusters:
 
-$$\text{disagree}(\mathcal{C}) = \sum_{\substack{\lbrace u,v \rbrace \in E, ~ \omega(\lbrace u,v \rbrace) > 0 \\ c(u) \neq c(v)}} \omega(\lbrace u,v \rbrace) ~+~ \sum_{\substack{\lbrace u,v \rbrace \in E, ~ \omega(\lbrace u,v \rbrace) < 0 \\ c(u) = c(v)}} |\omega(\lbrace u,v \rbrace)|,$$
+$$\text{cut}(\mathcal{C}) = \sum_{\substack{\lbrace u,v \rbrace \in E \\ c(u) \neq c(v)}} \omega(\lbrace u,v \rbrace).$$
 
-i.e., positive edges crossing cluster boundaries plus negative edges within clusters. Unlike standard clustering, the number of clusters $k$ is not fixed but determined by the optimization. SCC uses multilevel label propagation to solve this efficiently.
+Unlike standard clustering, the number of clusters $k$ is not fixed but determined by the optimization. SCC uses multilevel label propagation to solve this efficiently.
 
 ```python
 Decomposition.correlation_clustering(g, seed=0, time_limit=0) -> CorrelationClusteringResult
@@ -694,7 +694,7 @@ Decomposition.correlation_clustering(g, seed=0, time_limit=0) -> CorrelationClus
 
 #### `Decomposition.evolutionary_correlation_clustering(g, ...)` — Evolutionary Correlation Clustering (SCC)
 
-**Problem.** Same objective as `correlation_clustering` (minimize disagreements on a signed graph). This variant uses a **population-based memetic evolutionary algorithm** that maintains a pool of clusterings and improves them through recombination and multilevel local search over a given time budget, yielding higher-quality solutions at the cost of increased runtime.
+**Problem.** Same objective as `correlation_clustering` (minimize edge cut on a signed graph). This variant uses a **population-based memetic evolutionary algorithm** that maintains a pool of clusterings and improves them through recombination and multilevel local search over a given time budget, yielding higher-quality solutions at the cost of increased runtime.
 
 ```python
 Decomposition.evolutionary_correlation_clustering(g, seed=0, time_limit=5.0) -> CorrelationClusteringResult
