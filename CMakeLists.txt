@@ -2003,6 +2003,26 @@ endif()
 # Run scripts/build_sharedmap_mtkahypar.sh first on fresh checkouts.
 if(EXISTS "${SHAREDMAP_MTKAHYPAR_INCLUDE}/mtkahypar.h")
 
+# Patch SharedMap layer.h for macOS: size_t (unsigned long) vs u64 (unsigned long long)
+# type mismatch in std::min/max calls that AppleClang treats as hard errors.
+if(APPLE)
+    set(_LAYER_H "${SHAREDMAP_DIR}/src/partitioning/layer.h")
+    file(READ "${_LAYER_H}" _LAYER_CONTENT)
+    string(FIND "${_LAYER_CONTENT}" "(u64) layer.size()" _ALREADY_PATCHED)
+    if(_ALREADY_PATCHED EQUAL -1)
+        string(REPLACE
+            "std::min(layer.size(), n_threads)"
+            "std::min((u64) layer.size(), n_threads)"
+            _LAYER_CONTENT "${_LAYER_CONTENT}")
+        string(REPLACE
+            "(n_threads / layer.size()))"
+            "(u64)(n_threads / layer.size()))"
+            _LAYER_CONTENT "${_LAYER_CONTENT}")
+        file(WRITE "${_LAYER_H}" "${_LAYER_CONTENT}")
+        message(STATUS "SharedMap: patched layer.h for macOS size_t/u64 compatibility")
+    endif()
+endif()
+
 add_library(sharedmap_static STATIC
     ${SHAREDMAP_DIR}/lib/libsharedmap.cpp
     ${SHAREDMAP_DIR}/src/utility/build_anchor.cpp
