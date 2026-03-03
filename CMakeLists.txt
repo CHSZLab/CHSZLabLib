@@ -1981,20 +1981,26 @@ install(TARGETS _heicut DESTINATION chszlablib)
 set(SHAREDMAP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/SharedMap)
 
 # Use SharedMap's own Mt-KaHyPar v1.5.3 build (matches CLI exactly).
-# SharedMap requires pre-built Mt-KaHyPar (Linux only; not available on macOS).
+# On macOS, run scripts/build_sharedmap_mtkahypar.sh to build from source.
 set(SHAREDMAP_MTKAHYPAR_DIR ${SHAREDMAP_DIR}/extern/local/mt-kahypar)
 set(SHAREDMAP_MTKAHYPAR_INCLUDE ${SHAREDMAP_MTKAHYPAR_DIR}/include)
+# Platform-aware library extension
+if(APPLE)
+    set(_SM_LIB_EXT "dylib")
+else()
+    set(_SM_LIB_EXT "so")
+endif()
 # Try lib/ first, fall back to lib64/
-if(EXISTS "${SHAREDMAP_MTKAHYPAR_DIR}/lib/libmtkahypar.so")
+if(EXISTS "${SHAREDMAP_MTKAHYPAR_DIR}/lib/libmtkahypar.${_SM_LIB_EXT}")
     set(SHAREDMAP_MTKAHYPAR_LIB_DIR ${SHAREDMAP_MTKAHYPAR_DIR}/lib)
-elseif(EXISTS "${SHAREDMAP_MTKAHYPAR_DIR}/lib64/libmtkahypar.so")
+elseif(EXISTS "${SHAREDMAP_MTKAHYPAR_DIR}/lib64/libmtkahypar.${_SM_LIB_EXT}")
     set(SHAREDMAP_MTKAHYPAR_LIB_DIR ${SHAREDMAP_MTKAHYPAR_DIR}/lib64)
 else()
     set(SHAREDMAP_MTKAHYPAR_LIB_DIR "")
 endif()
 
-# Only build SharedMap when its pre-built Mt-KaHyPar headers are available.
-# On macOS (and fresh checkouts without a prior SharedMap build), skip it.
+# Only build SharedMap when Mt-KaHyPar headers are available.
+# Run scripts/build_sharedmap_mtkahypar.sh first on fresh checkouts.
 if(EXISTS "${SHAREDMAP_MTKAHYPAR_INCLUDE}/mtkahypar.h")
 
 add_library(sharedmap_static STATIC
@@ -2017,7 +2023,9 @@ target_compile_definitions(sharedmap_static PRIVATE NDEBUG)
 target_link_libraries(sharedmap_static PUBLIC kahip_static)
 if(SHAREDMAP_MTKAHYPAR_LIB_DIR)
     # Link against SharedMap's own Mt-KaHyPar v1.5.3 (same as CLI)
-    target_link_libraries(sharedmap_static PUBLIC ${SHAREDMAP_MTKAHYPAR_LIB_DIR}/libmtkahypar.so)
+    find_library(SHAREDMAP_MTKAHYPAR_LIB mtkahypar
+        PATHS ${SHAREDMAP_MTKAHYPAR_LIB_DIR} NO_DEFAULT_PATH)
+    target_link_libraries(sharedmap_static PUBLIC ${SHAREDMAP_MTKAHYPAR_LIB})
 elseif(MTKAHYPAR_LIB)
     target_link_libraries(sharedmap_static PUBLIC ${MTKAHYPAR_LIB})
 endif()
@@ -2040,37 +2048,51 @@ set_target_properties(_sharedmap PROPERTIES
 )
 install(TARGETS _sharedmap DESTINATION chszlablib)
 
-# Install SharedMap's Mt-KaHyPar .so into chszlablib/ for runtime loading.
-# Only install versioned files (soname libmtkahypar.so.1) to avoid conflict
-# with HeiCut's unversioned libmtkahypar.so.
+# Install SharedMap's Mt-KaHyPar into chszlablib/ for runtime loading.
 if(SHAREDMAP_MTKAHYPAR_LIB_DIR)
-    install(FILES
-        "${SHAREDMAP_MTKAHYPAR_LIB_DIR}/libmtkahypar.so.1.5.3"
-        DESTINATION chszlablib)
-    # Also install the soname symlink
-    install(CODE "
-        execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
-            libmtkahypar.so.1.5.3 \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/chszlablib/libmtkahypar.so.1)
-    ")
-    # Install bundled dependencies (required by Mt-KaHyPar v1.5.3)
-    file(GLOB _SHAREDMAP_BOOST_LIBS "${SHAREDMAP_MTKAHYPAR_LIB_DIR}/libboost_program_options.so*")
-    if(_SHAREDMAP_BOOST_LIBS)
-        install(FILES ${_SHAREDMAP_BOOST_LIBS} DESTINATION chszlablib)
-    endif()
-    # Install bundled TBB (v1.5.3 needs newer TBB than system may have)
-    file(GLOB _SHAREDMAP_TBB_LIBS
-        "${SHAREDMAP_MTKAHYPAR_LIB_DIR}/libtbb.so*"
-        "${SHAREDMAP_MTKAHYPAR_LIB_DIR}/libtbbmalloc.so*")
-    if(_SHAREDMAP_TBB_LIBS)
-        install(FILES ${_SHAREDMAP_TBB_LIBS} DESTINATION chszlablib)
-    endif()
-    # Patch libmtkahypar.so.1.5.3 RPATH so it finds bundled TBB/Boost
-    find_program(PATCHELF_EXECUTABLE patchelf)
-    if(PATCHELF_EXECUTABLE)
+    if(APPLE)
+        # macOS: install .dylib; delocate-wheel handles bundling
+        file(GLOB _SM_MTKAHYPAR_DYLIBS "${SHAREDMAP_MTKAHYPAR_LIB_DIR}/libmtkahypar.dylib*")
+        if(_SM_MTKAHYPAR_DYLIBS)
+            install(FILES ${_SM_MTKAHYPAR_DYLIBS} DESTINATION chszlablib)
+        endif()
+        # Set RPATH so _sharedmap.so finds libmtkahypar.dylib next to itself
         install(CODE "
-            execute_process(COMMAND ${PATCHELF_EXECUTABLE} --set-rpath \"\\$ORIGIN\"
-                \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/chszlablib/libmtkahypar.so.1.5.3)
+            execute_process(COMMAND install_name_tool -add_rpath @loader_path
+                \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/chszlablib/_sharedmap\${CMAKE_SHARED_MODULE_SUFFIX}
+                ERROR_QUIET)
         ")
+    else()
+        # Linux: install versioned .so (soname libmtkahypar.so.1) to avoid
+        # conflict with HeiCut's unversioned libmtkahypar.so.
+        install(FILES
+            "${SHAREDMAP_MTKAHYPAR_LIB_DIR}/libmtkahypar.so.1.5.3"
+            DESTINATION chszlablib)
+        # Also install the soname symlink
+        install(CODE "
+            execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
+                libmtkahypar.so.1.5.3 \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/chszlablib/libmtkahypar.so.1)
+        ")
+        # Install bundled dependencies (required by Mt-KaHyPar v1.5.3)
+        file(GLOB _SHAREDMAP_BOOST_LIBS "${SHAREDMAP_MTKAHYPAR_LIB_DIR}/libboost_program_options.so*")
+        if(_SHAREDMAP_BOOST_LIBS)
+            install(FILES ${_SHAREDMAP_BOOST_LIBS} DESTINATION chszlablib)
+        endif()
+        # Install bundled TBB (v1.5.3 needs newer TBB than system may have)
+        file(GLOB _SHAREDMAP_TBB_LIBS
+            "${SHAREDMAP_MTKAHYPAR_LIB_DIR}/libtbb.so*"
+            "${SHAREDMAP_MTKAHYPAR_LIB_DIR}/libtbbmalloc.so*")
+        if(_SHAREDMAP_TBB_LIBS)
+            install(FILES ${_SHAREDMAP_TBB_LIBS} DESTINATION chszlablib)
+        endif()
+        # Patch libmtkahypar.so.1.5.3 RPATH so it finds bundled TBB/Boost
+        find_program(PATCHELF_EXECUTABLE patchelf)
+        if(PATCHELF_EXECUTABLE)
+            install(CODE "
+                execute_process(COMMAND ${PATCHELF_EXECUTABLE} --set-rpath \"\\$ORIGIN\"
+                    \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/chszlablib/libmtkahypar.so.1.5.3)
+            ")
+        endif()
     endif()
 endif()
 

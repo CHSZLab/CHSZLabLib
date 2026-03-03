@@ -31,16 +31,17 @@ jobs:
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_BEFORE_ALL: >-
             yum install -y hwloc-devel &&
-            bash {project}/scripts/build_mtkahypar.sh
+            bash {project}/scripts/build_mtkahypar.sh &&
+            bash {project}/scripts/build_sharedmap_mtkahypar.sh
           CIBW_ENVIRONMENT: >-
             CXX=g++
             CMAKE_ARGS=-DCMAKE_POLICY_VERSION_MINIMUM=3.5
-            LD_LIBRARY_PATH={project}/external_repositories/HeiCut/extern/mt-kahypar-library:{project}/external_repositories/HeiCut/extern/mt-kahypar-library/tbb_lib/intel64/gcc4.8:$LD_LIBRARY_PATH
+            LD_LIBRARY_PATH={project}/external_repositories/HeiCut/extern/mt-kahypar-library:{project}/external_repositories/HeiCut/extern/mt-kahypar-library/tbb_lib/intel64/gcc4.8:{project}/external_repositories/SharedMap/extern/local/mt-kahypar/lib:$LD_LIBRARY_PATH
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: >-
             cp -r {project}/tests /tmp/_cibw_tests && pytest /tmp/_cibw_tests -v -s --tb=long && rm -rf /tmp/_cibw_tests
           CIBW_REPAIR_WHEEL_COMMAND: >-
-            LD_LIBRARY_PATH={project}/external_repositories/HeiCut/extern/mt-kahypar-library:{project}/external_repositories/HeiCut/extern/mt-kahypar-library/tbb_lib/intel64/gcc4.8:$LD_LIBRARY_PATH
+            LD_LIBRARY_PATH={project}/external_repositories/HeiCut/extern/mt-kahypar-library:{project}/external_repositories/HeiCut/extern/mt-kahypar-library/tbb_lib/intel64/gcc4.8:{project}/external_repositories/SharedMap/extern/local/mt-kahypar/lib:$LD_LIBRARY_PATH
             auditwheel repair -w {dest_dir} {wheel}
 
       - uses: actions/upload-artifact@v4
@@ -66,7 +67,8 @@ jobs:
           CIBW_SKIP: "cp31?t-*"
           CIBW_BEFORE_ALL: >-
             brew install libomp hwloc tbb boost &&
-            bash {project}/scripts/build_mtkahypar.sh
+            bash {project}/scripts/build_mtkahypar.sh &&
+            bash {project}/scripts/build_sharedmap_mtkahypar.sh
           CIBW_ENVIRONMENT: >-
             CC=clang
             CXX=clang++
@@ -79,7 +81,7 @@ jobs:
           CIBW_TEST_COMMAND: >-
             cp -r {project}/tests /tmp/_cibw_tests && pytest /tmp/_cibw_tests -v -s --tb=long && rm -rf /tmp/_cibw_tests
           CIBW_REPAIR_WHEEL_COMMAND: >-
-            DYLD_LIBRARY_PATH={project}/external_repositories/HeiCut/extern/mt-kahypar-library:$DYLD_LIBRARY_PATH
+            DYLD_LIBRARY_PATH={project}/external_repositories/HeiCut/extern/mt-kahypar-library:{project}/external_repositories/SharedMap/extern/local/mt-kahypar/lib:$DYLD_LIBRARY_PATH
             delocate-wheel --require-archs arm64 -w {dest_dir} {wheel}
 
       - uses: actions/upload-artifact@v4
