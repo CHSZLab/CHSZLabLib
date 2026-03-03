@@ -22,6 +22,14 @@ struct SimpleDynGraph {
     size_t currentNumNodes() const { return n_nodes; }
 };
 
+// Two-parameter map wrapper: Apple Clang doesn't implement C++17 P0522R0
+// (matching template template parameters with default args), so std::map
+// (which has 4 template params) can't match "template<typename,typename> class".
+template <typename K, typename V>
+struct ParamMap : std::map<K, V> {
+    using std::map<K, V>::map;
+};
+
 // Include the actual algorithm headers from DynDeltaApprox.
 // Stub headers for absl/ and dyn_algorithm_impl.h are resolved via
 // the dyn_delta_approx_stubs/ include directory.
@@ -66,9 +74,9 @@ public:
 
         SimpleDynGraph g(num_nodes, num_edges_hint);
 
-        std::map<std::string, double> dparams;
+        ParamMap<std::string, double> dparams;
         dparams["lambda"] = lambda_param;
-        std::map<std::string, int64_t> iparams;
+        ParamMap<std::string, int64_t> iparams;
         iparams["theta"] = theta;
         iparams["b"] = b;
         iparams["bfs_depth"] = bfs_depth;
