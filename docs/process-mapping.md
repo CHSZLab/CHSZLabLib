@@ -131,13 +131,14 @@ result = Decomposition.process_map(
 ## References
 
 ```bibtex
-@inbook{schulz2025sharedmap,
+@inproceedings{DBLP:conf/acda/0003W25,
   author    = {Christian Schulz and Henning Woydt},
   title     = {Shared-Memory Hierarchical Process Mapping},
-  booktitle = {2025 Proceedings of the Conference on Applied and Computational Discrete Algorithms (ACDA)},
+  booktitle = {Proceedings of the 3rd Conference on Applied and Computational Discrete
+               Algorithms, {ACDA} 2025},
   pages     = {18--31},
-  doi       = {10.1137/1.9781611978759.2},
-  url       = {https://epubs.siam.org/doi/abs/10.1137/1.9781611978759.2},
-  year      = {2025}
+  publisher = {{SIAM}},
+  year      = {2025},
+  doi       = {10.1137/1.9781611978759.2}
 }
 ```

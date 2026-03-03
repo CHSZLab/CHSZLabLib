@@ -125,13 +125,14 @@ print(f"Weight after deletion: {result.weight}")
 ## References
 
 ```bibtex
-@misc{borowitz2024optimalneighborhoodexplorationdynamic,
-  title         = {Optimal Neighborhood Exploration for Dynamic Independent Sets},
-  author        = {Jannick Borowitz and Ernestine Gro{\ss}mann and Christian Schulz},
-  year          = {2024},
-  eprint        = {2407.06912},
-  archivePrefix = {arXiv},
-  primaryClass  = {cs.DS},
-  url           = {https://arxiv.org/abs/2407.06912}
+@inproceedings{DBLP:conf/alenex/BorowitzG025,
+  author    = {Jannick Borowitz and Ernestine Gro{\ss}mann and Christian Schulz},
+  title     = {Optimal Neighborhood Exploration for Dynamic Independent Sets},
+  booktitle = {Proceedings of the 27th Symposium on Algorithm Engineering and Experiments,
+               {ALENEX} 2025},
+  pages     = {1--14},
+  publisher = {{SIAM}},
+  year      = {2025},
+  doi       = {10.1137/1.9781611978339.1}
 }
 ```

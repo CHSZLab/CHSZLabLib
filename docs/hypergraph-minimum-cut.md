@@ -99,14 +99,14 @@ print(f"Min cut: {result.cut_value}")
 ## References
 
 ```bibtex
-@misc{chhabra2025heicut,
-  title         = {Near-Optimal Minimum Cuts in Hypergraphs at Scale},
-  author        = {Adil Chhabra and Christian Schulz and Bora U\c{c}ar and Pia Wilwert},
-  year          = {2025},
-  eprint        = {2504.19842},
-  archivePrefix = {arXiv},
-  primaryClass  = {cs.DS},
-  url           = {https://arxiv.org/abs/2504.19842},
-  note          = {To appear in ALENEX 2026}
+@article{DBLP:journals/corr/abs-2504-19842,
+  author     = {Adil Chhabra and Christian Schulz and Bora U{\c{c}}ar and Loris Wilwert},
+  title      = {Near-Optimal Minimum Cuts in Hypergraphs at Scale},
+  journal    = {CoRR},
+  volume     = {abs/2504.19842},
+  year       = {2025},
+  eprinttype = {arXiv},
+  eprint     = {2504.19842},
+  doi        = {10.48550/arXiv.2504.19842}
 }
 ```

@@ -86,25 +86,35 @@ side_b = [i for i, v in enumerate(mc_exact.partition) if v == 1]
 ## References
 
 ```bibtex
-@article{henzinger2018practical,
+@article{DBLP:journals/jea/HenzingerNSS18,
   author  = {Monika Henzinger and Alexander Noe and Christian Schulz and Darren Strash},
   title   = {Practical Minimum Cut Algorithms},
-  journal = {{ACM} Journal of Experimental Algorithmics},
+  journal = {{ACM} J. Exp. Algorithmics},
   volume  = {23},
-  year    = {2018}
+  year    = {2018},
+  doi     = {10.1145/3274662}
 }
 
-@inproceedings{henzinger2019shared,
-  author    = {Henzinger, Monika and Noe, Alexander and Schulz, Christian},
-  title     = {{Shared-memory Exact Minimum Cuts}},
-  booktitle = {Proceedings of the 33rd International Parallel and Distributed Processing Symposium (IPDPS)},
-  year      = {2019}
+@inproceedings{DBLP:conf/ipps/HenzingerN019,
+  author    = {Monika Henzinger and Alexander Noe and Christian Schulz},
+  title     = {Shared-Memory Exact Minimum Cuts},
+  booktitle = {2019 {IEEE} International Parallel and Distributed Processing Symposium,
+               {IPDPS} 2019},
+  pages     = {13--22},
+  publisher = {{IEEE}},
+  year      = {2019},
+  doi       = {10.1109/IPDPS.2019.00013}
 }
 
-@article{henzinger2020finding,
+@inproceedings{DBLP:conf/esa/HenzingerN0S20,
+  author    = {Monika Henzinger and Alexander Noe and Christian Schulz and Darren Strash},
   title     = {Finding All Global Minimum Cuts in Practice},
-  author    = {Henzinger, Monika and Noe, Alexander and Schulz, Christian and Strash, Darren},
   booktitle = {28th Annual European Symposium on Algorithms, {ESA} 2020},
-  year      = {2020}
+  series    = {LIPIcs},
+  volume    = {173},
+  pages     = {59:1--59:20},
+  publisher = {Schloss Dagstuhl - Leibniz-Zentrum f{\"{u}}r Informatik},
+  year      = {2020},
+  doi       = {10.4230/LIPIcs.ESA.2020.59}
 }
 ```

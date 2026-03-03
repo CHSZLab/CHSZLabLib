@@ -81,10 +81,15 @@ print(f"Selected vertices: {result.vertices}")
 ## References
 
 ```bibtex
-@article{grossmann2024accelerating,
-  title   = {Accelerating Reductions Using Graph Neural Networks and a New Concurrent Local Search for the Maximum Weight Independent Set Problem},
-  author  = {Gro{\ss}mann, Ernestine and Langedal, Kenneth and Schulz, Christian},
-  journal = {arXiv preprint arXiv:2412.14198},
-  year    = {2024}
+@article{DBLP:journals/corr/abs-2412-14198,
+  author     = {Ernestine Gro{\ss}mann and Kenneth Langedal and Christian Schulz},
+  title      = {Accelerating Reductions Using Graph Neural Networks and a New Concurrent
+                Local Search for the Maximum Weight Independent Set Problem},
+  journal    = {CoRR},
+  volume     = {abs/2412.14198},
+  year       = {2024},
+  eprinttype = {arXiv},
+  eprint     = {2412.14198},
+  doi        = {10.48550/arXiv.2412.14198}
 }
 ```

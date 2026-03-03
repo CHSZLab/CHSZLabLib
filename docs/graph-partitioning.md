@@ -191,24 +191,26 @@ perm = result.ordering
 ## References
 
 ```bibtex
-@inproceedings{sandersschulz2013,
-  author    = {Sanders, Peter and Schulz, Christian},
-  title     = {{Think Locally, Act Globally: Highly Balanced Graph Partitioning}},
-  booktitle = {Proceedings of the 12th International Symposium on Experimental Algorithms (SEA'13)},
-  series    = {LNCS},
+@inproceedings{DBLP:conf/wea/SandersS13,
+  author    = {Peter Sanders and Christian Schulz},
+  title     = {Think Locally, Act Globally: Highly Balanced Graph Partitioning},
+  booktitle = {Experimental Algorithms, 12th International Symposium, {SEA} 2013},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {7933},
+  pages     = {164--175},
   publisher = {Springer},
   year      = {2013},
-  volume    = {7933},
-  pages     = {164--175}
+  doi       = {10.1007/978-3-642-38527-8\_16}
 }
 
-@inproceedings{meyerhenkesandersschulz2017,
-  author  = {Meyerhenke, Henning and Sanders, Peter and Schulz, Christian},
-  title   = {{Parallel Graph Partitioning for Complex Networks}},
-  journal = {IEEE Transactions on Parallel and Distributed Systems (TPDS)},
+@article{DBLP:journals/tpds/MeyerhenkeSS17,
+  author  = {Henning Meyerhenke and Peter Sanders and Christian Schulz},
+  title   = {Parallel Graph Partitioning for Complex Networks},
+  journal = {{IEEE} Trans. Parallel Distributed Syst.},
   volume  = {28},
   number  = {9},
   pages   = {2625--2638},
-  year    = {2017}
+  year    = {2017},
+  doi     = {10.1109/TPDS.2017.2671868}
 }
 ```

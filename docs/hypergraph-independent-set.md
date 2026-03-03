@@ -109,10 +109,10 @@ if IndependenceProblems.HYPERMIS_ILP_AVAILABLE:
 ## References
 
 ```bibtex
-@misc{christensen2024hypermis,
-  title         = {Finding Maximum Independent Sets in Hypergraphs},
-  author        = {Freja Bj{\"o}rk Christensen and Ernestine Gro{\ss}mann and Christian Schulz},
-  year          = {2024},
-  note          = {Manuscript}
+@misc{grossmann2026hypermis,
+  author = {Ernestine Gro{\ss}mann and Christian Schulz and Darren Strash and Antonie Wagner},
+  title  = {Data Reductions for the Strong Maximum Independent Set Problem in Hypergraphs},
+  year   = {2026},
+  note   = {Technical Report}
 }
 ```

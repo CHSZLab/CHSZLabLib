@@ -80,10 +80,13 @@ print(f"Exact max-cut: {mc_exact.cut_value}")
 ## References
 
 ```bibtex
-@inproceedings{ferizovic2020engineering,
-  author    = {Ferizovic, Damir and Hespe, Demian and Lamm, Sebastian and Mnich, Matthias and Schulz, Christian and Strash, Darren},
+@inproceedings{DBLP:conf/alenex/FerizovicHLM0S20,
+  author    = {Damir Ferizovic and Demian Hespe and Sebastian Lamm and Matthias Mnich
+               and Christian Schulz and Darren Strash},
   title     = {Engineering Kernelization for Maximum Cut},
-  booktitle = {Proceedings of the Symposium on Algorithm Engineering and Experiments (ALENEX)},
+  booktitle = {Proceedings of the 22nd Symposium on Algorithm Engineering and Experiments,
+               {ALENEX} 2020},
+  pages     = {27--41},
   publisher = {{SIAM}},
   year      = {2020},
   doi       = {10.1137/1.9781611976007.3}

@@ -132,13 +132,15 @@ print(f"{result.num_clusters} clusters, modularity={result.modularity:.4f}")
 ## References
 
 ```bibtex
-@misc{chhabra2025clustre,
-  title         = {CluStRE: Streaming Graph Clustering with Multi-Stage Refinement},
-  author        = {Adil Chhabra and Dani\"el Peretz and Christian Schulz},
-  year          = {2025},
-  eprint        = {2502.06879},
-  archivePrefix = {arXiv},
-  primaryClass  = {cs.DS},
-  url           = {https://arxiv.org/abs/2502.06879}
+@inproceedings{DBLP:conf/wea/ChhabraP025,
+  author    = {Adil Chhabra and Shai Dorian Peretz and Christian Schulz},
+  title     = {CluStRE: Streaming Graph Clustering with Multi-Stage Refinement},
+  booktitle = {23rd International Symposium on Experimental Algorithms, {SEA} 2025},
+  series    = {LIPIcs},
+  volume    = {338},
+  pages     = {11:1--11:20},
+  publisher = {Schloss Dagstuhl - Leibniz-Zentrum f{\"{u}}r Informatik},
+  year      = {2025},
+  doi       = {10.4230/LIPIcs.SEA.2025.11}
 }
 ```

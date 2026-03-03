@@ -209,27 +209,37 @@ print(f"Max out-degree: {max_degree}")
 @inproceedings{DBLP:conf/acda/BorowitzG023,
   author    = {Jannick Borowitz and Ernestine Gro{\ss}mann and Christian Schulz},
   title     = {Engineering Fully Dynamic {\(\Delta\)}-Orientation Algorithms},
-  booktitle = {{ACDA}},
+  booktitle = {{SIAM} Conference on Applied and Computational Discrete Algorithms,
+               {ACDA} 2023},
   pages     = {25--37},
   publisher = {{SIAM}},
-  year      = {2023}
+  year      = {2023},
+  doi       = {10.1137/1.9781611977714.3}
 }
 
-@article{grossmann2024engineering,
-  title   = {Engineering Fully Dynamic Exact $\Delta$-Orientation Algorithms},
-  author  = {Gro{\ss}mann, Ernestine and Reinst{\"a}dtler, Henrik and Schulz, Christian and Walliser, Fabian},
-  journal = {arXiv preprint arXiv:2407.12595},
-  year    = {2024}
+@article{DBLP:journals/corr/abs-2407-12595,
+  author     = {Ernestine Gro{\ss}mann and Henrik Reinst{\"{a}}dtler
+                and Christian Schulz and Fabian Walliser},
+  title      = {Engineering Fully Dynamic Exact {\(\Delta\)}-Orientation Algorithms},
+  journal    = {CoRR},
+  volume     = {abs/2407.12595},
+  year       = {2024},
+  eprinttype = {arXiv},
+  eprint     = {2407.12595},
+  doi        = {10.48550/arXiv.2407.12595}
 }
 
-@inproceedings{DynamicOrientationAdaptive,
-  author    = {Ernestine Grossmann and Ivor van der Hoog and Henrik Reinst{\"a}dtler and Eva Rotenberg and Christian Schulz and Juliette Vlieghe},
-  title     = {From Theory to Practice: Engineering Approximation Algorithms for Dynamic Orientation},
-  booktitle = {33rd Annual European Symposium on Algorithms ({ESA} 2025)},
-  series    = {Leibniz International Proceedings in Informatics (LIPIcs)},
+@inproceedings{DBLP:conf/esa/GrossmannRR0HV25,
+  author    = {Ernestine Gro{\ss}mann and Henrik Reinst{\"{a}}dtler and Eva Rotenberg
+               and Christian Schulz and Ivor {van der Hoog} and Juliette Vlieghe},
+  title     = {From Theory to Practice: Engineering Approximation Algorithms for
+               Dynamic Orientation},
+  booktitle = {33rd Annual European Symposium on Algorithms, {ESA} 2025},
+  series    = {LIPIcs},
   volume    = {351},
-  publisher = {Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
+  pages     = {65:1--65:18},
+  publisher = {Schloss Dagstuhl - Leibniz-Zentrum f{\"{u}}r Informatik},
   year      = {2025},
-  doi       = {10.4230/LIPIcs.ESA.2025.63}
+  doi       = {10.4230/LIPIcs.ESA.2025.65}
 }
 ```

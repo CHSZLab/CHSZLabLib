@@ -132,17 +132,13 @@ print(result.assignment)  # array of partition IDs
 ## References
 
 ```bibtex
-@article{heistream,
-  author   = {Marcelo Fonseca Faraj and Christian Schulz},
-  title    = {Buffered Streaming Graph Partitioning},
-  year     = {2022},
-  publisher = {Association for Computing Machinery},
-  address  = {New York, NY, USA},
-  issn     = {1084-6654},
-  url      = {https://doi.org/10.1145/3546911},
-  doi      = {10.1145/3546911},
-  journal  = {ACM Journal of Experimental Algorithmics},
-  month    = {jun},
-  keywords = {streaming algorithms, multilevel algorithms, graph partitioning}
+@article{DBLP:journals/jea/FarajS22,
+  author  = {Marcelo Fonseca Faraj and Christian Schulz},
+  title   = {Buffered Streaming Graph Partitioning},
+  journal = {{ACM} J. Exp. Algorithmics},
+  volume  = {27},
+  pages   = {1.10:1--1.10:26},
+  year    = {2022},
+  doi     = {10.1145/3546911}
 }
 ```

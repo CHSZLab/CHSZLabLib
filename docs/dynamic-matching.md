@@ -114,12 +114,14 @@ print(f"Matching size after deletion: {result.matching_size}")
 
 ```bibtex
 @inproceedings{DBLP:conf/esa/Henzinger0P020,
-  author    = {Monika Henzinger and Shahbaz Khan and Richard Paul and Christian Schulz},
+  author    = {Monika Henzinger and Shahbaz Khan and Richard D. Paul and Christian Schulz},
   title     = {Dynamic Matching Algorithms in Practice},
   booktitle = {28th Annual European Symposium on Algorithms, {ESA} 2020},
+  series    = {LIPIcs},
+  volume    = {173},
   pages     = {58:1--58:20},
+  publisher = {Schloss Dagstuhl - Leibniz-Zentrum f{\"{u}}r Informatik},
   year      = {2020},
-  url       = {https://doi.org/10.4230/LIPIcs.ESA.2020.58},
   doi       = {10.4230/LIPIcs.ESA.2020.58}
 }
 ```

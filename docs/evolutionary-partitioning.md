@@ -113,24 +113,14 @@ final_result = Decomposition.evolutionary_partition(
 ## References
 
 ```bibtex
-@inproceedings{sandersschulz2013,
-  author    = {Sanders, Peter and Schulz, Christian},
-  title     = {{Think Locally, Act Globally: Highly Balanced Graph Partitioning}},
-  booktitle = {Proceedings of the 12th International Symposium on Experimental Algorithms (SEA'13)},
-  series    = {LNCS},
-  publisher = {Springer},
-  year      = {2013},
-  volume    = {7933},
-  pages     = {164--175}
-}
-
-@inproceedings{meyerhenkesandersschulz2017,
-  author  = {Meyerhenke, Henning and Sanders, Peter and Schulz, Christian},
-  title   = {{Parallel Graph Partitioning for Complex Networks}},
-  journal = {IEEE Transactions on Parallel and Distributed Systems (TPDS)},
-  volume  = {28},
-  number  = {9},
-  pages   = {2625--2638},
-  year    = {2017}
+@inproceedings{DBLP:conf/alenex/SandersS12,
+  author    = {Peter Sanders and Christian Schulz},
+  title     = {Distributed Evolutionary Graph Partitioning},
+  booktitle = {Proceedings of the 14th Meeting on Algorithm Engineering {\&} Experiments,
+               {ALENEX} 2012},
+  pages     = {16--29},
+  publisher = {{SIAM} / Omnipress},
+  year      = {2012},
+  doi       = {10.1137/1.9781611972924.2}
 }
 ```

@@ -118,13 +118,14 @@ print(f"Evo:  {evo.num_clusters} clusters, {evo.edge_cut} disagreements")
 ## References
 
 ```bibtex
-@misc{hausberger2024scalablemultilevelmemeticsigned,
-  title         = {Scalable Multilevel and Memetic Signed Graph Clustering},
-  author        = {Felix Hausberger and Marcelo Fonseca Faraj and Christian Schulz},
-  year          = {2024},
-  eprint        = {2208.13618},
-  archivePrefix = {arXiv},
-  primaryClass  = {cs.DS},
-  url           = {https://arxiv.org/abs/2208.13618}
+@inproceedings{DBLP:conf/alenex/HausbergerF025,
+  author    = {Felix Hausberger and Marcelo Fonseca Faraj and Christian Schulz},
+  title     = {Scalable Multilevel and Memetic Signed Graph Clustering},
+  booktitle = {Proceedings of the 27th Symposium on Algorithm Engineering and Experiments,
+               {ALENEX} 2025},
+  pages     = {81--94},
+  publisher = {{SIAM}},
+  year      = {2025},
+  doi       = {10.1137/1.9781611978339.7}
 }
 ```

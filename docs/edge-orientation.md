@@ -94,12 +94,14 @@ print(f"Fast max out-degree: {fast.max_out_degree}")
 ## References
 
 ```bibtex
-@inproceedings{reinstaedtler2024engineering,
-  author    = {Henrik Reinst{\"a}dtler and Christian Schulz and Bora U\c{c}ar},
+@inproceedings{DBLP:conf/esa/Reinstadtler0U24,
+  author    = {Henrik Reinst{\"{a}}dtler and Christian Schulz and Bora U{\c{c}}ar},
   title     = {Engineering Edge Orientation Algorithms},
-  booktitle = {32nd Annual European Symposium on Algorithms ({ESA} 2024)},
-  series    = {Leibniz International Proceedings in Informatics (LIPIcs)},
-  publisher = {Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
+  booktitle = {32nd Annual European Symposium on Algorithms, {ESA} 2024},
+  series    = {LIPIcs},
+  volume    = {308},
+  pages     = {97:1--97:18},
+  publisher = {Schloss Dagstuhl - Leibniz-Zentrum f{\"{u}}r Informatik},
   year      = {2024},
   doi       = {10.4230/LIPIcs.ESA.2024.97}
 }

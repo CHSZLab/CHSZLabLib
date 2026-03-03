@@ -91,21 +91,26 @@ result = Decomposition.motif_cluster(
 ## References
 
 ```bibtex
-@inproceedings{LocMotifClusHyperGraphPartition2023,
+@inproceedings{DBLP:conf/alenex/ChhabraF023,
   author    = {Adil Chhabra and Marcelo Fonseca Faraj and Christian Schulz},
   title     = {Local Motif Clustering via (Hyper)Graph Partitioning},
-  booktitle = {Symposium on Algorithm Engineering and Experiments (ALENEX 23), January 22-23, 2023},
+  booktitle = {Proceedings of the 25th Symposium on Algorithm Engineering and Experiments,
+               {ALENEX} 2023},
+  pages     = {96--109},
   publisher = {{SIAM}},
-  doi       = {10.1137/1.9781611977561.ch9},
-  year      = {2023}
+  year      = {2023},
+  doi       = {10.1137/1.9781611977561.ch9}
 }
 
-@inproceedings{FastLocMotifClusMaxFlows2023,
+@inproceedings{DBLP:conf/esa/ChhabraF023,
   author    = {Adil Chhabra and Marcelo Fonseca Faraj and Christian Schulz},
   title     = {Faster Local Motif Clustering via Maximum Flows},
-  booktitle = {European Symposium on Algorithms ({ESA} 2023), September 4-6, 2023},
-  publisher = {Schloss Dagstuhl - Leibniz-Zentrum f{\"u}r Informatik},
+  booktitle = {31st Annual European Symposium on Algorithms, {ESA} 2023},
   series    = {LIPIcs},
-  year      = {2023}
+  volume    = {274},
+  pages     = {34:1--34:16},
+  publisher = {Schloss Dagstuhl - Leibniz-Zentrum f{\"{u}}r Informatik},
+  year      = {2023},
+  doi       = {10.4230/LIPIcs.ESA.2023.34}
 }
 ```

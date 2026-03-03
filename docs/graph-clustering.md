@@ -81,13 +81,16 @@ for cluster_id, size in zip(unique, counts):
 ## References
 
 ```bibtex
-@inproceedings{BiedermannHSS18,
-  author    = {Biedermann, Sonja and Henzinger, Monika and Schulz, Christian and Schuster, Bernhard},
-  title     = {{Memetic Graph Clustering}},
-  booktitle = {{Proceedings of the 17th International Symposium on Experimental Algorithms (SEA'18)}},
-  series    = {{LIPIcs}},
-  publisher = {Dagstuhl},
-  note      = {Technical Report, arXiv:1802.07034},
-  year      = {2018}
+@inproceedings{DBLP:conf/wea/BiedermannH0S18,
+  author    = {Sonja Biedermann and Monika Henzinger and Christian Schulz
+               and Bernhard Schuster},
+  title     = {Memetic Graph Clustering},
+  booktitle = {17th International Symposium on Experimental Algorithms, {SEA} 2018},
+  series    = {LIPIcs},
+  volume    = {103},
+  pages     = {3:1--3:15},
+  publisher = {Schloss Dagstuhl - Leibniz-Zentrum f{\"{u}}r Informatik},
+  year      = {2018},
+  doi       = {10.4230/LIPIcs.SEA.2018.3}
 }
 ```
