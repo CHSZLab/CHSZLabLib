@@ -101,41 +101,41 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 
 | Library | Domain | Algorithms |
 |:--------|:-------|:-----------|
-| [KaHIP](https://github.com/KaHIP/KaHIP) | Graph partitioning | KaFFPa (6 modes), KaFFPaE (evolutionary), node separators, nested dissection |
-| [HeiStream](https://github.com/KaHIP/HeiStream) | Streaming partitioning | Fennel, BuffCut, parallel pipeline, restreaming |
-| [VieCut](https://github.com/VieCut/VieCut) | Minimum cuts | Inexact (parallel heuristic), Exact (parallel), Cactus (parallel) |
-| [fpt-max-cut](https://github.com/KarlsruheMIS/fpt-max-cut) | Maximum cut | FPT kernelization + heuristic/exact solvers |
-| [VieClus](https://github.com/VieClus/VieClus) | Community detection | Modularity-maximizing evolutionary clustering |
-| [SCC](https://github.com/ScalableCorrelationClustering/ScalableCorrelationClustering) | Correlation clustering | Label propagation + evolutionary on signed graphs |
-| [HeidelbergMotifClustering](https://github.com/LocalClustering/HeidelbergMotifClustering) | Local clustering | Triangle-motif-based flow and partitioning methods |
-| [HeiCut](https://github.com/HeiCut/HeiCut) | Hypergraph minimum cut | Kernelization, submodular minimization, ILP, k-trimmed certificates |
-| [CluStRE](https://github.com/KaHIP/CluStRE) | Streaming graph clustering | Streaming modularity clustering with restreaming and local search |
-| [SharedMap](https://github.com/HenningWoydt/SharedMap) | Process mapping | Hierarchical process mapping (fast/eco/strong modes) |
+| [KaHIP](docs/graph-partitioning.md) | Graph partitioning | KaFFPa (6 modes), KaFFPaE (evolutionary), node separators, nested dissection |
+| [HeiStream](docs/streaming-partitioning.md) | Streaming partitioning | Fennel, BuffCut, parallel pipeline, restreaming |
+| [VieCut](docs/minimum-cut.md) | Minimum cuts | Inexact (parallel heuristic), Exact (parallel), Cactus (parallel) |
+| [fpt-max-cut](docs/maximum-cut.md) | Maximum cut | FPT kernelization + heuristic/exact solvers |
+| [VieClus](docs/graph-clustering.md) | Community detection | Modularity-maximizing evolutionary clustering |
+| [SCC](docs/correlation-clustering.md) | Correlation clustering | Label propagation + evolutionary on signed graphs |
+| [HeidelbergMotifClustering](docs/local-motif-clustering.md) | Local clustering | Triangle-motif-based flow and partitioning methods |
+| [HeiCut](docs/hypergraph-minimum-cut.md) | Hypergraph minimum cut | Kernelization, submodular minimization, ILP, k-trimmed certificates |
+| [CluStRE](docs/streaming-clustering.md) | Streaming graph clustering | Streaming modularity clustering with restreaming and local search |
+| [SharedMap](docs/process-mapping.md) | Process mapping | Hierarchical process mapping (fast/eco/strong modes) |
 
 **IndependenceProblems** — Maximum independent set and maximum weight independent set.
 
 | Library | Domain | Algorithms |
 |:--------|:-------|:-----------|
-| [KaMIS](https://github.com/KarlsruheMIS/KaMIS) | Independent set | ReduMIS, OnlineMIS, Branch&Reduce, MMWIS |
-| [CHILS](https://github.com/KennethLangedal/CHILS) | Weighted independent set | Concurrent heuristic independent local search |
-| [HyperMIS](https://github.com/KarlsruheMIS/HyperMIS) | Hypergraph independent set | Kernelization reductions (+ optional ILP via Gurobi) |
-| [HeiHGM/Bmatching](https://github.com/HeiHGM/Bmatching) | Hypergraph b-matching | Greedy (7 orderings), reductions+ILP+unfold, ILS |
-| [HeiHGM/Streaming](https://github.com/HeiHGM/Streaming) | Streaming hypergraph matching | Naive, greedy, greedy\_set, best\_evict, lenient |
+| [KaMIS](docs/maximum-independent-set.md) | Independent set | ReduMIS, OnlineMIS, Branch&Reduce, MMWIS |
+| [CHILS](docs/concurrent-mwis.md) | Weighted independent set | Concurrent heuristic independent local search |
+| [HyperMIS](docs/hypergraph-independent-set.md) | Hypergraph independent set | Kernelization reductions (+ optional ILP via Gurobi) |
+| [HeiHGM/Bmatching](docs/hypergraph-b-matching.md) | Hypergraph b-matching | Greedy (7 orderings), reductions+ILP+unfold, ILS |
+| [HeiHGM/Streaming](docs/hypergraph-b-matching.md) | Streaming hypergraph matching | Naive, greedy, greedy\_set, best\_evict, lenient |
 
 **Orientation** — Edge orientation for minimum maximum out-degree.
 
 | Library | Domain | Algorithms |
 |:--------|:-------|:-----------|
-| [HeiOrient](https://github.com/KaHIP/HeiOrient) | Edge orientation | 2-approx greedy, DFS local search, Eager Path Search |
+| [HeiOrient](docs/edge-orientation.md) | Edge orientation | 2-approx greedy, DFS local search, Eager Path Search |
 
 **DynamicProblems** — Fully dynamic graph algorithms (insert/delete edges incrementally).
 
 | Library | Domain | Algorithms |
 |:--------|:-------|:-----------|
-| [DynDeltaOrientation](https://github.com/DynGraphLab/DynDeltaOrientation) | Dynamic edge orientation | BFS, K-Flips, Random Walk, Brodal-Fagerberg, Naive/Improved/Strong Opt |
-| [DynDeltaApprox](https://github.com/DynGraphLab/DynDeltaApprox) | Dynamic edge orientation (approx) | CCHHQRS, Limited/Strong/Improved BFS, Packed CCHHQRS variants |
-| [DynMatch](https://github.com/DynGraphLab/DynMatch) | Dynamic matching | Blossom, Random Walk, Baswana-Gupta-Sen, Neiman-Solomon, Static Blossom |
-| [DynWMIS](https://github.com/DynGraphLab/DynWMIS) | Dynamic weighted MIS | Simple, Greedy, Degree-Greedy, BFS, Static (with KaMIS fork) |
+| [DynDeltaOrientation](docs/dynamic-edge-orientation.md) | Dynamic edge orientation | BFS, K-Flips, Random Walk, Brodal-Fagerberg, Naive/Improved/Strong Opt |
+| [DynDeltaApprox](docs/dynamic-edge-orientation.md) | Dynamic edge orientation (approx) | CCHHQRS, Limited/Strong/Improved BFS, Packed CCHHQRS variants |
+| [DynMatch](docs/dynamic-matching.md) | Dynamic matching | Blossom, Random Walk, Baswana-Gupta-Sen, Neiman-Solomon, Static Blossom |
+| [DynWMIS](docs/dynamic-weighted-mis.md) | Dynamic weighted MIS | Simple, Greedy, Degree-Greedy, BFS, Static (with KaMIS fork) |
 
 ---
 
