@@ -48,6 +48,7 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 ### Group Members (Main Contributors)
 
 **Current:**
+- Christian Schulz (Group Leader)
 - Adil Chhabra (PhD Student)
 - Henrik Reinstädtler (PhD Student)
 - Henning Woydt (PhD Student)
