@@ -26,7 +26,7 @@ jobs:
           gh release download "${TAG}" \
             --repo "${{ github.repository }}" \
             --dir dist \
-            --pattern "*.whl" --pattern "*.tar.gz"
+            --pattern "*.whl"
 
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
