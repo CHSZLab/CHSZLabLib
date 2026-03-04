@@ -1,5 +1,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <algorithm>
 #include <vector>
 #include <cstring>
 #include <cstdio>
@@ -24,6 +25,14 @@ PYBIND11_MODULE(_chils, m) {
         unsigned int seed
     ) {
         int n = static_cast<int>(xadj.size() - 1);
+        const long long* xadj_ptr = xadj.data();
+
+        // CHILS requires sorted adjacency lists — sort a local copy
+        std::vector<int> sorted_adj(adjncy.data(), adjncy.data() + adjncy.size());
+        for (int i = 0; i < n; i++) {
+            std::sort(sorted_adj.begin() + xadj_ptr[i],
+                      sorted_adj.begin() + xadj_ptr[i + 1]);
+        }
 
         // Suppress C stdout/stderr at fd level (CHILS uses printf)
         fflush(stdout);
@@ -36,7 +45,7 @@ PYBIND11_MODULE(_chils, m) {
         close(devnull);
 
         void* solver = chils_initialize();
-        chils_set_graph(solver, n, xadj.data(), adjncy.data(), weights.data());
+        chils_set_graph(solver, n, xadj_ptr, sorted_adj.data(), weights.data());
         chils_run_full(solver, time_limit, num_concurrent, seed);
 
         long long total_weight = chils_solution_get_weight(solver);
