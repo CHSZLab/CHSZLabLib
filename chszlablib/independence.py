@@ -378,6 +378,12 @@ class IndependenceProblems:
         adjncy = g.adjncy.astype(np.int32, copy=False)
         weights = g.node_weights.astype(np.int64, copy=False)
 
+        # CHILS requires sorted adjacency lists for correct results
+        adjncy = adjncy.copy()
+        for i in range(len(xadj) - 1):
+            s, e = int(xadj[i]), int(xadj[i + 1])
+            adjncy[s:e] = np.sort(adjncy[s:e])
+
         total_weight, vertices = _mwis(
             xadj, adjncy, weights, time_limit, num_concurrent, seed,
         )

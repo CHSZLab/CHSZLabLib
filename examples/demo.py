@@ -231,10 +231,21 @@ def main():
     run_section(20, "Dynamic Weighted MIS (DynWMIS)", s20, counts)
 
     # ================================================================
-    # HYPERGRAPH ALGORITHMS (small demo hypergraph)
+    # HYPERGRAPH ALGORITHMS (convert input graph to hypergraph)
     # ================================================================
 
-    hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3, 4], [4, 5, 0]])
+    print("Converting graph to hypergraph (each edge -> size-2 hyperedge) ...")
+    t0 = time.perf_counter()
+    g.finalize()
+    edges = []
+    for u in range(g.num_nodes):
+        for idx in range(g.xadj[u], g.xadj[u + 1]):
+            v = int(g.adjncy[idx])
+            if u < v:
+                edges.append([u, v])
+    hg = HyperGraph.from_edge_list(edges, num_nodes=g.num_nodes)
+    dt_conv = time.perf_counter() - t0
+    print(f"  Nodes: {hg.num_nodes:,}  Hyperedges: {hg.num_edges:,}  ({dt_conv:.3f}s)\n")
 
     # --- 21. Hypergraph Minimum Cut (HeiCut) ---
     def s21():
@@ -256,10 +267,13 @@ def main():
 
     # --- 24. Streaming Hypergraph Matching (HeiHGM/Streaming) ---
     def s24():
-        sm = StreamingBMatcher(num_nodes=6, algorithm="greedy")
-        sm.add_edge([0, 1, 2], weight=1.0)
-        sm.add_edge([2, 3, 4], weight=2.0)
-        sm.add_edge([4, 5, 0], weight=1.5)
+        g.finalize()
+        sm = StreamingBMatcher(num_nodes=g.num_nodes, algorithm="greedy")
+        for u in range(g.num_nodes):
+            for idx in range(g.xadj[u], g.xadj[u + 1]):
+                v = int(g.adjncy[idx])
+                if u < v:
+                    sm.add_edge([u, v], weight=float(g.edge_weights[idx]))
         r = sm.finish()
         print(f"  matched={r.num_matched}  total_weight={r.total_weight}")
     run_section(24, "Streaming Hypergraph Matching (HeiHGM/Streaming)", s24, counts)
