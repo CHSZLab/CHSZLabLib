@@ -472,6 +472,38 @@ class Graph:
             shape=(self._num_nodes, self._num_nodes),
         )
 
+    def to_hypergraph(self):
+        """Convert this graph to a hypergraph.
+
+        Each undirected edge ``(u, v)`` becomes a size-2 hyperedge
+        ``{u, v}``.  Edge weights and node weights are preserved.
+
+        Returns
+        -------
+        HyperGraph
+            A finalized hypergraph with the same vertex set.
+        """
+        from chszlablib.hypergraph import HyperGraph
+
+        self.finalize()
+        n = self._num_nodes
+        edges = []
+        edge_weights = []
+        for u in range(n):
+            for idx in range(self._xadj[u], self._xadj[u + 1]):
+                v = int(self._adjncy[idx])
+                if u < v:
+                    edges.append([u, v])
+                    edge_weights.append(int(self._edge_weights[idx]))
+
+        has_nw = not np.all(self._node_weights == 1)
+        return HyperGraph.from_edge_list(
+            edges,
+            num_nodes=n,
+            node_weights=self._node_weights if has_nw else None,
+            edge_weights=edge_weights if edge_weights else None,
+        )
+
     # ------------------------------------------------------------------
     # Binary I/O
     # ------------------------------------------------------------------

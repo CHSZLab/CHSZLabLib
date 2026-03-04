@@ -356,6 +356,9 @@ g = Graph.from_metis("graph.metis")
 # Binary save/load (fast, for repeated use)
 g.save_binary("graph.npz")
 g = Graph.load_binary("graph.npz")
+
+# Convert to hypergraph (each edge becomes a size-2 hyperedge)
+hg = g.to_hypergraph()
 ```
 
 ### HyperGraph Construction Shortcuts
@@ -365,6 +368,9 @@ from chszlablib import HyperGraph
 
 # From edge list (each edge is a list of vertices)
 hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3, 4]])
+
+# From a Graph (each edge → size-2 hyperedge, weights preserved)
+hg = HyperGraph.from_graph(g)
 
 # From hMETIS file
 hg = HyperGraph.from_hmetis("hypergraph.hgr")
@@ -510,6 +516,9 @@ G_nx = g.to_networkx()
 import scipy.sparse as sp
 g = Graph.from_scipy_sparse(csr_matrix)
 A = g.to_scipy_sparse()
+
+# Graph → HyperGraph (each edge becomes a size-2 hyperedge)
+hg = g.to_hypergraph()
 ```
 
 ---
@@ -543,6 +552,15 @@ hg = HyperGraph.from_edge_list(
     [[0, 1, 2], [2, 3, 4], [4, 5]],
     node_weights=np.array([1, 2, 3, 4, 5, 6]),  # optional
 )
+```
+
+### From a Graph
+
+```python
+from chszlablib import Graph, HyperGraph
+
+g = Graph.from_edge_list([(0, 1, 5), (1, 2, 3)])
+hg = HyperGraph.from_graph(g)  # each edge → size-2 hyperedge, weights preserved
 ```
 
 ### From hMETIS file

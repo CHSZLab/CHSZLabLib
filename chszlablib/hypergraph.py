@@ -459,6 +459,25 @@ class HyperGraph:
         return hg
 
     @classmethod
+    def from_graph(cls, g) -> HyperGraph:
+        """Convert a :class:`~chszlablib.Graph` to a HyperGraph.
+
+        Each undirected edge ``(u, v)`` becomes a size-2 hyperedge
+        ``{u, v}``.  Edge weights and node weights are preserved.
+
+        Parameters
+        ----------
+        g : Graph
+            Input graph.
+
+        Returns
+        -------
+        HyperGraph
+            A finalized hypergraph with the same vertex set.
+        """
+        return g.to_hypergraph()
+
+    @classmethod
     def from_dual_csr(
         cls,
         vptr: np.ndarray,
