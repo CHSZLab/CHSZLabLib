@@ -496,8 +496,9 @@ class IndependenceProblems:
         all_verts = list(fixed_verts)
 
         if kernel_num_nodes > 0:
+            remaining_time = max(0.0, time_limit - reduction_time)
             ilp_verts, is_optimal = solve_hypermis_ilp(
-                kernel_eptr, kernel_everts, kernel_num_nodes, time_limit,
+                kernel_eptr, kernel_everts, kernel_num_nodes, remaining_time,
             )
             for kv in ilp_verts:
                 all_verts.append(int(remap[kv]))
