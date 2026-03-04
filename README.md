@@ -97,7 +97,7 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 
 ## Overview of Integrated Libraries
 
-**Decomposition** — Partitioning, cuts, clustering, and community detection.
+**Decomposition** — Partitioning, cuts, clustering, community detection, and process mapping.
 
 | Library | Domain | Algorithms |
 |:--------|:-------|:-----------|
@@ -110,6 +110,7 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 | [HeidelbergMotifClustering](https://github.com/LocalClustering/HeidelbergMotifClustering) | Local clustering | Triangle-motif-based flow and partitioning methods |
 | [HeiCut](https://github.com/HeiCut/HeiCut) | Hypergraph minimum cut | Kernelization, submodular minimization, ILP, k-trimmed certificates |
 | [CluStRE](https://github.com/KaHIP/CluStRE) | Streaming graph clustering | Streaming modularity clustering with restreaming and local search |
+| [SharedMap](https://github.com/HenningWoydt/SharedMap) | Process mapping | Hierarchical process mapping (fast/eco/strong modes) |
 
 **IndependenceProblems** — Maximum independent set and maximum weight independent set.
 
@@ -183,6 +184,10 @@ print(f"Hypergraph min-cut: {r.cut_value}, time: {r.time:.2f}s")
 sc = Decomposition.stream_cluster(g, mode="strong")
 print(f"Clusters: {sc.num_clusters}, modularity: {sc.modularity:.4f}")
 
+# --- Process mapping ---
+pm = Decomposition.process_map(g, hierarchy=[2, 3], distance=[1, 10], mode="fast")
+print(f"Communication cost: {pm.comm_cost}, PE assignment: {pm.assignment}")
+
 # --- Hypergraph b-matching ---
 from chszlablib import StreamingBMatcher
 
@@ -246,6 +251,7 @@ print(f"Dynamic WMIS weight: {r.weight}, vertices: {r.vertices}")
 | Find the minimum cut of a hypergraph | `Decomposition.hypergraph_mincut` | `algorithm`, `threads` |
 | Compute a fill-reducing ordering | `Decomposition.node_ordering` | `mode` |
 | Find a node separator | `Decomposition.node_separator` | `num_parts`, `mode` |
+| Map processes to a machine hierarchy | `Decomposition.process_map` | `hierarchy`, `distance`, `mode` |
 | Find a large independent set | `IndependenceProblems.redumis` | `time_limit` |
 | Find max-weight independent set | `IndependenceProblems.chils` | `time_limit`, `num_concurrent` |
 | Independent set on a hypergraph | `IndependenceProblems.hypermis` | `method`, `time_limit`, `strong_reductions` |
@@ -277,6 +283,7 @@ Orientation.orient_edges(g, algorithm="combined")                       # edge o
 
 Decomposition.stream_cluster(g, mode="strong")                          # streaming clustering
 Decomposition.stream_cluster(g, mode="light", resolution_param=1.0)     # fast streaming, more clusters
+Decomposition.process_map(g, hierarchy=[2,4], distance=[1,10])           # process mapping
 
 hg = HyperGraph.from_edge_list([[0,1,2],[2,3,4],[4,5]])
 IndependenceProblems.hypermis(hg)                                       # hypergraph IS (heuristic)
@@ -312,6 +319,7 @@ from chszlablib import Decomposition
 Decomposition.PARTITION_MODES              # ("fast", "eco", "strong", "fastsocial", ...)
 Decomposition.MINCUT_ALGORITHMS            # ("inexact", "exact", "cactus")
 Decomposition.HYPERGRAPH_MINCUT_ALGORITHMS # ("kernelizer", "ilp", "submodular", "trimmer")
+Decomposition.PROCESS_MAP_MODES           # ("fast", "eco", "strong")
 
 from chszlablib import IndependenceProblems, StreamingBMatcher, DynEdgeOrientation, DynMatching
 IndependenceProblems.BMATCHING_ALGORITHMS  # ("greedy_random", "greedy_weight_desc", ..., "reductions", "ils")
@@ -565,7 +573,7 @@ The library organizes algorithms into four namespace classes. Each class is a pu
 
 ### Decomposition
 
-Graph decomposition: partitioning, cuts, clustering, and community detection.
+Graph decomposition: partitioning, cuts, clustering, community detection, and process mapping.
 
 | Method | Problem | Library |
 |:-------|:--------|:--------|
@@ -584,6 +592,7 @@ Graph decomposition: partitioning, cuts, clustering, and community detection.
 | `hypergraph_mincut` | Exact hypergraph minimum cut | HeiCut |
 | `stream_cluster` | Streaming graph clustering | CluStRE |
 | `CluStReClusterer` | Streaming graph clustering (node-by-node) | CluStRE |
+| `process_map` | Hierarchical process mapping | SharedMap |
 
 #### `Decomposition.partition(g, ...)` — Balanced Graph Partitioning (KaHIP)
 
@@ -926,6 +935,27 @@ cs.new_node(3, [1])
 result = cs.cluster()
 print(f"{result.num_clusters} clusters, modularity={result.modularity:.4f}")
 ```
+
+#### `Decomposition.process_map(g, ...)` — Hierarchical Process Mapping (SharedMap)
+
+**Problem.** Given a communication graph where edge weights represent communication volume and a hierarchical machine description, assign processes to processing elements minimizing total weighted communication cost across hierarchy levels.
+
+SharedMap uses KaHIP for serial partitioning and Mt-KaHyPar for parallel partitioning with configurable quality/speed trade-offs. See [docs/process-mapping.md](docs/process-mapping.md) for full parameter documentation.
+
+```python
+from chszlablib import Graph, Decomposition
+
+g = Graph.from_edge_list([(0,1,10), (1,2,20), (2,3,10), (3,0,20)])
+
+# Map to 2 nodes x 2 cores (4 PEs), intra-node cost=1, inter-node cost=10
+result = Decomposition.process_map(g, hierarchy=[2, 2], distance=[1, 10], mode="fast")
+print(f"Communication cost: {result.comm_cost}")
+print(f"PE assignment: {result.assignment}")
+```
+
+**Parameters:** `hierarchy` (list of ints — machine levels, e.g. `[4, 8]` = 4 nodes x 8 cores), `distance` (list of ints — cost per level, same length as `hierarchy`), `mode` (`"fast"`, `"eco"`, `"strong"`), `imbalance` (float, default 0.03), `threads` (int, default 1), `seed` (int).
+
+**Result: `ProcessMappingResult`** — `comm_cost` (int), `assignment` (ndarray[int32], PE index per vertex).
 
 ---
 
@@ -1289,6 +1319,27 @@ refined = Decomposition.evolutionary_partition(
     initial_partition=initial.assignment,
 )
 print(f"Refined edgecut: {refined.edgecut:,} (balance: {refined.balance:.4f})")
+```
+
+### HPC Process Mapping
+
+```python
+from chszlablib import Graph, Decomposition
+
+# Communication graph from MPI profiling
+comm = Graph.from_metis("mpi_comm_pattern.graph")
+
+# Map to supercomputer: 8 nodes x 4 sockets x 16 cores
+# Communication costs: inter-node=100, inter-socket=10, inter-core=1
+result = Decomposition.process_map(
+    comm,
+    hierarchy=[8, 4, 16],
+    distance=[100, 10, 1],
+    mode="strong",
+    threads=8,
+)
+print(f"Total communication cost: {result.comm_cost:,}")
+print(f"Rank 0 → PE {result.assignment[0]}, Rank 1 → PE {result.assignment[1]}")
 ```
 
 ### Social Network Analysis
@@ -1694,6 +1745,21 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
 }
 ```
 
+### SharedMap (Process Mapping)
+
+```bibtex
+@inproceedings{DBLP:conf/acda/0003W25,
+  author    = {Christian Schulz and Henning Woydt},
+  title     = {Shared-Memory Hierarchical Process Mapping},
+  booktitle = {Proceedings of the 3rd Conference on Applied and Computational Discrete
+               Algorithms, {ACDA} 2025},
+  pages     = {18--31},
+  publisher = {{SIAM}},
+  year      = {2025},
+  doi       = {10.1137/1.9781611978759.2}
+}
+```
+
 ### HeiCut (Hypergraph Minimum Cut)
 
 ```bibtex
@@ -1975,6 +2041,7 @@ This library would not be possible without the original algorithm implementation
 - **Renato F. Werneck** — KaMIS
 - **Robert Williger** — KaMIS
 - **Loris Wilwert** — HeiCut
+- **Henning Woydt** — SharedMap
 - **Bogdán Zaválnij** — KaMIS
 - **Huashuo Zhang** — KaMIS
 
