@@ -584,7 +584,7 @@ class IndependenceProblems:
 
         from chszlablib._bmatching import bmatching as _bmatching
 
-        matched, total_weight = _bmatching(
+        matched, total_weight, is_optimal = _bmatching(
             eptr, everts, edge_weights, capacities,
             hg.num_nodes, algorithm, seed,
             ils_iterations, ils_time_limit,
@@ -595,7 +595,7 @@ class IndependenceProblems:
             matched_edges=matched,
             total_weight=total_weight,
             num_matched=len(matched),
-            is_optimal=False,
+            is_optimal=bool(is_optimal),
         )
 
 

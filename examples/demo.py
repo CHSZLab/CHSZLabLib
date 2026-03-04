@@ -262,7 +262,7 @@ def main():
     # --- 23. Hypergraph B-Matching (HeiHGM) ---
     def s23():
         r, dt = timed(IndependenceProblems.bmatching, hg, algorithm="greedy_weight_desc")
-        print(f"  matched={r.num_matched}  total_weight={r.total_weight}  ({dt:.3f}s)")
+        print(f"  matched={r.num_matched}  total_weight={r.total_weight}  optimal={r.is_optimal}  ({dt:.3f}s)")
     run_section(23, "Hypergraph B-Matching (HeiHGM)", s23, counts)
 
     # --- 24. Streaming Hypergraph Matching (HeiHGM/Streaming) ---
