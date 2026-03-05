@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
-
 import numpy as np
 
 from chszlablib.graph import Graph
@@ -98,9 +96,6 @@ class IndependenceProblems:
 
     HYPERMIS_ILP_AVAILABLE: bool = _HYPERMIS_ILP_AVAILABLE
     """Whether the optional Gurobi ILP solver is available for HyperMIS."""
-
-    HYPERMIS_METHODS: tuple[str, ...] = ("heuristic", "exact")
-    """Valid ``method`` values for :meth:`hypermis`."""
 
     BMATCHING_ALGORITHMS: tuple[str, ...] = (
         "greedy_random", "greedy_weight_desc", "greedy_weight_asc",
@@ -388,10 +383,8 @@ class IndependenceProblems:
     @staticmethod
     def hypermis(
         hg: "HyperGraph",
-        method: Literal["heuristic", "exact"] = "heuristic",
         time_limit: float = 60.0,
         seed: int = 0,
-        strong_reductions: bool = True,
     ) -> HyperMISResult:
         """Compute a maximum independent set on a hypergraph using HyperMIS.
 
@@ -401,31 +394,19 @@ class IndependenceProblems:
         "strong" independence: every hyperedge may contribute at most one
         vertex to I.
 
-        Two methods are available:
-
-        - ``"heuristic"`` — apply kernelization reductions plus greedy
-          heuristic peeling to solve the entire instance in C++.  Fast,
-          but the solution is not provably optimal.
-        - ``"exact"`` — apply kernelization reductions (no heuristic),
-          then solve the remaining kernel exactly via an ILP formulation
-          using ``gurobipy``.  Requires the ``gurobipy`` package and a
-          valid Gurobi license.
+        Applies strong kernelization reductions (including unconfined vertex
+        removal), then solves the remaining kernel exactly via an ILP
+        formulation using ``gurobipy``.
 
         Parameters
         ----------
         hg : HyperGraph
             Input hypergraph.
-        method : ``"heuristic"`` | ``"exact"``, optional
-            Solving strategy (default ``"heuristic"``).
         time_limit : float, optional
-            Wall-clock time budget in seconds (default 60.0).  For
-            ``"exact"``, also used as the Gurobi time limit.
+            Wall-clock time budget in seconds (default 60.0).  Also used
+            as the Gurobi time limit for the ILP.
         seed : int, optional
             Random seed for reproducibility (default 0).
-        strong_reductions : bool, optional
-            If ``True``, enable aggressive reduction rules (unconfined
-            vertices, larger edge-size threshold).  Applies to both
-            methods (default ``True``).
 
         Returns
         -------
@@ -440,23 +421,15 @@ class IndependenceProblems:
         Raises
         ------
         ValueError
-            If *method* is not ``"heuristic"`` or ``"exact"``, or
-            *time_limit* is negative.
+            If *time_limit* is negative.
         ImportError
-            If ``method="exact"`` but ``gurobipy`` is not installed.
+            If ``gurobipy`` is not installed.
         """
-        from chszlablib.exceptions import InvalidModeError
-
-        if method not in IndependenceProblems.HYPERMIS_METHODS:
-            raise InvalidModeError(
-                f"Unknown method {method!r}. "
-                f"Valid methods: {IndependenceProblems.HYPERMIS_METHODS}"
-            )
         if time_limit < 0:
             raise ValueError(f"time_limit must be >= 0, got {time_limit}")
-        if method == "exact" and not _HYPERMIS_ILP_AVAILABLE:
+        if not _HYPERMIS_ILP_AVAILABLE:
             raise ImportError(
-                "gurobipy is required for method='exact'. "
+                "gurobipy is required for HyperMIS. "
                 "Install it with: pip install gurobipy"
             )
 
@@ -464,32 +437,13 @@ class IndependenceProblems:
         eptr = hg.eptr.astype(np.int64, copy=False)
         everts = hg.everts.astype(np.int32, copy=False)
 
-        if method == "heuristic":
-            from chszlablib._hypermis import reduce as _reduce
-
-            offset, is_verts, reduction_time = _reduce(
-                eptr, everts, hg.num_nodes, time_limit, seed,
-                strong_reductions, True,  # heuristic=True
-            )
-
-            weight = int(np.sum(hg.node_weights[is_verts])) if hg.node_weights is not None and len(is_verts) > 0 else len(is_verts)
-            return HyperMISResult(
-                size=len(is_verts),
-                weight=weight,
-                vertices=is_verts,
-                offset=offset,
-                reduction_time=reduction_time,
-                is_optimal=False,
-            )
-
-        # Exact path: reduce (no heuristic), extract kernel, solve ILP, remap
         from chszlablib._hypermis import reduce_and_extract_kernel as _reduce_kernel
         from chszlablib._gurobi_ilp import solve_hypermis_ilp
 
         (offset, fixed_verts, kernel_eptr, kernel_everts,
          kernel_num_nodes, remap, reduction_time) = _reduce_kernel(
             eptr, everts, hg.num_nodes, time_limit, seed,
-            strong_reductions, False,  # heuristic=False
+            True, False,  # strong_reductions=True, heuristic=False
         )
 
         # Start with reduction-fixed vertices

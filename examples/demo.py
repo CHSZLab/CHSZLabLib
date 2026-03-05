@@ -255,7 +255,7 @@ def main():
 
     # --- 22. Hypergraph Independent Set (HyperMIS) ---
     def s22():
-        r, dt = timed(IndependenceProblems.hypermis, hg, method="heuristic", time_limit=5.0)
+        r, dt = timed(IndependenceProblems.hypermis, hg, time_limit=5.0)
         print(f"  IS size={r.size}  weight={r.weight}  ({dt:.3f}s)")
     run_section(22, "Hypergraph Independent Set (HyperMIS)", s22, counts)
 
