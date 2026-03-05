@@ -102,7 +102,7 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 **1. Create a Python environment and install CHSZLabLib:**
 
 ```bash
-python -m venv chszlab_env
+python3 -m venv chszlab_env
 source chszlab_env/bin/activate
 pip install chszlablib
 ```
@@ -118,7 +118,7 @@ bunzip2 cond-mat-2005.graph.bz2
 
 ```bash
 wget https://raw.githubusercontent.com/CHSZLab/CHSZLabLib/main/examples/demo.py
-python demo.py cond-mat-2005.graph
+python3 demo.py cond-mat-2005.graph
 ```
 
 ---
