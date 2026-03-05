@@ -76,6 +76,7 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 ## Table of Contents
 
 - [About](#about)
+- [Getting Started](#getting-started)
 - [Overview of Integrated Libraries](#integrated-libraries)
 - [Quick Start](#quick-start)
 - [Agent Quick Reference](#agent-quick-reference)
@@ -93,6 +94,32 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 - [Project Structure](#project-structure)
 - [Citations](#citations)
 - [Authors & Acknowledgments](#authors--acknowledgments)
+
+---
+
+## Getting Started
+
+**1. Create a Python environment and install CHSZLabLib:**
+
+```bash
+python -m venv chszlab_env
+source chszlab_env/bin/activate
+pip install chszlablib
+```
+
+**2. Download a sample graph from the [10th DIMACS Implementation Challenge](https://sites.cc.gatech.edu/dimacs10/downloads.shtml):**
+
+```bash
+wget https://sites.cc.gatech.edu/dimacs10/archive/data/clustering/cond-mat-2005.graph.bz2
+bunzip2 cond-mat-2005.graph.bz2
+```
+
+**3. Run the demo** (exercises all 24 algorithm modules on the downloaded graph):
+
+```bash
+wget https://raw.githubusercontent.com/CHSZLab/CHSZLabLib/main/examples/demo.py
+python demo.py cond-mat-2005.graph
+```
 
 ---
 
