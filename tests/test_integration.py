@@ -7,6 +7,8 @@ import pytest
 
 from chszlablib import Graph, HyperGraph, Decomposition, IndependenceProblems
 
+_has_gurobipy = IndependenceProblems.HYPERMIS_ILP_AVAILABLE
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -85,6 +87,7 @@ def test_metis_roundtrip_with_algorithm(tmp_path):
     assert len(result.assignment) == 4
 
 
+@pytest.mark.skipif(not _has_gurobipy, reason="gurobipy not installed")
 def test_hypergraph_to_graph_then_mis():
     """Build hypergraph, run HyperMIS, expand to graph, run graph MIS."""
     hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3, 4], [4, 5]])
@@ -108,6 +111,7 @@ def test_hypergraph_to_graph_then_mis():
             assert g.adjncy[idx] not in graph_selected
 
 
+@pytest.mark.skipif(not _has_gurobipy, reason="gurobipy not installed")
 def test_hmetis_roundtrip_with_hypermis(tmp_path):
     """Save hypergraph to hMETIS, reload, run HyperMIS."""
     hg = HyperGraph.from_edge_list([[0, 1], [1, 2], [2, 3, 4]])
