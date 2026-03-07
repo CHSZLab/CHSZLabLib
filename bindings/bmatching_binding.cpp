@@ -18,10 +18,11 @@
 #include "bmatching/ils/ils.h"
 #include "bmatching/reductions_sorted/driver.h"
 #include "bmatching/reductions_sorted/foldings.h"
-// Prevent computeIlp from calling exit() on Gurobi exceptions —
+// Prevent ILP solvers from calling exit() on Gurobi exceptions —
 // rethrow as a C++ exception so Python can handle it gracefully.
 #define exit(code) throw std::runtime_error("ILP solver failed (Gurobi error)")
 #include "bmatching/ilp/ilp_exact.h"
+#include "bmatching/ilp/ilp_ball.h"
 #undef exit
 
 namespace py = pybind11;
@@ -156,7 +157,7 @@ py_bmatching(
                 return -static_cast<double>(graph->edgeWeight(e)) / cap_product;
             });
     } else if (algorithm == "reductions") {
-        // Reductions → ILP on reduced instance → unfold
+        // Reductions → presolved ILP on reduced instance → unfold
         HeiHGM::BMatching::bmatching::reductions_sorted::all_removals_exhaustive(bm, *graph);
         // Check if the ILP has edges to solve (edges() skips disabled/empty)
         bool has_remaining = graph->edges().begin() != graph->edges().end();
@@ -164,7 +165,7 @@ py_bmatching(
             // Restore stdout/stderr for Gurobi (gurobipy needs Python I/O)
             std::cout.rdbuf(old_cout);
             std::cerr.rdbuf(old_cerr);
-            HeiHGM::BMatching::bmatching::ilp::computeIlp<BMatch>(
+            HeiHGM::BMatching::bmatching::ilp::computePresolvedIlp<BMatch>(
                 graph.get(), bm, is_optimal, ILP_time_limit);
             // Re-suppress stdout/stderr
             std::cout.rdbuf(null_stream.rdbuf());
