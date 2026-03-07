@@ -367,7 +367,7 @@ class Decomposition:
         g: Graph,
         num_parts: int = 2,
         mode: PartitionMode = "eco",
-        imbalance: float = 0.03,
+        imbalance: float = 0.2,
         seed: int = 0,
         suppress_output: bool = True,
     ) -> SeparatorResult:
