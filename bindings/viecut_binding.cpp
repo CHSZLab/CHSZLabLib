@@ -19,6 +19,10 @@
 #include "data_structure/mutable_graph.h"
 #include "tools/random_functions.h"
 
+#ifdef PARALLEL
+#include <omp.h>
+#endif
+
 namespace py = pybind11;
 
 // ---------------------------------------------------------------------------
@@ -30,7 +34,8 @@ py_minimum_cut(py::array_t<int32_t, py::array::c_style> xadj,
                py::array_t<int32_t, py::array::c_style> adjwgt,
                const std::string& algorithm,
                bool save_cut,
-               int seed)
+               int seed,
+               int threads)
 {
     int n = static_cast<int>(xadj.size() - 1);
     if (n <= 0) {
@@ -68,6 +73,14 @@ py_minimum_cut(py::array_t<int32_t, py::array::c_style> xadj,
     cfg->save_cut = save_cut;
     cfg->seed = static_cast<size_t>(seed);
     random_functions::setSeed(seed);
+
+#ifdef PARALLEL
+    {
+        int nthreads = threads > 0 ? threads : omp_get_max_threads();
+        cfg->threads = static_cast<size_t>(nthreads);
+        omp_set_num_threads(nthreads);
+    }
+#endif
 
     // Suppress stdout/stderr at fd level
     fflush(stdout);
@@ -122,6 +135,7 @@ PYBIND11_MODULE(_viecut, m) {
           py::arg("algorithm") = "inexact",
           py::arg("save_cut") = true,
           py::arg("seed") = 0,
+          py::arg("threads") = 0,
           R"doc(
           Compute a global minimum cut using VieCut.
 
@@ -139,6 +153,8 @@ PYBIND11_MODULE(_viecut, m) {
               If True, compute and return the partition assignment.
           seed : int
               Random seed.
+          threads : int
+              Number of threads (0 = all available cores).
 
           Returns
           -------

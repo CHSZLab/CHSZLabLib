@@ -800,7 +800,7 @@ class Decomposition:
     # --- VieCut: Minimum Cut ---
 
     @staticmethod
-    def mincut(g: Graph, algorithm: MincutAlgorithm = "inexact", seed: int = 0) -> MincutResult:
+    def mincut(g: Graph, algorithm: MincutAlgorithm = "inexact", seed: int = 0, threads: int = 0) -> MincutResult:
         """Compute a global minimum cut of an undirected graph using VieCut.
 
         Finds a partition of the node set into two non-empty sets S and V\\S
@@ -828,6 +828,8 @@ class Decomposition:
 
         seed : int
             Random seed for reproducibility (used by randomized algorithms).
+        threads : int
+            Number of threads for parallel algorithms (0 = all available cores).
 
         Returns
         -------
@@ -869,6 +871,7 @@ class Decomposition:
             algorithm=algo_str,
             save_cut=True,
             seed=seed,
+            threads=threads,
         )
 
         return MincutResult(cut_value=int(cut_value), partition=partition)

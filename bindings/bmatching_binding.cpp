@@ -158,14 +158,20 @@ py_bmatching(
     } else if (algorithm == "reductions") {
         // Reductions → ILP on reduced instance → unfold
         HeiHGM::BMatching::bmatching::reductions_sorted::all_removals_exhaustive(bm, *graph);
-        // Restore stdout/stderr for Gurobi (gurobipy needs Python I/O)
-        std::cout.rdbuf(old_cout);
-        std::cerr.rdbuf(old_cerr);
-        HeiHGM::BMatching::bmatching::ilp::computeIlp<BMatch>(
-            graph.get(), bm, is_optimal, ILP_time_limit);
-        // Re-suppress stdout/stderr
-        std::cout.rdbuf(null_stream.rdbuf());
-        std::cerr.rdbuf(null_stream.rdbuf());
+        // Check if the ILP has edges to solve (edges() skips disabled/empty)
+        bool has_remaining = graph->edges().begin() != graph->edges().end();
+        if (has_remaining) {
+            // Restore stdout/stderr for Gurobi (gurobipy needs Python I/O)
+            std::cout.rdbuf(old_cout);
+            std::cerr.rdbuf(old_cerr);
+            HeiHGM::BMatching::bmatching::ilp::computeIlp<BMatch>(
+                graph.get(), bm, is_optimal, ILP_time_limit);
+            // Re-suppress stdout/stderr
+            std::cout.rdbuf(null_stream.rdbuf());
+            std::cerr.rdbuf(null_stream.rdbuf());
+        } else {
+            is_optimal = true;
+        }
         HeiHGM::BMatching::bmatching::reductions_sorted::weighted_vertex_unfolding(*graph, bm);
     } else if (algorithm == "ils") {
         // Greedy init + ILS — matches CLI chain: greedy(bweight) → ils
