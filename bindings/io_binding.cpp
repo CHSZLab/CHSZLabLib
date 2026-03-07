@@ -48,12 +48,17 @@ static inline void skip_line(const char*& p, const char* end) {
         ++p; // skip '\n'
 }
 
-// Parse one non-negative integer; advance p past trailing whitespace.
+// Parse one integer (possibly negative); advance p past trailing whitespace.
 // Returns false when no digit is found (end of line / stream).
 static inline bool parse_int(const char*& p, const char* end, int64_t& out) {
     skip_ws(p, end);
     if (p >= end || *p == '\n' || *p == '\r')
         return false;
+    bool negative = false;
+    if (*p == '-') {
+        negative = true;
+        ++p;
+    }
     int64_t val = 0;
     bool found = false;
     while (p < end && *p >= '0' && *p <= '9') {
@@ -63,7 +68,7 @@ static inline bool parse_int(const char*& p, const char* end, int64_t& out) {
     }
     if (!found)
         return false;
-    out = val;
+    out = negative ? -val : val;
     // skip trailing spaces/tabs (not newline)
     skip_ws(p, end);
     return true;
