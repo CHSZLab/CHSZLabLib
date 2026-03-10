@@ -1439,10 +1439,20 @@ string(REPLACE "constexpr ConstRandArray rand_nums = ConstRandArray<TAM>();"
                "const ConstRandArray rand_nums = ConstRandArray<TAM>();" _SRC "${_SRC}")
 file(WRITE ${FREIGHT_DIR}/lib/tools/random_functions.h "${_SRC}")
 
-# --- Patch buffered_map.h: const-correctness (build() calls non-const redo()) ---
+# --- Patch buffered_map.h: const-correctness (build() calls non-const redo(),
+#     get_min() called on const refs in comparison operators) ---
 file(READ ${FREIGHT_DIR}/lib/data_structure/buffered_map.h _SRC)
 string(REPLACE "void build() const {" "void build() {" _SRC "${_SRC}")
+string(REPLACE "U& get_min() {" "U& get_min() const {" _SRC "${_SRC}")
 file(WRITE ${FREIGHT_DIR}/lib/data_structure/buffered_map.h "${_SRC}")
+
+# --- Patch vertex_partitioning.h: const-correctness (get_block_address) ---
+file(READ ${FREIGHT_DIR}/lib/partition/onepass_partitioning/vertex_partitioning.h _SRC)
+string(REPLACE "floating_block* get_block_address(PartitionID block_id) const;"
+               "floating_block* get_block_address(PartitionID block_id);" _SRC "${_SRC}")
+string(REPLACE "inline floating_block* vertex_partitioning::get_block_address(PartitionID block_id) const {"
+               "inline floating_block* vertex_partitioning::get_block_address(PartitionID block_id) {" _SRC "${_SRC}")
+file(WRITE ${FREIGHT_DIR}/lib/partition/onepass_partitioning/vertex_partitioning.h "${_SRC}")
 
 set(FREIGHT_SOURCES
     ${FREIGHT_DIR}/lib/partition/onepass_partitioning/vertex_partitioning.cpp
@@ -1472,7 +1482,7 @@ target_compile_definitions(freight_static PUBLIC
     -DMODE_FREIGHT
     -DNDEBUG
 )
-target_compile_options(freight_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -fpermissive>)
+target_compile_options(freight_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>)
 
 if(OpenMP_CXX_FOUND)
     target_link_libraries(freight_static PUBLIC OpenMP::OpenMP_CXX)
@@ -1481,7 +1491,6 @@ target_link_libraries(freight_static PUBLIC Threads::Threads)
 
 pybind11_add_module(_freight bindings/freight_binding.cpp)
 target_link_libraries(_freight PRIVATE freight_static)
-target_compile_options(_freight PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-fpermissive>)
 install(TARGETS _freight DESTINATION chszlablib)
 
 # =============================================================================
