@@ -339,6 +339,15 @@ if(_LR_CLANG_PATCHED EQUAL -1)
     endif()
 endif()
 
+# Patch LRConv.cpp: remove #include <immintrin.h> (x86-only, unused on ARM)
+set(_LR_LRCONV_CPP "${LR_REDUCER}/reductions/LRConv.cpp")
+file(READ "${_LR_LRCONV_CPP}" _LR_LRCONV_SRC)
+string(FIND "${_LR_LRCONV_SRC}" "#include <immintrin.h>" _LR_LRCONV_HAS_IMMINTRIN)
+if(NOT _LR_LRCONV_HAS_IMMINTRIN EQUAL -1)
+    string(REPLACE "#include <immintrin.h>" "// #include <immintrin.h>  // removed: x86-only, unused" _LR_LRCONV_SRC "${_LR_LRCONV_SRC}")
+    file(WRITE "${_LR_LRCONV_CPP}" "${_LR_LRCONV_SRC}")
+endif()
+
 # Patch lr_gcn.cpp: replace AVX2 intrinsics with portable scalar code
 set(_LR_GCN_CPP "${LR_REDUCER}/reductions/lr_gcn.cpp")
 file(READ "${_LR_GCN_CPP}" _LR_GCN_SRC)
