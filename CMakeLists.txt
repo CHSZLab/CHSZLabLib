@@ -527,10 +527,14 @@ set(_MMWIS_EVO_DIR ${KAMIS_DIR}/mmwis/lib/mis/evolutionary)
 file(READ ${_MMWIS_EVO_DIR}/reduction_evolution.cpp _SRC)
 # Clang rejects default arg redefinition in definition when already in declaration
 string(REPLACE "bool recursive = false," "bool recursive," _SRC "${_SRC}")
-string(REPLACE
-    "template class reduction_evolution<branch_and_reduce_algorithm>;"
-    "namespace mmwis { template class reduction_evolution<branch_and_reduce_algorithm>; }"
-    _SRC "${_SRC}")
+# Wrap explicit instantiation in namespace mmwis (idempotent: skip if already wrapped)
+string(FIND "${_SRC}" "namespace mmwis { template class reduction_evolution" _ALREADY_PATCHED)
+if(_ALREADY_PATCHED EQUAL -1)
+    string(REPLACE
+        "template class reduction_evolution<branch_and_reduce_algorithm>;"
+        "namespace mmwis { template class reduction_evolution<branch_and_reduce_algorithm>; }"
+        _SRC "${_SRC}")
+endif()
 file(WRITE ${_MMWIS_EVO_DIR}/reduction_evolution.cpp "${_SRC}")
 
 # --- branch_and_reduce_algorithm.cpp: int*/unsigned int* mismatch ---
