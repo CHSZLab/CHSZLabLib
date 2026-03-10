@@ -318,6 +318,27 @@ if(_LR_ALREADY_PATCHED EQUAL -1)
     file(WRITE "${_LR_GENRED_H}" "${_LR_GENRED_SRC}")
 endif()
 
+# Patch general_reduction.h: clang fix — extract br_alg->status.n access from
+# template into a non-inline helper so the incomplete type is not dereferenced
+# in the header (GCC defers this, clang does not).
+file(READ "${_LR_GENRED_H}" _LR_GENRED_SRC2)
+string(FIND "${_LR_GENRED_SRC2}" "_lr_get_status_n" _LR_CLANG_PATCHED)
+if(_LR_CLANG_PATCHED EQUAL -1)
+    string(REPLACE
+        "template <typename F>\n    inline void for_each_changed_vertex(reduce_algorithm *br_alg, F f)\n    {\n        for (size_t v_idx = 0; v_idx < marker.current_size(); v_idx++)\n        {\n            NodeID v = marker.current_vertex(v_idx);\n\n            if (v < br_alg->status.n && !is_reduced(v, br_alg))"
+        "static size_t _lr_get_status_n(reduce_algorithm *br_alg);\n\n    template <typename F>\n    inline void for_each_changed_vertex(reduce_algorithm *br_alg, F f)\n    {\n        for (size_t v_idx = 0; v_idx < marker.current_size(); v_idx++)\n        {\n            NodeID v = marker.current_vertex(v_idx);\n\n            if (v < _lr_get_status_n(br_alg) && !is_reduced(v, br_alg))"
+        _LR_GENRED_SRC2 "${_LR_GENRED_SRC2}")
+    file(WRITE "${_LR_GENRED_H}" "${_LR_GENRED_SRC2}")
+    # Add helper implementation to general_reduction.cpp
+    set(_LR_GENRED_CPP "${LR_REDUCER}/reductions/general_reduction.cpp")
+    file(READ "${_LR_GENRED_CPP}" _LR_GENRED_CPP_SRC)
+    string(FIND "${_LR_GENRED_CPP_SRC}" "_lr_get_status_n" _LR_CPP_PATCHED)
+    if(_LR_CPP_PATCHED EQUAL -1)
+        string(APPEND _LR_GENRED_CPP_SRC "\nsize_t general_reduction::_lr_get_status_n(reduce_algorithm *br_alg) { return br_alg->status.n; }\n")
+        file(WRITE "${_LR_GENRED_CPP}" "${_LR_GENRED_CPP_SRC}")
+    endif()
+endif()
+
 # Patch lr_gcn.cpp: replace AVX2 intrinsics with portable scalar code
 set(_LR_GCN_CPP "${LR_REDUCER}/reductions/lr_gcn.cpp")
 file(READ "${_LR_GCN_CPP}" _LR_GCN_SRC)
