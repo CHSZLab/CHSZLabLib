@@ -114,7 +114,7 @@ wget https://sites.cc.gatech.edu/dimacs10/archive/data/clustering/cond-mat-2005.
 bunzip2 cond-mat-2005.graph.bz2
 ```
 
-**3. Run the demo** (exercises all 24 algorithm modules on the downloaded graph):
+**3. Run the demo** (exercises all 26 algorithm modules on the downloaded graph):
 
 ```bash
 wget https://raw.githubusercontent.com/CHSZLab/CHSZLabLib/main/examples/demo.py
@@ -138,6 +138,7 @@ python3 demo.py cond-mat-2005.graph
 | [HeidelbergMotifClustering](docs/local-motif-clustering.md) | Local clustering | Triangle-motif-based flow and partitioning methods |
 | [HeiCut](docs/hypergraph-minimum-cut.md) | Hypergraph minimum cut | Kernelization, submodular minimization, ILP, k-trimmed certificates |
 | [CluStRE](docs/streaming-clustering.md) | Streaming graph clustering | Streaming modularity clustering with restreaming and local search |
+| [FREIGHT](docs/streaming-hypergraph-partitioning.md) | Streaming hypergraph partitioning | Fennel, Fennel Approx Sqrt, LDG, Hashing (one-pass, O(k+nets) memory) |
 | [SharedMap](docs/process-mapping.md) | Process mapping | Hierarchical process mapping (fast/eco/strong modes) |
 
 **IndependenceProblems** — Maximum independent set and maximum weight independent set.
@@ -197,6 +198,12 @@ print(f"Max out-degree: {eo.max_out_degree}")
 sp = Decomposition.stream_partition(g, k=3, imbalance=3.0)
 print(f"Stream assignment: {sp.assignment}")
 
+# Streaming hypergraph partitioning
+from chszlablib import HyperGraph
+hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3, 4], [4, 5, 0]], num_nodes=6)
+shp = Decomposition.stream_hypergraph_partition(hg, k=2)
+print(f"Hypergraph partition: {shp.assignment}")
+
 # --- Hypergraph independent set ---
 from chszlablib import HyperGraph
 
@@ -207,6 +214,11 @@ print(f"Hypergraph IS size: {r.size}, vertices: {r.vertices}")
 # --- Hypergraph minimum cut ---
 r = Decomposition.hypergraph_mincut(hg, algorithm="kernelizer")
 print(f"Hypergraph min-cut: {r.cut_value}, time: {r.time:.2f}s")
+
+# --- Streaming hypergraph partitioning ---
+hg2 = HyperGraph.from_edge_list([[0, 1, 2], [2, 3, 4], [4, 5, 0]], num_nodes=6)
+shp = Decomposition.stream_hypergraph_partition(hg2, k=2, algorithm="fennel_approx_sqrt")
+print(f"Hypergraph partition: {shp.assignment}")
 
 # --- Streaming graph clustering ---
 sc = Decomposition.stream_cluster(g, mode="strong")
@@ -276,6 +288,8 @@ print(f"Dynamic WMIS weight: {r.weight}, vertices: {r.vertices}")
 | Find a local community around a node | `Decomposition.motif_cluster` | `seed_node`, `method` |
 | Partition a streaming graph | `Decomposition.stream_partition` | `k`, `imbalance` |
 | Cluster a graph in streaming fashion | `Decomposition.stream_cluster` | `mode`, `resolution_param` |
+| Partition a streaming hypergraph | `Decomposition.stream_hypergraph_partition` | `k`, `algorithm`, `objective` |
+| Partition a streaming hypergraph (node-by-node) | `FreightPartitioner` | `num_nodes`, `num_nets`, `k` |
 | Find the minimum cut of a hypergraph | `Decomposition.hypergraph_mincut` | `algorithm`, `threads` |
 | Compute a fill-reducing ordering | `Decomposition.node_ordering` | `mode` |
 | Find a node separator | `Decomposition.node_separator` | `num_parts`, `mode` |
@@ -313,6 +327,14 @@ Decomposition.stream_cluster(g, mode="strong")                          # stream
 Decomposition.stream_cluster(g, mode="light", resolution_param=1.0)     # fast streaming, more clusters
 Decomposition.process_map(g, hierarchy=[2,4], distance=[1,10])           # process mapping
 
+hg = HyperGraph.from_edge_list([[0,1,2],[2,3,4],[4,5,0]], num_nodes=6)
+Decomposition.stream_hypergraph_partition(hg, k=2)                      # streaming hypergraph partition
+Decomposition.stream_hypergraph_partition(hg, k=4, algorithm="fennel")  # with specific algorithm
+
+from chszlablib import FreightPartitioner
+fp = FreightPartitioner(num_nodes=6, num_nets=3, k=2)                   # true streaming partitioner
+fp.assign_node(0, nets=[[0,1,2],[0,4,5]]); fp.get_assignment()          # stream & collect
+
 hg = HyperGraph.from_edge_list([[0,1,2],[2,3,4],[4,5]])
 IndependenceProblems.hypermis(hg)                                       # hypergraph IS (heuristic)
 IndependenceProblems.hypermis(hg, method="exact")                       # hypergraph IS (exact, needs gurobipy)
@@ -348,6 +370,8 @@ Decomposition.PARTITION_MODES              # ("fast", "eco", "strong", "fastsoci
 Decomposition.MINCUT_ALGORITHMS            # ("inexact", "exact", "cactus")
 Decomposition.HYPERGRAPH_MINCUT_ALGORITHMS # ("kernelizer", "ilp", "submodular", "trimmer")
 Decomposition.PROCESS_MAP_MODES           # ("fast", "eco", "strong")
+Decomposition.FREIGHT_ALGORITHMS          # ("fennel_approx_sqrt", "fennel", "ldg", "hashing")
+Decomposition.FREIGHT_OBJECTIVES          # ("cut_net", "connectivity")
 
 from chszlablib import IndependenceProblems, StreamingBMatcher, DynEdgeOrientation, DynMatching
 IndependenceProblems.BMATCHING_ALGORITHMS  # ("greedy_random", "greedy_weight_desc", ..., "reductions", "ils")
@@ -419,6 +443,7 @@ g = hg.to_graph()
 - **NetworkX / SciPy / gurobipy are optional** — import errors give a helpful message.
 - **`IndependenceProblems.hypermis()` takes a `HyperGraph`, not a `Graph`.**
 - **`Decomposition.hypergraph_mincut()` takes a `HyperGraph`, not a `Graph`.**
+- **`Decomposition.stream_hypergraph_partition()` takes a `HyperGraph`, not a `Graph`.** Use `FreightPartitioner` for true node-by-node streaming.
 - **`Decomposition.stream_cluster()` ignores edge weights** — CluStRE operates on unweighted graphs.
 - **`IndependenceProblems.bmatching()` takes a `HyperGraph`, not a `Graph`.** Set capacities *before* finalization.
 - **`StreamingBMatcher` capacity defaults to 1.** Pass `capacities=` array to the constructor for custom capacities.
@@ -638,6 +663,8 @@ Graph decomposition: partitioning, cuts, clustering, community detection, and pr
 | `hypergraph_mincut` | Exact hypergraph minimum cut | HeiCut |
 | `stream_cluster` | Streaming graph clustering | CluStRE |
 | `CluStReClusterer` | Streaming graph clustering (node-by-node) | CluStRE |
+| `stream_hypergraph_partition` | Streaming hypergraph partitioning | FREIGHT |
+| `FreightPartitioner` | Streaming hypergraph partitioning (node-by-node) | FREIGHT |
 | `process_map` | Hierarchical process mapping | SharedMap |
 
 #### `Decomposition.partition(g, ...)` — Balanced Graph Partitioning (KaHIP)
@@ -981,6 +1008,62 @@ cs.new_node(3, [1])
 result = cs.cluster()
 print(f"{result.num_clusters} clusters, modularity={result.modularity:.4f}")
 ```
+
+#### `Decomposition.stream_hypergraph_partition(hg, ...)` — Streaming Hypergraph Partitioning (FREIGHT)
+
+**Problem.** Given a hypergraph $H = (V, E)$ with vertex weights and hyperedge weights, partition $V$ into $k$ blocks minimizing the **cut-net** or **connectivity** objective, using a **streaming** model where nodes are processed sequentially in a single pass. FREIGHT extends the Fennel objective to hypergraphs and requires only $O(k + |E|)$ memory — the full hypergraph is never stored.
+
+```python
+Decomposition.stream_hypergraph_partition(hg, k=2, imbalance=3.0, algorithm="fennel_approx_sqrt",
+                                           objective="cut_net", seed=0, num_streams_passes=1,
+                                           hierarchical=False, suppress_output=True) -> StreamHypergraphPartitionResult
+```
+
+| Parameter | Type | Default | Description |
+|:----------|:-----|:--------|:------------|
+| `hg` | `HyperGraph` | — | Input hypergraph |
+| `k` | `int` | `2` | Number of partition blocks (>= 2) |
+| `imbalance` | `float` | `3.0` | Allowed imbalance in percent |
+| `algorithm` | `str` | `"fennel_approx_sqrt"` | Algorithm variant |
+| `objective` | `str` | `"cut_net"` | `"cut_net"` or `"connectivity"` |
+| `seed` | `int` | `0` | Random seed |
+| `num_streams_passes` | `int` | `1` | Restreaming passes for improved quality |
+| `hierarchical` | `bool` | `False` | Enable hierarchical recursive bisection |
+
+**Algorithms:**
+
+| Algorithm | Identifier | Characteristics |
+|:----------|:-----------|:----------------|
+| Fennel Approx Sqrt | `"fennel_approx_sqrt"` | Default; fast square-root approximation |
+| Fennel | `"fennel"` | Full Fennel objective with exact power computation |
+| LDG | `"ldg"` | Linear Deterministic Greedy |
+| Hashing | `"hashing"` | Random assignment (fastest, lowest quality) |
+
+**Result: `StreamHypergraphPartitionResult`** — `assignment` (ndarray, partition block ID per node).
+
+```python
+from chszlablib import HyperGraph, Decomposition
+
+hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3, 4], [4, 5, 0]], num_nodes=6)
+result = Decomposition.stream_hypergraph_partition(hg, k=2, algorithm="fennel")
+print(f"Assignment: {result.assignment}")
+```
+
+#### `FreightPartitioner` — True Streaming Hypergraph Partitioning (FREIGHT)
+
+**Problem.** Same as `stream_hypergraph_partition`, but exposes a **node-by-node streaming interface** for scenarios where the hypergraph is not available as a complete `HyperGraph` object. Each `assign_node()` call immediately returns the partition block ID. Memory: $O(k + |E|)$ — the full hypergraph is never stored.
+
+```python
+from chszlablib import FreightPartitioner
+
+fp = FreightPartitioner(num_nodes=6, num_nets=3, k=2)
+block = fp.assign_node(0, nets=[[0, 1, 2], [0, 4, 5]])  # returns block ID immediately
+block = fp.assign_node(1, nets=[[0, 1, 2]])
+# ... assign remaining nodes ...
+result = fp.get_assignment()  # -> StreamHypergraphPartitionResult
+```
+
+Nets are identified by their sorted vertex sets — `[0, 2, 1]` and `[0, 1, 2]` are automatically recognized as the same net.
 
 #### `Decomposition.process_map(g, ...)` — Hierarchical Process Mapping (SharedMap)
 
@@ -1448,6 +1531,24 @@ result = cs.cluster()
 print(f"Online clusters: {result.num_clusters}")
 ```
 
+### Streaming Hypergraph Partitioning
+
+```python
+from chszlablib import HyperGraph, Decomposition, FreightPartitioner
+
+# Batch API: partition a full hypergraph
+hg = HyperGraph.from_hmetis("vlsi_netlist.hgr")
+result = Decomposition.stream_hypergraph_partition(hg, k=8, algorithm="fennel_approx_sqrt")
+print(f"Assignment: {result.assignment}")
+
+# Streaming API: partition as nets arrive (O(k + num_nets) memory)
+fp = FreightPartitioner(num_nodes=100_000, num_nets=50_000, k=8)
+for node_id, nets in net_stream():  # your data source
+    block = fp.assign_node(node_id, nets=nets)
+    # block ID is available immediately
+result = fp.get_assignment()
+```
+
 ### Sparse Linear Algebra
 
 ```python
@@ -1600,6 +1701,7 @@ CHSZLabLib/
 │   ├── HeiStream/               # Streaming partitioning
 │   ├── HeiCut/                  # Hypergraph minimum cut
 │   ├── CluStRE/                 # Streaming graph clustering
+│   ├── FREIGHT/                 # Streaming hypergraph partitioning
 │   ├── fpt-max-cut/             # Maximum cut
 │   ├── HeidelbergMotifClustering/ # Motif clustering
 │   ├── HeiHGM_Bmatching/        # Hypergraph b-matching
@@ -1788,6 +1890,22 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
   publisher = {Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
   year      = {2025},
   doi       = {10.4230/LIPIcs.SEA.2025.11}
+}
+```
+
+### FREIGHT (Streaming Hypergraph Partitioning)
+
+```bibtex
+@InProceedings{eyubov2023freight,
+  author    = {Kamal Eyubov and Marcelo Fonseca Faraj and Christian Schulz},
+  title     = {{FREIGHT}: Fast Streaming Hypergraph Partitioning},
+  booktitle = {21st International Symposium on Experimental Algorithms ({SEA})},
+  series    = {LIPIcs},
+  volume    = {265},
+  pages     = {15:1--15:16},
+  publisher = {Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
+  year      = {2023},
+  doi       = {10.4230/LIPIcs.SEA.2023.15}
 }
 ```
 
@@ -2051,9 +2169,10 @@ This library would not be possible without the original algorithm implementation
 - **Jannick Borowitz** — DynDeltaOrientation, DynWMIS
 - **Adil Chhabra** — HeiCut, CluStRE, HeiStream, HeidelbergMotifClustering, KaHIP
 - **Jakob Dahlum** — KaMIS
+- **Kamal Eyubov** — FREIGHT
 - **Damir Ferizovic** — fpt-max-cut
 - **S. M. Ferdous** — HeiHGM/Streaming
-- **Marcelo Fonseca Faraj** — SCC, HeiStream, HeidelbergMotifClustering, KaHIP
+- **Marcelo Fonseca Faraj** — SCC, HeiStream, HeidelbergMotifClustering, FREIGHT, KaHIP
 - **Alexander Gellner** — KaMIS
 - **Ernestine Großmann** — CHILS, HyperMIS, KaMIS (MMWIS), HeiHGM/Bmatching, DynDeltaOrientation, DynDeltaApprox, DynWMIS
 - **Felix Hausberger** — SCC

@@ -1424,6 +1424,67 @@ if(OpenMP_CXX_FOUND)
 endif()
 
 # =============================================================================
+# FREIGHT  (Fast stREamInG Hypergraph parTitioning)
+# =============================================================================
+set(FREIGHT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/FREIGHT/code_for_hypergraphs)
+
+# --- Patch definitions.h: remove x86intrin.h (ARM compatibility) ---
+file(READ ${FREIGHT_DIR}/lib/definitions.h _SRC)
+string(REPLACE "#include <x86intrin.h>" "// #include <x86intrin.h>  // patched out for portability" _SRC "${_SRC}")
+file(WRITE ${FREIGHT_DIR}/lib/definitions.h "${_SRC}")
+
+# --- Patch random_functions.h: constexpr array too large for some compilers ---
+file(READ ${FREIGHT_DIR}/lib/tools/random_functions.h _SRC)
+string(REPLACE "constexpr ConstRandArray rand_nums = ConstRandArray<TAM>();"
+               "const ConstRandArray rand_nums = ConstRandArray<TAM>();" _SRC "${_SRC}")
+file(WRITE ${FREIGHT_DIR}/lib/tools/random_functions.h "${_SRC}")
+
+# --- Patch buffered_map.h: const-correctness (build() calls non-const redo()) ---
+file(READ ${FREIGHT_DIR}/lib/data_structure/buffered_map.h _SRC)
+string(REPLACE "void build() const {" "void build() {" _SRC "${_SRC}")
+file(WRITE ${FREIGHT_DIR}/lib/data_structure/buffered_map.h "${_SRC}")
+
+set(FREIGHT_SOURCES
+    ${FREIGHT_DIR}/lib/partition/onepass_partitioning/vertex_partitioning.cpp
+    ${FREIGHT_DIR}/lib/partition/onepass_partitioning/floating_block.cpp
+    ${FREIGHT_DIR}/lib/partition/onepass_partitioning/fennel.cpp
+    ${FREIGHT_DIR}/lib/partition/onepass_partitioning/fennel_approx_sqrt.cpp
+    ${FREIGHT_DIR}/lib/partition/onepass_partitioning/ldg.cpp
+    ${FREIGHT_DIR}/lib/tools/random_functions.cpp
+    ${FREIGHT_DIR}/lib/tools/quality_metrics.cpp
+    ${FREIGHT_DIR}/lib/mapping/hierarchy_operations.cpp
+)
+
+add_library(freight_static STATIC ${FREIGHT_SOURCES})
+target_include_directories(freight_static PUBLIC
+    ${FREIGHT_DIR}/lib
+    ${FREIGHT_DIR}/lib/partition
+    ${FREIGHT_DIR}/lib/partition/onepass_partitioning
+    ${FREIGHT_DIR}/lib/tools
+    ${FREIGHT_DIR}/lib/data_structure
+    ${FREIGHT_DIR}/lib/io
+    ${FREIGHT_DIR}/lib/mapping
+    ${FREIGHT_DIR}/extern
+)
+target_compile_definitions(freight_static PUBLIC
+    -DMODE64BITEDGES
+    -DMODE_NETLIST
+    -DMODE_FREIGHT
+    -DNDEBUG
+)
+target_compile_options(freight_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -fpermissive>)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(freight_static PUBLIC OpenMP::OpenMP_CXX)
+endif()
+target_link_libraries(freight_static PUBLIC Threads::Threads)
+
+pybind11_add_module(_freight bindings/freight_binding.cpp)
+target_link_libraries(_freight PRIVATE freight_static)
+target_compile_options(_freight PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-fpermissive>)
+install(TARGETS _freight DESTINATION chszlablib)
+
+# =============================================================================
 # HyperMIS  (Maximum Independent Set on Hypergraphs)
 # =============================================================================
 set(HYPERMIS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/HyperMIS)

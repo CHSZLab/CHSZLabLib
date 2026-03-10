@@ -8,6 +8,7 @@ import numpy as np
 from chszlablib import (
     Graph, HyperGraph, Decomposition, IndependenceProblems,
     Orientation, DynamicProblems, StreamingBMatcher,
+    FreightPartitioner,
 )
 
 
@@ -247,26 +248,52 @@ def main():
     dt_conv = time.perf_counter() - t0
     print(f"  Nodes: {hg.num_nodes:,}  Hyperedges: {hg.num_edges:,}  ({dt_conv:.3f}s)\n")
 
-    # --- 21. Hypergraph Minimum Cut (HeiCut) ---
+    # --- 21. Streaming Hypergraph Partitioning (FREIGHT) ---
     def s21():
+        for algo in ["fennel_approx_sqrt", "fennel", "ldg", "hashing"]:
+            r, dt = timed(Decomposition.stream_hypergraph_partition, hg, k=4, algorithm=algo)
+            print(f"  algo={algo:20s}  parts={len(np.unique(r.assignment)):>2}  ({dt:.3f}s)")
+    run_section(21, "Streaming Hypergraph Partitioning (FREIGHT)", s21, counts)
+
+    # --- 22. Streaming Hypergraph Partitioning — True Streaming (FREIGHT) ---
+    def s22():
+        g.finalize()
+        # Build streaming: each edge becomes a size-2 net
+        fp = FreightPartitioner(num_nodes=g.num_nodes, num_nets=g.num_edges, k=4, seed=0)
+        for u in range(g.num_nodes):
+            nets = []
+            for idx in range(g.xadj[u], g.xadj[u + 1]):
+                v = int(g.adjncy[idx])
+                if u < v:
+                    nets.append([u, v])
+            if nets:
+                fp.assign_node(u, nets=nets)
+            else:
+                fp.assign_node(u, nets=[[u]])  # isolated node
+        r = fp.get_assignment()
+        print(f"  parts={len(np.unique(r.assignment)):>2}  nodes={r.assignment.shape[0]}")
+    run_section(22, "Streaming Hypergraph Partitioning — True Streaming (FREIGHT)", s22, counts)
+
+    # --- 23. Hypergraph Minimum Cut (HeiCut) ---
+    def s23():
         r, dt = timed(Decomposition.hypergraph_mincut, hg)
         print(f"  cut_value={r.cut_value}  ({dt:.3f}s)")
-    run_section(21, "Hypergraph Minimum Cut (HeiCut)", s21, counts)
+    run_section(23, "Hypergraph Minimum Cut (HeiCut)", s23, counts)
 
-    # --- 22. Hypergraph Independent Set (HyperMIS) ---
-    def s22():
+    # --- 24. Hypergraph Independent Set (HyperMIS) ---
+    def s24():
         r, dt = timed(IndependenceProblems.hypermis, hg, time_limit=5.0)
         print(f"  IS size={r.size}  weight={r.weight}  ({dt:.3f}s)")
-    run_section(22, "Hypergraph Independent Set (HyperMIS)", s22, counts)
+    run_section(24, "Hypergraph Independent Set (HyperMIS)", s24, counts)
 
-    # --- 23. Hypergraph B-Matching (HeiHGM) ---
-    def s23():
+    # --- 25. Hypergraph B-Matching (HeiHGM) ---
+    def s25():
         r, dt = timed(IndependenceProblems.bmatching, hg, algorithm="greedy_weight_desc")
         print(f"  matched={r.num_matched}  total_weight={r.total_weight}  optimal={r.is_optimal}  ({dt:.3f}s)")
-    run_section(23, "Hypergraph B-Matching (HeiHGM)", s23, counts)
+    run_section(25, "Hypergraph B-Matching (HeiHGM)", s25, counts)
 
-    # --- 24. Streaming Hypergraph Matching (HeiHGM/Streaming) ---
-    def s24():
+    # --- 26. Streaming Hypergraph Matching (HeiHGM/Streaming) ---
+    def s26():
         g.finalize()
         sm = StreamingBMatcher(num_nodes=g.num_nodes, algorithm="greedy")
         for u in range(g.num_nodes):
@@ -276,7 +303,7 @@ def main():
                     sm.add_edge([u, v], weight=float(g.edge_weights[idx]))
         r = sm.finish()
         print(f"  matched={r.num_matched}  total_weight={r.total_weight}")
-    run_section(24, "Streaming Hypergraph Matching (HeiHGM/Streaming)", s24, counts)
+    run_section(26, "Streaming Hypergraph Matching (HeiHGM/Streaming)", s26, counts)
 
     # ================================================================
     print("=" * 60)

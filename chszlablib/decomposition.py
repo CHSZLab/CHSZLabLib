@@ -34,6 +34,12 @@ _MINCUT_ALGO_MAP = {
     "cactus": "cactus",
 }
 
+FreightAlgorithm = Literal[
+    "fennel_approx_sqrt", "fennel", "ldg", "hashing",
+]
+
+FreightObjective = Literal["cut_net", "connectivity"]
+
 _ORIENTATION_ALGO_MAP = {"two_approx", "dfs", "combined"}
 
 _MOTIF_METHOD_MAP = {"social", "lmchgp"}
@@ -181,6 +187,14 @@ class StreamClusterResult:
 
 
 @dataclass
+class StreamHypergraphPartitionResult:
+    """Result of streaming hypergraph partitioning (FREIGHT)."""
+
+    assignment: np.ndarray
+    """Partition assignment for each node (0-indexed)."""
+
+
+@dataclass
 class HypergraphMincutResult:
     """Result of an exact hypergraph minimum cut computation."""
 
@@ -237,6 +251,14 @@ class Decomposition:
     PROCESS_MAP_MODES: tuple[str, ...] = ("fast", "eco", "strong")
     """Valid modes for :meth:`process_map`."""
 
+    FREIGHT_ALGORITHMS: tuple[str, ...] = (
+        "fennel_approx_sqrt", "fennel", "ldg", "hashing",
+    )
+    """Valid algorithms for :meth:`stream_hypergraph_partition`."""
+
+    FREIGHT_OBJECTIVES: tuple[str, ...] = ("cut_net", "connectivity")
+    """Valid objectives for :meth:`stream_hypergraph_partition`."""
+
     PROCESS_MAP_STRATEGIES: tuple[str, ...] = (
         "naive", "layer", "queue", "nb_layer",
     )
@@ -270,6 +292,7 @@ class Decomposition:
             "evolutionary_correlation_clustering": "Evolutionary correlation clustering (SCC)",
             "motif_cluster": "Local motif clustering (HeidelbergMotifClustering)",
             "stream_cluster": "Streaming graph clustering (CluStRE)",
+            "stream_hypergraph_partition": "Streaming hypergraph partitioning (FREIGHT)",
             "hypergraph_mincut": "Exact hypergraph minimum cut (HeiCut)",
             "process_map": "Hierarchical process mapping (SharedMap)",
         }
@@ -796,6 +819,110 @@ class Decomposition:
             num_clusters=num_clusters,
             assignment=assignment,
         )
+
+    # --- FREIGHT: Streaming Hypergraph Partitioning ---
+
+    @staticmethod
+    def stream_hypergraph_partition(
+        hg: "HyperGraph",
+        k: int = 2,
+        imbalance: float = 3.0,
+        algorithm: FreightAlgorithm = "fennel_approx_sqrt",
+        objective: FreightObjective = "cut_net",
+        seed: int = 0,
+        num_streams_passes: int = 1,
+        hierarchical: bool = False,
+        rec_bisection_base: int = 2,
+        suppress_output: bool = True,
+    ) -> StreamHypergraphPartitionResult:
+        """Partition a hypergraph using FREIGHT's streaming algorithm.
+
+        Processes nodes sequentially, assigning each to a partition block
+        upon arrival based on the Fennel objective function (or variants).
+        Requires only O(k + num_nets) memory.
+
+        Parameters
+        ----------
+        hg : HyperGraph
+            Input hypergraph. Must be finalized.
+        k : int
+            Number of partitions (must be >= 2).
+        imbalance : float
+            Allowed imbalance in percent (3.0 means 3%).
+        algorithm : str
+            Streaming algorithm. One of ``"fennel_approx_sqrt"`` (default,
+            fastest), ``"fennel"`` (full power law), ``"ldg"`` (load-based
+            greedy), or ``"hashing"`` (hash-based, fastest but no quality
+            guarantees).
+        objective : str
+            Optimization objective. ``"cut_net"`` (minimize number of cut
+            nets) or ``"connectivity"`` (minimize net connectivity).
+        seed : int
+            Random seed for reproducibility.
+        num_streams_passes : int
+            Number of streaming passes. More passes improve quality.
+        hierarchical : bool
+            Enable hierarchical recursive bisection for better quality
+            on large k values.
+        rec_bisection_base : int
+            Base block count for recursive bisection (default 2).
+        suppress_output : bool
+            If True, suppress stdout/stderr from the C++ algorithm.
+
+        Returns
+        -------
+        StreamHypergraphPartitionResult
+            ``assignment`` (ndarray) -- partition ID per node (0-indexed).
+
+        Raises
+        ------
+        ValueError
+            If ``k < 2`` or ``imbalance < 0``.
+
+        Examples
+        --------
+        >>> from chszlablib import HyperGraph, Decomposition
+        >>> hg = HyperGraph.from_edge_list([[0,1,2], [1,2,3], [3,4,5]])
+        >>> r = Decomposition.stream_hypergraph_partition(hg, k=2)
+        >>> print(r.assignment)
+        """
+        from chszlablib._freight import freight_partition
+
+        if k < 2:
+            raise ValueError(f"k must be >= 2, got {k}")
+        if imbalance < 0:
+            raise ValueError(f"imbalance must be >= 0, got {imbalance}")
+
+        hg.finalize()
+        vptr = hg.vptr.astype(np.int64)
+        vedges = hg.vedges.astype(np.int32)
+        node_weights = hg.node_weights.astype(np.int64)
+        edge_weights = hg.edge_weights.astype(np.int64)
+
+        # Pass empty arrays if all weights are 1 (unweighted)
+        if np.all(node_weights == 1):
+            node_weights = np.array([], dtype=np.int64)
+        if np.all(edge_weights == 1):
+            edge_weights = np.array([], dtype=np.int64)
+
+        assignment = freight_partition(
+            vptr,
+            vedges,
+            num_nets=hg.num_edges,
+            node_weights=node_weights,
+            edge_weights=edge_weights,
+            k=k,
+            imbalance=imbalance,
+            algorithm=algorithm,
+            objective=objective,
+            seed=seed,
+            num_streams_passes=num_streams_passes,
+            hierarchical=hierarchical,
+            rec_bisection_base=rec_bisection_base,
+            suppress_output=suppress_output,
+        )
+
+        return StreamHypergraphPartitionResult(assignment=assignment)
 
     # --- VieCut: Minimum Cut ---
 
@@ -1919,3 +2046,119 @@ class CluStReClusterer:
         """
         self._nodes.clear()
         self._node_map.clear()
+
+
+# ---------------------------------------------------------------------------
+# FreightPartitioner (true streaming hypergraph partitioning)
+# ---------------------------------------------------------------------------
+
+
+class FreightPartitioner:
+    """True streaming hypergraph partitioner using FREIGHT.
+
+    Each :meth:`assign_node` call immediately returns the partition block ID.
+    Memory usage is O(k + num_nets) -- the full hypergraph is never stored.
+
+    Nets are identified by their sorted vertex sets: if you provide the same
+    set of vertices in multiple :meth:`assign_node` calls, they are
+    automatically recognized as the same net.
+
+    Usage::
+
+        fp = FreightPartitioner(num_nodes=6, num_nets=3, k=2)
+        fp.assign_node(0, nets=[[0, 1, 2], [0, 3]])
+        fp.assign_node(1, nets=[[0, 1, 2], [1, 4]])
+        fp.assign_node(2, nets=[[0, 1, 2]])
+        # ...
+        result = fp.get_assignment()
+        print(result.assignment)
+
+    Parameters
+    ----------
+    num_nodes : int
+        Total number of nodes in the hypergraph.
+    num_nets : int
+        Total number of distinct nets (hyperedges).
+    k : int
+        Number of partitions (must be >= 2).
+    imbalance : float
+        Allowed imbalance in percent (3.0 means 3%).
+    algorithm : str
+        Streaming algorithm. One of ``"fennel_approx_sqrt"``,
+        ``"fennel"``, ``"ldg"``, or ``"hashing"``.
+    objective : str
+        Optimization objective: ``"cut_net"`` or ``"connectivity"``.
+    seed : int
+        Random seed for reproducibility.
+    hierarchical : bool
+        Enable hierarchical recursive bisection.
+    rec_bisection_base : int
+        Base block count for recursive bisection.
+    """
+
+    def __init__(
+        self,
+        num_nodes: int,
+        num_nets: int,
+        k: int = 2,
+        imbalance: float = 3.0,
+        algorithm: FreightAlgorithm = "fennel_approx_sqrt",
+        objective: FreightObjective = "cut_net",
+        seed: int = 0,
+        hierarchical: bool = False,
+        rec_bisection_base: int = 2,
+    ):
+        from chszlablib._freight import FreightPartitioner as _FP
+
+        if k < 2:
+            raise ValueError(f"k must be >= 2, got {k}")
+        if imbalance < 0:
+            raise ValueError(f"imbalance must be >= 0, got {imbalance}")
+
+        self._impl = _FP(
+            num_nodes, num_nets, k, imbalance,
+            algorithm, objective, seed,
+            hierarchical, rec_bisection_base,
+        )
+
+    def assign_node(
+        self,
+        node_id: int,
+        nets: list[list[int]],
+        net_weights: list[int] | None = None,
+        node_weight: int = 1,
+    ) -> int:
+        """Assign a node to a partition block.
+
+        Parameters
+        ----------
+        node_id : int
+            Node ID (0-indexed, must be in ``[0, num_nodes)``).
+        nets : list of list of int
+            Incident hypernets. Each inner list is the vertex set of a net.
+            Nets are identified by their sorted vertex set across calls.
+        net_weights : list of int, optional
+            Weight per net (defaults to all 1s).
+        node_weight : int
+            Weight of this node (default 1).
+
+        Returns
+        -------
+        int
+            The partition block ID assigned to this node.
+        """
+        return self._impl.assign_node(
+            node_id, nets, net_weights or [], node_weight,
+        )
+
+    def get_assignment(self) -> StreamHypergraphPartitionResult:
+        """Return the partition assignment for all nodes.
+
+        Returns
+        -------
+        StreamHypergraphPartitionResult
+            ``assignment`` (ndarray) -- partition ID per node.
+        """
+        return StreamHypergraphPartitionResult(
+            assignment=self._impl.get_assignment(),
+        )
