@@ -66,3 +66,6 @@
 [submodule "external_repositories/FREIGHT"]
 	path = external_repositories/FREIGHT
 	url = https://github.com/KaHIP/FREIGHT
+[submodule "external_repositories/LearnAndReduce"]
+	path = external_repositories/LearnAndReduce
+	url = https://github.com/KarlsruheMIS/LearnAndReduce.git

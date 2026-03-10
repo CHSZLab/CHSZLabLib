@@ -29,7 +29,7 @@ from chszlablib.decomposition import (
 )
 from chszlablib.independence import (
     IndependenceProblems, MISResult, MWISResult, HyperMISResult,
-    BMatchingResult, StreamingBMatcher,
+    BMatchingResult, StreamingBMatcher, LearnAndReduceKernel,
 )
 from chszlablib.orientation import Orientation, EdgeOrientationResult
 from chszlablib.dynamic import (
@@ -183,6 +183,7 @@ __all__ = [
     "FreightPartitioner",
     "IndependenceProblems",
     "StreamingBMatcher",
+    "LearnAndReduceKernel",
     "Orientation",
     "DynamicProblems",
     "DynEdgeOrientation",

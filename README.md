@@ -147,6 +147,7 @@ python3 demo.py cond-mat-2005.graph
 |:--------|:-------|:-----------|
 | [KaMIS](docs/maximum-independent-set.md) | Independent set | ReduMIS, OnlineMIS, Branch&Reduce, MMWIS |
 | [CHILS](docs/concurrent-mwis.md) | Weighted independent set | Concurrent heuristic independent local search |
+| [LearnAndReduce](docs/learn-and-reduce.md) | MWIS kernelization | GNN-guided reduction rules + kernel solve + lift |
 | [HyperMIS](docs/hypergraph-independent-set.md) | Hypergraph independent set | Kernelization reductions (+ optional ILP via Gurobi) |
 | [HeiHGM/Bmatching](docs/hypergraph-b-matching.md) | Hypergraph b-matching | Greedy (7 orderings), reductions+ILP+unfold, ILS |
 | [HeiHGM/Streaming](docs/hypergraph-b-matching.md) | Streaming hypergraph matching | Naive, greedy, greedy\_set, best\_evict, lenient |
@@ -296,6 +297,7 @@ print(f"Dynamic WMIS weight: {r.weight}, vertices: {r.vertices}")
 | Map processes to a machine hierarchy | `Decomposition.process_map` | `hierarchy`, `distance`, `mode` |
 | Find a large independent set | `IndependenceProblems.redumis` | `time_limit` |
 | Find max-weight independent set | `IndependenceProblems.chils` | `time_limit`, `num_concurrent` |
+| MWIS with GNN-guided kernelization | `IndependenceProblems.learn_and_reduce` | `solver`, `config`, `gnn_filter` |
 | Independent set on a hypergraph | `IndependenceProblems.hypermis` | `method`, `time_limit`, `strong_reductions` |
 | Find max-weight b-matching on hypergraph | `IndependenceProblems.bmatching` | `algorithm`, `seed`, `ILP_time_limit` |
 | Stream hypergraph edges for matching | `StreamingBMatcher` | `algorithm`, `epsilon` |
@@ -321,6 +323,7 @@ Decomposition.motif_cluster(g, seed_node=0, method="social")            # local 
 Decomposition.stream_partition(g, k=2, imbalance=3.0)                   # streaming partition
 IndependenceProblems.redumis(g, time_limit=5.0)                         # max independent set
 IndependenceProblems.chils(g, time_limit=5.0)                           # max weight independent set
+IndependenceProblems.learn_and_reduce(g, time_limit=5.0)                # MWIS with GNN kernelization
 Orientation.orient_edges(g, algorithm="combined")                       # edge orientation
 
 Decomposition.stream_cluster(g, mode="strong")                          # streaming clustering
@@ -1099,6 +1102,7 @@ Maximum independent set and maximum weight independent set solvers.
 | `branch_reduce` | Maximum weight independent set (exact) | KaMIS |
 | `mmwis` | Maximum weight independent set (evolutionary) | KaMIS |
 | `chils` | Maximum weight independent set (concurrent local search) | CHILS |
+| `learn_and_reduce` | Maximum weight independent set (GNN-guided kernelization) | LearnAndReduce |
 | `hypermis` | Maximum independent set on hypergraphs (heuristic or exact) | HyperMIS |
 | `bmatching` | Hypergraph b-matching (greedy, reductions+ILP, ILS) | HeiHGM/Bmatching |
 
@@ -1166,6 +1170,50 @@ for i in range(5):
 result = IndependenceProblems.chils(g, time_limit=5.0, num_concurrent=8)
 print(f"Weight: {result.weight}, vertices: {result.vertices}")
 ```
+
+#### `IndependenceProblems.learn_and_reduce(g, ...)` — GNN-Guided MWIS Kernelization (LearnAndReduce)
+
+**Problem.** Same objective as `branch_reduce` (maximum weight independent set). LearnAndReduce uses **trained graph neural networks** to predict which expensive reduction rules will succeed, dramatically speeding up the preprocessing (kernelization) phase. The reduced kernel is then solved with a chosen solver (CHILS, Branch&Reduce, or MMWIS) and the solution is lifted back to the original graph. Also available as a two-step API via `LearnAndReduceKernel`.
+
+```python
+IndependenceProblems.learn_and_reduce(
+    g, solver="chils", config="cyclic_fast", gnn_filter="initial_tight",
+    time_limit=1000.0, solver_time_limit=10.0, seed=0, num_concurrent=4,
+) -> MWISResult
+```
+
+| Parameter | Type | Default | Description |
+|:----------|:-----|:--------|:------------|
+| `g` | `Graph` | — | Input graph with node weights |
+| `solver` | `str` | `"chils"` | Kernel solver: `"chils"`, `"branch_reduce"`, `"mmwis"` |
+| `config` | `str` | `"cyclic_fast"` | Reduction preset: `"cyclic_fast"` or `"cyclic_strong"` |
+| `gnn_filter` | `str` | `"initial_tight"` | GNN filter mode: `"initial_tight"`, `"initial"`, `"always"`, `"never"` |
+| `time_limit` | `float` | `1000.0` | Time limit for kernelization in seconds |
+| `solver_time_limit` | `float` | `10.0` | Time limit for the kernel solver in seconds |
+
+**Result: `MWISResult`** — `size` (int), `weight` (int), `vertices` (ndarray).
+
+```python
+from chszlablib import Graph, IndependenceProblems, LearnAndReduceKernel
+import numpy as np
+
+# Full pipeline (one call)
+g = Graph.from_metis("weighted_graph.graph")
+result = IndependenceProblems.learn_and_reduce(g, solver="chils", time_limit=60.0)
+print(f"Weight: {result.weight}, vertices: {result.vertices}")
+
+# Two-step workflow (kernelization-only)
+lr = LearnAndReduceKernel(g, config="cyclic_fast")
+kernel = lr.kernelize()
+if lr.kernel_nodes > 0:
+    sol = IndependenceProblems.chils(kernel, time_limit=10.0)
+    result = lr.lift_solution(sol.vertices)
+else:
+    result = lr.lift_solution(np.array([], dtype=np.int32))
+print(f"Weight: {result.weight}")
+```
+
+> **Available constants:** `IndependenceProblems.LEARN_AND_REDUCE_CONFIGS`, `LEARN_AND_REDUCE_GNN_FILTERS`, `LEARN_AND_REDUCE_SOLVERS`.
 
 #### `IndependenceProblems.hypermis(hg, ...)` — Maximum Independent Set on Hypergraphs (HyperMIS)
 
@@ -1679,7 +1727,7 @@ CHSZLabLib/
 │   ├── graph.py                 # Graph class (CSR backend)
 │   ├── hypergraph.py            # HyperGraph class (dual CSR backend)
 │   ├── decomposition.py         # Decomposition namespace + HeiStreamPartitioner
-│   ├── independence.py          # IndependenceProblems namespace (MIS, MWIS, HyperMIS)
+│   ├── independence.py          # IndependenceProblems namespace (MIS, MWIS, HyperMIS, LearnAndReduce)
 │   ├── orientation.py           # Orientation namespace (edge orientation)
 │   ├── dynamic.py               # DynamicProblems namespace (dynamic graph algorithms)
 │   ├── exceptions.py            # Custom exception hierarchy
@@ -1694,6 +1742,7 @@ CHSZLabLib/
 │   ├── VieCut/                  # Minimum cuts
 │   ├── VieClus/                 # Clustering
 │   ├── CHILS/                   # Weighted independent set
+│   ├── LearnAndReduce/          # GNN-guided MWIS kernelization
 │   ├── KaMIS/                   # Independent set algorithms
 │   ├── HyperMIS/                # Hypergraph independent set
 │   ├── SCC/                     # Correlation clustering
@@ -1962,6 +2011,21 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
 }
 ```
 
+### LearnAndReduce (GNN-Guided MWIS Kernelization)
+
+```bibtex
+@inproceedings{grossmann2025reductions,
+  author    = {Ernestine Gro{\ss}mann and Kenneth Langedal and Christian Schulz},
+  title     = {Accelerating Reductions Using Graph Neural Networks for the Maximum
+               Weight Independent Set Problem},
+  booktitle = {Conference on Applied and Computational Discrete Algorithms ({ACDA})},
+  pages     = {155--168},
+  publisher = {SIAM},
+  year      = {2025},
+  doi       = {10.1137/1.9781611978759.12}
+}
+```
+
 ### KaMIS (Maximum Independent Set)
 
 ```bibtex
@@ -2174,7 +2238,7 @@ This library would not be possible without the original algorithm implementation
 - **S. M. Ferdous** — HeiHGM/Streaming
 - **Marcelo Fonseca Faraj** — SCC, HeiStream, HeidelbergMotifClustering, FREIGHT, KaHIP
 - **Alexander Gellner** — KaMIS
-- **Ernestine Großmann** — CHILS, HyperMIS, KaMIS (MMWIS), HeiHGM/Bmatching, DynDeltaOrientation, DynDeltaApprox, DynWMIS
+- **Ernestine Großmann** — CHILS, LearnAndReduce, HyperMIS, KaMIS (MMWIS), HeiHGM/Bmatching, DynDeltaOrientation, DynDeltaApprox, DynWMIS
 - **Felix Hausberger** — SCC
 - **Alexandra Henzinger** — KaHIP
 - **Monika Henzinger** — VieCut, VieClus, DynMatch
@@ -2183,7 +2247,7 @@ This library would not be possible without the original algorithm implementation
 - **Felix Joos** — HeiHGM/Bmatching
 - **Shahbaz Khan** — DynMatch
 - **Sebastian Lamm** — KaMIS, fpt-max-cut
-- **Kenneth Langedal** — CHILS
+- **Kenneth Langedal** — CHILS, LearnAndReduce
 - **Henning Meyerhenke** — KaHIP
 - **Matthias Mnich** — fpt-max-cut
 - **Alexander Noe** — VieCut, KaHIP

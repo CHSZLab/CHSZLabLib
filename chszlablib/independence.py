@@ -90,12 +90,24 @@ class IndependenceProblems:
             "branch_reduce": "Maximum weight independent set, exact (KaMIS/Branch&Reduce)",
             "mmwis": "Maximum weight independent set, evolutionary (KaMIS/MMWIS)",
             "chils": "Maximum weight independent set, concurrent local search (CHILS)",
+            "learn_and_reduce": "Maximum weight independent set, GNN-guided kernelization (LearnAndReduce)",
             "hypermis": "Maximum independent set on hypergraphs (HyperMIS)",
             "bmatching": "Hypergraph b-matching (HeiHGM/Bmatching)",
         }
 
     HYPERMIS_ILP_AVAILABLE: bool = _HYPERMIS_ILP_AVAILABLE
     """Whether the optional Gurobi ILP solver is available for HyperMIS."""
+
+    LEARN_AND_REDUCE_CONFIGS: tuple[str, ...] = ("cyclic_fast", "cyclic_strong")
+    """Valid reduction configuration presets for LearnAndReduce."""
+
+    LEARN_AND_REDUCE_GNN_FILTERS: tuple[str, ...] = (
+        "never", "always", "initial", "initial_tight",
+    )
+    """Valid GNN filter modes for LearnAndReduce."""
+
+    LEARN_AND_REDUCE_SOLVERS: tuple[str, ...] = ("chils", "branch_reduce", "mmwis")
+    """Valid kernel solvers for LearnAndReduce full pipeline."""
 
     BMATCHING_ALGORITHMS: tuple[str, ...] = (
         "greedy_random", "greedy_weight_desc", "greedy_weight_asc",
@@ -378,6 +390,89 @@ class IndependenceProblems:
         )
         return MWISResult(size=len(vertices), weight=int(total_weight), vertices=vertices)
 
+    # --- LearnAndReduce: GNN-guided MWIS kernelization ---
+
+    @staticmethod
+    def learn_and_reduce(
+        g: Graph,
+        solver: str = "chils",
+        config: str = "cyclic_fast",
+        gnn_filter: str = "initial_tight",
+        time_limit: float = 1000.0,
+        solver_time_limit: float = 10.0,
+        seed: int = 0,
+        num_concurrent: int = 4,
+    ) -> MWISResult:
+        """Compute MWIS using GNN-guided kernelization (LearnAndReduce).
+
+        Applies learned graph neural network filters to accelerate
+        reduction rules, producing a smaller kernel graph. The kernel
+        is then solved with the chosen solver and the solution is
+        lifted back to the original graph.
+
+        Parameters
+        ----------
+        g : Graph
+            Input graph. Node weights (``g.node_weights``) are required.
+        solver : str, optional
+            Kernel solver: ``"chils"`` (default), ``"branch_reduce"``,
+            or ``"mmwis"``.
+        config : str, optional
+            Reduction preset: ``"cyclic_fast"`` (default) or
+            ``"cyclic_strong"`` (more thorough, slower).
+        gnn_filter : str, optional
+            GNN filtering mode: ``"initial_tight"`` (default),
+            ``"initial"``, ``"always"``, or ``"never"``.
+        time_limit : float, optional
+            Time limit for kernelization in seconds (default 1000.0).
+        solver_time_limit : float, optional
+            Time limit for the kernel solver in seconds (default 10.0).
+        seed : int, optional
+            Random seed (default 0).
+        num_concurrent : int, optional
+            Number of concurrent threads for CHILS solver (default 4).
+
+        Returns
+        -------
+        MWISResult
+            ``size`` -- number of vertices in the independent set,
+            ``weight`` -- total weight of the selected vertices,
+            ``vertices`` -- 1-D int array of vertex IDs in the set.
+
+        Raises
+        ------
+        ValueError
+            If *solver*, *config*, or *gnn_filter* is invalid.
+        """
+        valid_solvers = ("chils", "branch_reduce", "mmwis")
+        if solver not in valid_solvers:
+            raise ValueError(f"solver must be one of {valid_solvers}, got {solver!r}")
+
+        lr = LearnAndReduceKernel(
+            g, config=config, gnn_filter=gnn_filter,
+            time_limit=time_limit, seed=seed,
+        )
+        kernel = lr.kernelize()
+
+        if lr.kernel_nodes == 0:
+            return lr.lift_solution(np.array([], dtype=np.int32))
+
+        if solver == "chils":
+            kernel_result = IndependenceProblems.chils(
+                kernel, time_limit=solver_time_limit,
+                num_concurrent=num_concurrent, seed=seed,
+            )
+        elif solver == "branch_reduce":
+            kernel_result = IndependenceProblems.branch_reduce(
+                kernel, time_limit=solver_time_limit, seed=seed,
+            )
+        elif solver == "mmwis":
+            kernel_result = IndependenceProblems.mmwis(
+                kernel, time_limit=solver_time_limit, seed=seed,
+            )
+
+        return lr.lift_solution(kernel_result.vertices)
+
     # --- HyperMIS: Independent set on hypergraphs ---
 
     @staticmethod
@@ -658,3 +753,137 @@ class StreamingBMatcher:
             f"algorithm={self._algorithm!r}, "
             f"edges_streamed={self._edge_count})"
         )
+
+
+class LearnAndReduceKernel:
+    """GNN-guided MWIS kernelization with two-step reduce + solve workflow.
+
+    LearnAndReduce uses trained graph neural networks to predict which
+    expensive reduction rules will succeed, dramatically speeding up
+    preprocessing.  This class exposes the kernelization and solution
+    lifting steps separately, letting you solve the reduced kernel with
+    any solver.
+
+    Usage::
+
+        lr = LearnAndReduceKernel(g, config="cyclic_fast")
+        kernel = lr.kernelize()
+        sol = IndependenceProblems.chils(kernel, time_limit=5.0)
+        result = lr.lift_solution(sol.vertices)
+
+    Parameters
+    ----------
+    g : Graph
+        Input graph with node weights.
+    config : str, optional
+        Reduction preset: ``"cyclic_fast"`` (default) or ``"cyclic_strong"``.
+    gnn_filter : str, optional
+        GNN filtering mode: ``"initial_tight"`` (default), ``"initial"``,
+        ``"always"``, or ``"never"``.
+    time_limit : float, optional
+        Time limit for the kernelization phase in seconds (default 1000.0).
+    seed : int, optional
+        Random seed (default 0).
+    """
+
+    CONFIGS: tuple[str, ...] = ("cyclic_fast", "cyclic_strong")
+    GNN_FILTERS: tuple[str, ...] = ("never", "always", "initial", "initial_tight")
+
+    def __init__(
+        self,
+        g: Graph,
+        config: str = "cyclic_fast",
+        gnn_filter: str = "initial_tight",
+        time_limit: float = 1000.0,
+        seed: int = 0,
+    ) -> None:
+        if config not in self.CONFIGS:
+            from chszlablib.exceptions import InvalidModeError
+            raise InvalidModeError(
+                f"config must be one of {self.CONFIGS}, got {config!r}"
+            )
+        if gnn_filter not in self.GNN_FILTERS:
+            from chszlablib.exceptions import InvalidModeError
+            raise InvalidModeError(
+                f"gnn_filter must be one of {self.GNN_FILTERS}, got {gnn_filter!r}"
+            )
+
+        g.finalize()
+
+        # Resolve models path at runtime
+        import importlib.resources
+        models_path = str(
+            importlib.resources.files("chszlablib").joinpath("models")
+        ) + "/"
+
+        from chszlablib._learnandreduce import LearnAndReduceKernel as _LRKernel
+
+        xadj = g.xadj.astype(np.uint32, copy=False)
+        adjncy = g.adjncy.astype(np.uint32, copy=False)
+        weights = (
+            g.node_weights.astype(np.uint64, copy=False)
+            if g.node_weights is not None
+            else np.ones(g.num_nodes, dtype=np.uint64)
+        )
+
+        self._kernel = _LRKernel(
+            xadj, adjncy, weights,
+            config, gnn_filter, time_limit, seed, models_path,
+        )
+        self._kernel_graph: Graph | None = None
+        self._offset_weight: int = 0
+        self._kernel_n: int = -1
+
+    def kernelize(self) -> Graph:
+        """Run kernelization and return the reduced kernel as a Graph.
+
+        Returns
+        -------
+        Graph
+            The reduced kernel graph (may have 0 nodes if fully reduced).
+        """
+        xadj, adjncy, vwgt, offset, kernel_n = self._kernel.kernelize()
+        self._offset_weight = int(offset)
+        self._kernel_n = int(kernel_n)
+
+        if kernel_n == 0:
+            self._kernel_graph = Graph(0)
+            self._kernel_graph.finalize()
+        else:
+            self._kernel_graph = Graph.from_csr(
+                xadj, adjncy, node_weights=vwgt,
+            )
+
+        return self._kernel_graph
+
+    def lift_solution(self, kernel_vertices: np.ndarray) -> MWISResult:
+        """Lift a kernel solution back to the original graph.
+
+        Parameters
+        ----------
+        kernel_vertices : np.ndarray
+            1-D int array of vertex IDs in the kernel's independent set
+            (0-indexed in the kernel graph).
+
+        Returns
+        -------
+        MWISResult
+            The full independent set in the original graph.
+        """
+        kv = np.asarray(kernel_vertices, dtype=np.int32)
+        total_weight, vertices = self._kernel.lift_solution(kv)
+        return MWISResult(
+            size=len(vertices),
+            weight=int(total_weight),
+            vertices=vertices,
+        )
+
+    @property
+    def offset_weight(self) -> int:
+        """Weight determined by reductions alone (before solving kernel)."""
+        return self._offset_weight
+
+    @property
+    def kernel_nodes(self) -> int:
+        """Number of nodes in the reduced kernel (-1 if not yet kernelized)."""
+        return self._kernel_n

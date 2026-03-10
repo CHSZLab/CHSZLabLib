@@ -216,6 +216,285 @@ if(OpenMP_C_FOUND AND NOT MSVC)
 endif()
 
 # =============================================================================
+# LearnAndReduce  (GNN-guided MWIS kernelization)
+# =============================================================================
+set(LR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/LearnAndReduce)
+set(LR_REDUCER ${LR_DIR}/solver/reducer)
+
+add_library(learnandreduce_static STATIC
+    # lib/
+    ${LR_DIR}/lib/io/graph_io.cpp
+    ${LR_DIR}/lib/algorithms/push_relabel.cpp
+    ${LR_DIR}/lib/algorithms/strongly_connected_components.cpp
+    ${LR_DIR}/lib/data_structure/operation_log.cpp
+    ${LR_DIR}/lib/data_structure/priority_queues/bucket_array.cpp
+    ${LR_DIR}/lib/data_structure/candidate_list.cpp
+    ${LR_DIR}/lib/data_structure/mis_permutation.cpp
+    ${LR_DIR}/lib/tools/random_functions.cpp
+    ${LR_DIR}/lib/tools/log.cpp
+    ${LR_DIR}/lib/tools/graph_extractor.cpp
+    ${LR_DIR}/lib/basics/cout_handler.cpp
+    # solver/tiny_solver/
+    ${LR_DIR}/solver/tiny_solver/tiny_solver.c
+    # solver/reducer/lib/
+    ${LR_REDUCER}/lib/reduce_algorithm.cpp
+    ${LR_REDUCER}/lib/bounds.cpp
+    # solver/reducer/reductions/ (core + GNN)
+    ${LR_REDUCER}/reductions/general_reduction.cpp
+    ${LR_REDUCER}/reductions/LRConv.cpp
+    ${LR_REDUCER}/reductions/lr_gcn.cpp
+    # simple reductions
+    ${LR_REDUCER}/reductions/simple_reduction_rules/fold1_reduction.cpp
+    ${LR_REDUCER}/reductions/simple_reduction_rules/fold2_reduction.cpp
+    ${LR_REDUCER}/reductions/simple_reduction_rules/neighborhood_reduction.cpp
+    ${LR_REDUCER}/reductions/simple_reduction_rules/clique_reduction.cpp
+    ${LR_REDUCER}/reductions/simple_reduction_rules/clique_neighborhood_fast_reduction.cpp
+    ${LR_REDUCER}/reductions/simple_reduction_rules/twin_reduction.cpp
+    ${LR_REDUCER}/reductions/simple_reduction_rules/extended_twin_reduction.cpp
+    ${LR_REDUCER}/reductions/simple_reduction_rules/domination_reduction.cpp
+    ${LR_REDUCER}/reductions/simple_reduction_rules/extended_domination_reduction.cpp
+    ${LR_REDUCER}/reductions/simple_reduction_rules/extended_domination_reverse_reduction.cpp
+    ${LR_REDUCER}/reductions/simple_reduction_rules/single_edge_reduction.cpp
+    ${LR_REDUCER}/reductions/simple_reduction_rules/extended_single_edge_reduction.cpp
+    ${LR_REDUCER}/reductions/simple_reduction_rules/funnel_reduction.cpp
+    # expensive reductions
+    ${LR_REDUCER}/reductions/expensive_reduction_rules/clique_neighborhood_reduction.cpp
+    ${LR_REDUCER}/reductions/expensive_reduction_rules/critical_set_reduction.cpp
+    ${LR_REDUCER}/reductions/expensive_reduction_rules/cut_vertex_reduction.cpp
+    ${LR_REDUCER}/reductions/expensive_reduction_rules/generalized_fold_reduction.cpp
+    ${LR_REDUCER}/reductions/expensive_reduction_rules/heavy_set_reduction.cpp
+    ${LR_REDUCER}/reductions/expensive_reduction_rules/heavy_set3_reduction.cpp
+    # struction reductions
+    ${LR_REDUCER}/reductions/struction_reduction_rules/mwis_finder.cpp
+    ${LR_REDUCER}/reductions/struction_reduction_rules/original_struction.cpp
+    ${LR_REDUCER}/reductions/struction_reduction_rules/extended_struction.cpp
+    ${LR_REDUCER}/reductions/struction_reduction_rules/key_functions.cpp
+    ${LR_REDUCER}/reductions/struction_reduction_rules/struction_reductions.cpp
+    # CSR reductions
+    ${LR_REDUCER}/reductions/csr_reductions/src/reductions.c
+    ${LR_REDUCER}/reductions/csr_reductions/unconfined_csr_reduction.cpp
+)
+
+target_include_directories(learnandreduce_static PUBLIC
+    ${LR_DIR}/lib
+    ${LR_DIR}/lib/io
+    ${LR_DIR}/lib/config
+    ${LR_DIR}/lib/tools
+    ${LR_DIR}/lib/algorithms
+    ${LR_DIR}/lib/basics
+    ${LR_DIR}/lib/data_structure
+    ${LR_DIR}/lib/data_structure/priority_queues
+    ${LR_DIR}/solver/tiny_solver
+    ${LR_REDUCER}/lib
+    ${LR_REDUCER}/lib/bounds
+    ${LR_REDUCER}/reductions
+    ${LR_REDUCER}/reductions/simple_reduction_rules
+    ${LR_REDUCER}/reductions/expensive_reduction_rules
+    ${LR_REDUCER}/reductions/heuristic_reduction_rules
+    ${LR_REDUCER}/reductions/struction_reduction_rules
+    ${LR_REDUCER}/reductions/csr_reductions
+    ${LR_REDUCER}/reductions/csr_reductions/include
+)
+
+target_compile_definitions(learnandreduce_static PUBLIC
+    MODE64BITNODEWEIGHTS
+    LR_MODELS_FOLDER_OVERRIDE
+)
+target_compile_options(learnandreduce_static PRIVATE -w)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(learnandreduce_static PUBLIC OpenMP::OpenMP_CXX)
+endif()
+
+# Patch general_reduction.h: override get_models_folder_path() to read global
+set(_LR_GENRED_H "${LR_REDUCER}/reductions/general_reduction.h")
+file(READ "${_LR_GENRED_H}" _LR_GENRED_SRC)
+string(FIND "${_LR_GENRED_SRC}" "LR_MODELS_FOLDER_OVERRIDE" _LR_ALREADY_PATCHED)
+if(_LR_ALREADY_PATCHED EQUAL -1)
+    string(REPLACE
+        "std::string get_models_folder_path()\n    {\n        std::string current_file = __FILE__;"
+        "std::string get_models_folder_path()\n    {\n#ifdef LR_MODELS_FOLDER_OVERRIDE\n        extern std::string g_lr_models_path;\n        if (!g_lr_models_path.empty()) return g_lr_models_path;\n#endif\n        std::string current_file = __FILE__;"
+        _LR_GENRED_SRC "${_LR_GENRED_SRC}")
+    file(WRITE "${_LR_GENRED_H}" "${_LR_GENRED_SRC}")
+endif()
+
+# Patch lr_gcn.cpp: replace AVX2 intrinsics with portable scalar code
+set(_LR_GCN_CPP "${LR_REDUCER}/reductions/lr_gcn.cpp")
+file(READ "${_LR_GCN_CPP}" _LR_GCN_SRC)
+string(FIND "${_LR_GCN_SRC}" "immintrin.h" _LR_GCN_HAS_AVX)
+if(NOT _LR_GCN_HAS_AVX EQUAL -1)
+    # Replace the entire file with a portable scalar version.  The API
+    # (lr_gcn_parse, compute_features, lr_gcn_predict, etc.) is kept
+    # identical so that all call-sites continue to compile unchanged.
+    file(WRITE "${_LR_GCN_CPP}" [[
+#include "lr_gcn.h"
+
+#include <stdlib.h>
+#include <math.h>
+#include <string.h>
+#include <vector>
+
+const int param_offsets[4] = {0, 272, 800, 1456};
+const int layer_inputs[4] = {8, 16, 40, 16};
+const int layer_outputs[4] = {16, 16, 16, 1};
+const int max_input = 16;
+const int cat_input = 40;
+const int layer_output = 16;
+const int num_features = 8;
+const int node_weight = 0;
+const int diff_neighborhood_weight = 1;
+const int min_neighborhood_weight = 2;
+const int max_neighborhood_weight = 3;
+const int node_degree = 4;
+const int avg_neighborhood_degree = 5;
+const int min_neighborhood_degree = 6;
+const int max_neighborhood_degree = 7;
+
+int lr_gcn_parse(FILE *f, float **paramv) {
+    int paramc;
+    int np = fscanf(f, "%d\n", &paramc);
+    *paramv = (float *)malloc(sizeof(float) * paramc);
+    for (int i = 0; i < paramc; i++)
+        np = fscanf(f, "%f\n", (*paramv) + i);
+    (void)np;
+    return paramc;
+}
+
+void compute_features(graph_access &g, float *x) {
+    for (int u = 0; u < (int)g.number_of_nodes(); u++) {
+        float *ux = x + u * num_features;
+        for (int i = 0; i < num_features; i++) ux[i] = 0.0f;
+        ux[node_weight] = g.getNodeWeight(u);
+        ux[diff_neighborhood_weight] = g.getNodeWeight(u);
+        ux[node_degree] = g.getNodeDegree(u);
+        float scale = 1.0f / ux[node_degree];
+        for (int i = g.get_first_edge(u); i != (int)g.get_first_invalid_edge(u); i++) {
+            int v = g.getEdgeTarget(i);
+            float d = g.getNodeDegree(v);
+            float w = g.getNodeWeight(v);
+            ux[diff_neighborhood_weight] -= w;
+            if (w < ux[min_neighborhood_weight] || ux[min_neighborhood_weight] == 0.0f)
+                ux[min_neighborhood_weight] = w;
+            if (w > ux[max_neighborhood_weight])
+                ux[max_neighborhood_weight] = w;
+            ux[avg_neighborhood_degree] += d * scale;
+            if (d < ux[min_neighborhood_degree] || ux[min_neighborhood_degree] == 0.0f)
+                ux[min_neighborhood_degree] = d;
+            if (d > ux[max_neighborhood_degree])
+                ux[max_neighborhood_degree] = d;
+        }
+    }
+}
+
+static void matrix_multiplication_scalar(const float *A, const float *B, float *C,
+                                          const float *b, int n, int k) {
+    const int m = layer_output;
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++) C[i * m + j] = b[j];
+        for (int p = 0; p < k; p++) {
+            float a = A[i * k + p];
+            for (int j = 0; j < m; j++)
+                C[i * m + j] += a * B[p * m + j];
+        }
+    }
+}
+
+static void lr_conv_combined_scalar(graph_access &g, int dim, float *in, float *out,
+                                     const float *p, const float *b) {
+    int N = g.number_of_nodes();
+    float *in_buff = (float *)malloc(sizeof(float) * dim * 2);
+    for (int u = 0; u < N; u++) {
+        float *x = in + u * dim;
+        float *y = out + u * layer_output;
+        for (int j = 0; j < layer_output; j++) y[j] = 0.0f;
+        for (int j = 0; j < dim; j++) in_buff[j] = x[j];
+        float scale = 1.0f / (float)g.getNodeDegree(u);
+        for (int i = g.get_first_edge(u); i != (int)g.get_first_invalid_edge(u); i++) {
+            int v = g.getEdgeTarget(i);
+            float *xv = in + v * dim;
+            for (int j = 0; j < dim; j++) in_buff[dim + j] = xv[j];
+            for (int j = 0; j < layer_output; j++) {
+                float val = b[j];
+                for (int k = 0; k < dim * 2; k++)
+                    val += in_buff[k] * p[k * layer_output + j];
+                y[j] += val * scale;
+            }
+        }
+    }
+    free(in_buff);
+}
+
+void ReLU(float *x, int n) {
+    for (int u = 0; u < n; u++)
+        for (int i = 0; i < layer_output; i++)
+            x[u * layer_output + i] = x[u * layer_output + i] > 0.0f ? x[u * layer_output + i] : 0.0f;
+}
+
+void Sigmoid(float *x, int n) {
+    for (int u = 0; u < n; u++)
+        for (int i = 0; i < layer_output; i++)
+            x[u * layer_output + i] = 1.0f / (1.0f + expf(-x[u * layer_output + i]));
+}
+
+void prep_params(const float *p, int n, int m, float *out_p, float *out_b) {
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < layer_output; j++)
+            out_p[i * layer_output + j] = 0.0f;
+    for (int j = 0; j < layer_output; j++) out_b[j] = 0.0f;
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++)
+            out_p[i * layer_output + j] = p[j * n + i];
+    for (int j = 0; j < m; j++)
+        out_b[j] = p[n * m + j];
+}
+
+float *lr_gcn_predict(graph_access &g, std::string path) {
+    float *params = NULL;
+    FILE *f = fopen(path.c_str(), "r");
+    if (!f) return NULL;
+    lr_gcn_parse(f, &params);
+    fclose(f);
+    int N = g.number_of_nodes();
+    float *x = (float *)calloc(max_input * N, sizeof(float));
+    float *y = (float *)calloc(max_input * N, sizeof(float));
+    float *cat = (float *)calloc(cat_input * N, sizeof(float));
+    float *p = (float *)calloc(cat_input * layer_output, sizeof(float));
+    float *b = (float *)calloc(layer_output, sizeof(float));
+    compute_features(g, x);
+    for (int i = 0; i < N; i++)
+        for (int j = 0; j < layer_inputs[0]; j++)
+            cat[i * cat_input + j] = x[i * layer_inputs[0] + j];
+    prep_params(params + param_offsets[0], layer_inputs[0] * 2, layer_outputs[0], p, b);
+    lr_conv_combined_scalar(g, layer_inputs[0], x, y, p, b);
+    ReLU(y, N);
+    for (int i = 0; i < N; i++)
+        for (int j = 0; j < layer_output; j++)
+            cat[i * cat_input + layer_inputs[0] + j] = y[i * layer_output + j];
+    prep_params(params + param_offsets[1], layer_inputs[1] * 2, layer_outputs[1], p, b);
+    lr_conv_combined_scalar(g, layer_inputs[1], y, x, p, b);
+    ReLU(x, N);
+    for (int i = 0; i < N; i++)
+        for (int j = 0; j < layer_output; j++)
+            cat[i * cat_input + layer_inputs[0] + layer_inputs[1] + j] = x[i * layer_output + j];
+    prep_params(params + param_offsets[2], layer_inputs[2], layer_outputs[2], p, b);
+    matrix_multiplication_scalar(cat, p, y, b, N, layer_inputs[2]);
+    ReLU(y, N);
+    prep_params(params + param_offsets[3], layer_inputs[3], layer_outputs[3], p, b);
+    matrix_multiplication_scalar(y, p, x, b, N, layer_inputs[3]);
+    Sigmoid(x, N);
+    float *res = (float *)malloc(sizeof(float) * N);
+    for (int i = 0; i < N; i++) res[i] = x[i * layer_output];
+    free(params); free(x); free(y); free(cat); free(p); free(b);
+    return res;
+}
+]])
+endif()
+
+# Install GNN model files as package data
+file(GLOB LR_MODEL_FILES ${LR_DIR}/models/*.lr_gcn)
+install(FILES ${LR_MODEL_FILES} DESTINATION chszlablib/models)
+
+# =============================================================================
 # KaMIS  (Maximum Independent Set — three isolated static libraries)
 # =============================================================================
 # KaMIS has three sub-projects (root, wmis, mmwis) each with their own copy of
@@ -1892,6 +2171,11 @@ install(TARGETS _kamis_wmis DESTINATION chszlablib)
 pybind11_add_module(_kamis_mmwis bindings/kamis_mmwis_binding.cpp)
 target_link_libraries(_kamis_mmwis PRIVATE kamis_mmwis_static)
 install(TARGETS _kamis_mmwis DESTINATION chszlablib)
+
+# --- _learnandreduce (GNN-guided MWIS kernelization) ---
+pybind11_add_module(_learnandreduce bindings/learnandreduce_binding.cpp)
+target_link_libraries(_learnandreduce PRIVATE learnandreduce_static)
+install(TARGETS _learnandreduce DESTINATION chszlablib)
 
 # --- _scc (Correlation Clustering) ---
 pybind11_add_module(_scc bindings/scc_binding.cpp)
