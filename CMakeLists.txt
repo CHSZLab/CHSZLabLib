@@ -216,6 +216,344 @@ if(OpenMP_C_FOUND AND NOT MSVC)
 endif()
 
 # =============================================================================
+# red2pack  (Maximum 2-Packing Set — reduce-and-transform)
+# =============================================================================
+set(R2P_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/red2pack)
+
+# ---------------------------------------------------------------------------
+# Patch chils_utils.h: red2pack expects the OLD CHILS C API (graph/chils/
+# local_search structs with chils_init, chils_run, graph_free, etc.).
+# Our CHILS provides a new opaque API (chils_initialize, chils_set_graph,
+# chils_run_full, chils_release, etc.).  Replace the entire file.
+# ---------------------------------------------------------------------------
+set(_R2P_CHILS_UTILS "${R2P_DIR}/lib/red2pack-chils/algorithms/chils_utils.h")
+file(READ "${_R2P_CHILS_UTILS}" _r2p_chils_src)
+string(FIND "${_r2p_chils_src}" "CHSZLABLIB_CHILS_PATCHED" _r2p_chils_patched)
+if(_r2p_chils_patched EQUAL -1)
+    file(WRITE "${_R2P_CHILS_UTILS}" [=[
+// CHSZLABLIB_CHILS_PATCHED — rewritten for new CHILS opaque API
+#pragma once
+
+#include <omp.h>
+#include <red2pack/data_structure/m2s_graph_access.h>
+#include <red2pack/data_structure/sized_vector.h>
+
+#include <algorithm>
+#include <limits>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <vector>
+
+namespace chils {
+
+extern "C" {
+#include <chils.h>
+}
+
+// Local graph struct replacing the old CHILS C graph type
+struct graph {
+    int n;
+    int *V;   // xadj (size n+1)
+    int *E;   // adjncy
+    long long *W;  // vertex weights
+};
+
+inline void graph_free(graph *g) {
+    if (!g) return;
+    free(g->V);
+    free(g->E);
+    free(g->W);
+    free(g);
+}
+
+struct chils_config {
+    bool verbose = true, warm_start = false;
+    int run_chils = 1, max_queue = 32;
+    double timeout = 3600, step = 5;
+    long long il = std::numeric_limits<long long>::max();
+    int path_offset = 0, path_end = 0;
+    unsigned seed = 0;
+};
+
+inline graph *build_graph(red2pack::m2s_graph_access &input_graph) {
+    using namespace red2pack;
+    int N = static_cast<int>(input_graph.number_of_nodes());
+    long long M = static_cast<long long>(input_graph.number_of_edges() + input_graph.number_of_links());
+
+    int *V = (int *)malloc(sizeof(int) * (N + 1));
+    int *E = (int *)malloc(sizeof(int) * M);
+    long long *W = (long long *)malloc(sizeof(long long) * N);
+
+    int ei = 0;
+    forall_nodes(input_graph, u) {
+        *(W + u) = static_cast<long long>(input_graph.getNodeWeight(u));
+        V[u] = ei;
+        forall_out_edges(input_graph, e, u) { E[ei++] = input_graph.getEdgeTarget(e); } endfor
+        forall_out_links(input_graph, e, u) { E[ei++] = input_graph.getLinkTarget(e); } endfor
+        std::sort(E + V[u], E + ei);
+    } endfor
+    V[N] = ei;
+
+    graph *g = (graph *)malloc(sizeof(graph));
+    *g = graph{N, V, E, W};
+    return g;
+}
+
+inline graph *build_induced_subgraph(const red2pack::m2s_graph_access &input_graph,
+                                     const std::vector<bool> &mask,
+                                     const red2pack::sized_vector<red2pack::NodeID> &reverse_mapping,
+                                     const red2pack::sized_vector<red2pack::NodeID> &mapping) {
+    using namespace red2pack;
+    int N = static_cast<int>(reverse_mapping.size());
+    long long M = 0;
+    for (NodeID u : reverse_mapping) {
+        forall_out_edges(input_graph, e, u) { if (mask[input_graph.getEdgeTarget(e)]) M++; } endfor
+        forall_out_links(input_graph, e, u) { if (mask[input_graph.getLinkTarget(e)]) M++; } endfor
+    }
+
+    int *V = (int *)malloc(sizeof(int) * (N + 1));
+    int *E = (int *)malloc(sizeof(int) * M);
+    long long *W = (long long *)malloc(sizeof(long long) * N);
+
+    int ei = 0;
+    for (NodeID i = 0; i < reverse_mapping.size(); ++i) {
+        NodeID u = reverse_mapping[i];
+        *(W + i) = static_cast<long long>(input_graph.getNodeWeight(u));
+        V[i] = ei;
+        forall_out_edges(input_graph, e, u) {
+            if (mask[input_graph.getEdgeTarget(e)]) E[ei++] = mapping[input_graph.getEdgeTarget(e)];
+        } endfor
+        forall_out_links(input_graph, e, u) {
+            if (mask[input_graph.getLinkTarget(e)]) E[ei++] = mapping[input_graph.getLinkTarget(e)];
+        } endfor
+        std::sort(E + V[i], E + ei);
+    }
+    V[N] = ei;
+
+    graph *g = (graph *)malloc(sizeof(graph));
+    *g = graph{N, V, E, W};
+    return g;
+}
+
+inline long long mwis_validate(graph *g, int *independent_set) {
+    long long cost = 0;
+    for (int u = 0; u < g->n; u++) {
+        if (!independent_set[u]) continue;
+        cost += g->W[u];
+        for (int i = g->V[u]; i < g->V[u + 1]; i++)
+            if (independent_set[g->E[i] ]) return -1;
+    }
+    return cost;
+}
+
+inline void run_chils_impl(graph *g, std::vector<bool> &solution_indicator,
+                           double &time_best, const chils_config &cfg) {
+    int n = g->n;
+
+    // Build long long xadj for new CHILS API
+    std::vector<long long> xadj_ll(n + 1);
+    for (int i = 0; i <= n; i++) xadj_ll[i] = g->V[i];
+
+    void *solver = chils_initialize();
+    chils_set_graph(solver, n, xadj_ll.data(), g->E, g->W);
+
+    if (cfg.run_chils > 1) {
+        chils_run_full(solver, cfg.timeout, cfg.run_chils, cfg.seed);
+    } else {
+        chils_run_local_search_only(solver, cfg.timeout, cfg.seed);
+    }
+
+    time_best = chils_solution_get_time(solver);
+
+    for (int i = 0; i < n; i++)
+        solution_indicator[i] = (chils_solution_get_vertex_configuration(solver, i) != 0);
+
+    chils_release(solver);
+}
+
+inline void run_chils(red2pack::m2s_graph_access &input_graph,
+                      std::vector<bool> &solution, double &time_best,
+                      const chils_config &cfg) {
+    graph *g = build_graph(input_graph);
+    run_chils_impl(g, solution, time_best, cfg);
+    graph_free(g);
+}
+
+}  // namespace chils
+]=])
+endif()
+
+# ---------------------------------------------------------------------------
+# Patch m2s_log.h: suppress scoped_timer output (no-op in library mode)
+# ---------------------------------------------------------------------------
+set(_R2P_SCOPED_TIMER "${R2P_DIR}/lib/red2pack/tools/scoped_timer.h")
+file(READ "${_R2P_SCOPED_TIMER}" _r2p_scoped_src)
+string(FIND "${_r2p_scoped_src}" "CHSZLABLIB_SCOPED_PATCHED" _r2p_scoped_patched)
+if(_r2p_scoped_patched EQUAL -1)
+    file(WRITE "${_R2P_SCOPED_TIMER}" [=[
+// CHSZLABLIB_SCOPED_PATCHED — no-op scoped_timer for library use
+#pragma once
+#include <string>
+#include "red2pack/tools/timer.h"
+#include "red2pack/tools/m2s_log.h"
+#define RED2PACK_SCOPED_TIMER(name)
+namespace red2pack {
+class scoped_timer {
+public:
+    explicit scoped_timer(std::string) {}
+    ~scoped_timer() {}
+};
+}
+]=])
+endif()
+
+# ---------------------------------------------------------------------------
+# red2pack_static — fat static library
+# ---------------------------------------------------------------------------
+
+# Core library sources
+set(R2P_CORE_SOURCES
+    ${R2P_DIR}/lib/red2pack/algorithms/kernel/reduce_algorithm.cpp
+    ${R2P_DIR}/lib/red2pack/algorithms/kernel/weighted_reduce_algorithm.cpp
+    ${R2P_DIR}/lib/red2pack/algorithms/kernel/reductions.cpp
+    ${R2P_DIR}/lib/red2pack/algorithms/kernel/weighted_reductions.cpp
+    ${R2P_DIR}/lib/red2pack/algorithms/kernel/heuristic_reduction.cpp
+    ${R2P_DIR}/lib/red2pack/algorithms/kernel/reduce_and_transform.cpp
+    ${R2P_DIR}/lib/red2pack/algorithms/solver_scheme.cpp
+    ${R2P_DIR}/lib/red2pack/tools/m2s_log.cpp
+    ${R2P_DIR}/lib/red2pack/tools/m2s_graph_io.cpp
+)
+
+# Solver sources (each sub-library)
+set(R2P_KAMIS_WMIS_SOURCES
+    ${R2P_DIR}/lib/red2pack-kamis-wmis/algorithms/branch_and_reduce.cpp
+    ${R2P_DIR}/lib/red2pack-kamis-wmis/algorithms/weighted_rnt_exact.cpp
+)
+
+set(R2P_CHILS_SOURCES
+    ${R2P_DIR}/lib/red2pack-chils/algorithms/weighted_rnt_chils.cpp
+    ${R2P_DIR}/lib/red2pack-chils/algorithms/drp.cpp
+)
+
+set(R2P_HTWIS_HILS_SOURCES
+    ${R2P_DIR}/lib/red2pack-htwis-hils/algorithms/weighted_rnt_htwis.cpp
+    ${R2P_DIR}/lib/red2pack-htwis-hils/algorithms/weighted_rnt_hils.cpp
+)
+
+set(R2P_MMWIS_SOURCES
+    ${R2P_DIR}/lib/red2pack-mmwis/algorithms/weighted_rnt_mmwis.cpp
+)
+
+set(R2P_ONLINEMIS_SOURCES
+    ${R2P_DIR}/lib/red2pack-onlinemis/algorithms/heuristic.cpp
+)
+
+# Bundled extern libraries
+set(R2P_HTWIS_SOURCES
+    ${R2P_DIR}/extern/htwis/Graph.cpp
+)
+
+set(R2P_HILS_SOURCES
+    ${R2P_DIR}/extern/hils/src/ArgPack.cpp
+    ${R2P_DIR}/extern/hils/src/Graph.cpp
+    ${R2P_DIR}/extern/hils/src/Solution.cpp
+    ${R2P_DIR}/extern/hils/src/bossa_timer.cpp
+)
+
+set(R2P_BUNDLED_ONLINEMIS_SOURCES
+    ${R2P_DIR}/extern/onlinemis/data_structure/candidate_list.cpp
+    ${R2P_DIR}/extern/onlinemis/data_structure/mis_permutation_online.cpp
+    ${R2P_DIR}/extern/onlinemis/data_structure/priority_queues/bucket_array.cpp
+    ${R2P_DIR}/extern/onlinemis/ils/local_search_online.cpp
+    ${R2P_DIR}/extern/onlinemis/ils/online_ils.cpp
+    ${R2P_DIR}/extern/onlinemis/initial_mis/greedy_mis_online.cpp
+    ${R2P_DIR}/extern/onlinemis/tools/mis_log.cpp
+)
+
+add_library(red2pack_static STATIC
+    ${R2P_CORE_SOURCES}
+    ${R2P_KAMIS_WMIS_SOURCES}
+    ${R2P_CHILS_SOURCES}
+    ${R2P_HTWIS_HILS_SOURCES}
+    ${R2P_ONLINEMIS_SOURCES}
+    ${R2P_HTWIS_SOURCES}
+    ${R2P_HILS_SOURCES}
+    ${R2P_BUNDLED_ONLINEMIS_SOURCES}
+    $<TARGET_OBJECTS:r2p_mmwis_obj>
+)
+
+target_include_directories(red2pack_static PUBLIC
+    # Core red2pack headers — only the top-level lib dir.
+    # Do NOT add subdirs (lib/red2pack, lib/red2pack/tools, etc.) because they
+    # shadow KaMIS wmis headers (timer.h, data_structure/sized_vector.h).
+    # Red2pack sources use "red2pack/..." prefixed includes that resolve via lib/.
+    ${R2P_DIR}/lib
+    # Sub-library headers (no onlinemis/mmwis at top level — they have conflicting headers)
+    ${R2P_DIR}/lib/red2pack-kamis-wmis
+    ${R2P_DIR}/lib/red2pack-kamis-wmis/algorithms
+    ${R2P_DIR}/lib/red2pack-chils
+    ${R2P_DIR}/lib/red2pack-chils/algorithms
+    ${R2P_DIR}/lib/red2pack-htwis-hils
+    ${R2P_DIR}/lib/red2pack-htwis-hils/algorithms
+    # Bundled extern headers (no onlinemis top-level — has conflicting mis_config.h)
+    ${R2P_DIR}/extern
+    ${R2P_DIR}/extern/hils/src
+    ${R2P_DIR}/extern/onlinemis/data_structure
+    ${R2P_DIR}/extern/onlinemis/data_structure/priority_queues
+    ${R2P_DIR}/extern/onlinemis/ils
+    ${R2P_DIR}/extern/onlinemis/initial_mis
+    ${R2P_DIR}/extern/onlinemis/tools
+    # App headers (m2s_configuration_*.h)
+    ${R2P_DIR}/app
+)
+
+# onlinemis top-level dir has mis_config.h that conflicts with KaMIS wmis.
+# Add it ONLY to the onlinemis sources via per-file compile options.
+set_source_files_properties(
+    ${R2P_ONLINEMIS_SOURCES} ${R2P_BUNDLED_ONLINEMIS_SOURCES}
+    PROPERTIES COMPILE_OPTIONS
+    "-I${R2P_DIR}/extern/onlinemis;-I${R2P_DIR}/lib/red2pack-onlinemis;-I${R2P_DIR}/lib/red2pack-onlinemis/algorithms"
+)
+
+# MMWIS solver needs mmwis-namespaced branch_and_reduce_algorithm.h (conflicts with wmis).
+# Build as separate OBJECT library with mmwis include dirs taking priority.
+add_library(r2p_mmwis_obj OBJECT ${R2P_MMWIS_SOURCES})
+set(R2P_KAMIS_MMWIS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/KaMIS/mmwis)
+target_include_directories(r2p_mmwis_obj BEFORE PRIVATE
+    ${R2P_KAMIS_MMWIS_DIR}/lib/mis/kernel
+    ${R2P_KAMIS_MMWIS_DIR}/lib/mis/evolutionary
+    ${R2P_KAMIS_MMWIS_DIR}/lib/tools
+    ${R2P_KAMIS_MMWIS_DIR}/app
+    ${R2P_DIR}/lib/red2pack-mmwis
+    ${R2P_DIR}/lib/red2pack-mmwis/algorithms
+)
+target_include_directories(r2p_mmwis_obj PRIVATE
+    ${R2P_DIR}/lib
+    ${R2P_DIR}/app
+)
+target_link_libraries(r2p_mmwis_obj PRIVATE kamis_mmwis_static kamis_wmis_static chils_static)
+target_compile_options(r2p_mmwis_obj PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -fpermissive>)
+target_compile_definitions(r2p_mmwis_obj PRIVATE NDEBUG)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(r2p_mmwis_obj PRIVATE OpenMP::OpenMP_CXX)
+endif()
+
+# Link KaMIS wmis/mmwis (for branch_and_reduce_algorithm, MISConfig, graph_access, etc.)
+target_link_libraries(red2pack_static PUBLIC
+    kamis_wmis_static
+    kamis_mmwis_static
+    chils_static
+)
+
+target_compile_options(red2pack_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -fpermissive>)
+target_compile_definitions(red2pack_static PRIVATE NDEBUG)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(red2pack_static PUBLIC OpenMP::OpenMP_CXX)
+endif()
+
+# =============================================================================
 # LearnAndReduce  (GNN-guided MWIS kernelization)
 # =============================================================================
 set(LR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/LearnAndReduce)
@@ -2206,6 +2544,12 @@ install(TARGETS _kamis_mmwis DESTINATION chszlablib)
 pybind11_add_module(_learnandreduce bindings/learnandreduce_binding.cpp)
 target_link_libraries(_learnandreduce PRIVATE learnandreduce_static)
 install(TARGETS _learnandreduce DESTINATION chszlablib)
+
+# --- _red2pack (Maximum 2-Packing Set) ---
+pybind11_add_module(_red2pack bindings/red2pack_binding.cpp)
+target_link_libraries(_red2pack PRIVATE red2pack_static)
+target_include_directories(_red2pack PRIVATE ${R2P_DIR}/app)
+install(TARGETS _red2pack DESTINATION chszlablib)
 
 # --- _scc (Correlation Clustering) ---
 pybind11_add_module(_scc bindings/scc_binding.cpp)

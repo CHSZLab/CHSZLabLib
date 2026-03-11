@@ -30,6 +30,7 @@ from chszlablib.decomposition import (
 from chszlablib.independence import (
     IndependenceProblems, MISResult, MWISResult, HyperMISResult,
     BMatchingResult, StreamingBMatcher, LearnAndReduceKernel,
+    TwoPackingResult, TwoPackingKernel,
 )
 from chszlablib.orientation import Orientation, EdgeOrientationResult
 from chszlablib.dynamic import (
@@ -136,6 +137,7 @@ def describe() -> str:
         "  DynOrientationResult    max_out_degree, out_degrees",
         "  DynMatchingResult       matching_size, matching",
         "  DynWMISResult           weight, vertices",
+        "  TwoPackingResult        size, weight, vertices",
         "",
         "EXCEPTIONS",
         "-" * 48,
@@ -212,4 +214,6 @@ __all__ = [
     "DynOrientationResult",
     "DynMatchingResult",
     "DynWMISResult",
+    "TwoPackingResult",
+    "TwoPackingKernel",
 ]

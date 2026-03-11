@@ -151,6 +151,7 @@ python3 demo.py cond-mat-2005.graph
 | [HyperMIS](docs/hypergraph-independent-set.md) | Hypergraph independent set | Kernelization reductions (+ optional ILP via Gurobi) |
 | [HeiHGM/Bmatching](docs/hypergraph-b-matching.md) | Hypergraph b-matching | Greedy (7 orderings), reductions+ILP+unfold, ILS |
 | [HeiHGM/Streaming](docs/hypergraph-b-matching.md) | Streaming hypergraph matching | Naive, greedy, greedy\_set, best\_evict, lenient |
+| [red2pack](docs/two-packing.md) | Maximum 2-packing set | Exact, DRP, CHILS, HtWIS, HILS, MMWIS, OnlineMIS, ILP |
 
 **Orientation** — Edge orientation for minimum maximum out-degree.
 
@@ -243,6 +244,20 @@ for nodes, w in [([0,1], 5), ([1,2], 3), ([2,3], 7), ([3,4], 2)]:
 r = sm.finish()
 print(f"Streaming matching: {r.num_matched} edges, weight {r.total_weight}")
 
+# --- Maximum 2-packing set ---
+from chszlablib import TwoPackingKernel
+
+g2 = Graph.from_edge_list([(0,1),(1,2),(2,3),(3,4)])
+r = IndependenceProblems.two_packing(g2, algorithm="chils", time_limit=10.0)
+print(f"2-packing: {r.size} vertices, weight {r.weight}")
+
+# Two-step: reduce-and-transform, then solve MIS kernel
+tpk = TwoPackingKernel(g2)
+kernel = tpk.reduce_and_transform()
+sol = IndependenceProblems.branch_reduce(kernel, time_limit=10.0)
+result = tpk.lift_solution(sol.vertices)
+print(f"2-packing (two-step): {result.size} vertices, weight {result.weight}")
+
 # --- Dynamic graph algorithms ---
 import numpy as np
 
@@ -305,6 +320,7 @@ print(f"Dynamic WMIS weight: {r.weight}, vertices: {r.vertices}")
 | Dynamic edge orientation | `DynamicProblems.edge_orientation` | `algorithm`, `seed` |
 | Dynamic edge orientation (approx) | `DynamicProblems.approx_edge_orientation` | `algorithm`, `bfs_depth` |
 | Dynamic matching (insert/delete) | `DynamicProblems.matching` | `algorithm`, `seed` |
+| Find a maximum 2-packing set | `IndependenceProblems.two_packing` | `algorithm`, `time_limit` |
 | Dynamic weighted MIS (insert/delete) | `DynamicProblems.weighted_mis` | `node_weights`, `algorithm` |
 
 ### One-Liner Recipes
@@ -324,6 +340,7 @@ Decomposition.stream_partition(g, k=2, imbalance=3.0)                   # stream
 IndependenceProblems.redumis(g, time_limit=5.0)                         # max independent set
 IndependenceProblems.chils(g, time_limit=5.0)                           # max weight independent set
 IndependenceProblems.learn_and_reduce(g, time_limit=5.0)                # MWIS with GNN kernelization
+IndependenceProblems.two_packing(g, algorithm="chils")                  # maximum 2-packing set
 Orientation.orient_edges(g, algorithm="combined")                       # edge orientation
 
 Decomposition.stream_cluster(g, mode="strong")                          # streaming clustering
@@ -1103,6 +1120,7 @@ Maximum independent set and maximum weight independent set solvers.
 | `mmwis` | Maximum weight independent set (evolutionary) | KaMIS |
 | `chils` | Maximum weight independent set (concurrent local search) | CHILS |
 | `learn_and_reduce` | Maximum weight independent set (GNN-guided kernelization) | LearnAndReduce |
+| `two_packing` | Maximum (weighted) 2-packing set (reduce-and-transform) | red2pack |
 | `hypermis` | Maximum independent set on hypergraphs (heuristic or exact) | HyperMIS |
 | `bmatching` | Hypergraph b-matching (greedy, reductions+ILP, ILS) | HeiHGM/Bmatching |
 
@@ -1214,6 +1232,52 @@ print(f"Weight: {result.weight}")
 ```
 
 > **Available constants:** `IndependenceProblems.LEARN_AND_REDUCE_CONFIGS`, `LEARN_AND_REDUCE_GNN_FILTERS`, `LEARN_AND_REDUCE_SOLVERS`.
+
+#### `IndependenceProblems.two_packing(g, ...)` — Maximum 2-Packing Set (red2pack)
+
+**Problem.** Given an undirected graph $G = (V, E)$ with optional node weights $c : V \to \mathbb{R}_{\geq 0}$, find a **2-packing set** $S \subseteq V$ of maximum (weighted) cardinality, i.e.,
+
+$$\max_{S \subseteq V} \sum_{v \in S} c(v) \quad \text{subject to} \quad \text{dist}(u, v) \geq 3 \quad \text{for all } u, v \in S, u \neq v.$$
+
+A 2-packing set (also called a **distance-3 independent set**) is a subset of vertices where no two vertices share a common neighbor. red2pack uses a **reduce-and-transform** strategy: it applies problem-specific reduction rules to shrink the instance, transforms the remainder into an equivalent maximum weight independent set (MWIS) problem, and solves it with a chosen backend solver. Also available as a two-step API via `TwoPackingKernel`.
+
+```python
+IndependenceProblems.two_packing(
+    g, algorithm="chils", time_limit=100.0, seed=0, reduction_style="",
+) -> TwoPackingResult
+```
+
+| Parameter | Type | Default | Description |
+|:----------|:-----|:--------|:------------|
+| `g` | `Graph` | — | Input graph (optionally with node weights) |
+| `algorithm` | `str` | `"chils"` | Algorithm: `"exact"`, `"exact_weighted"`, `"chils"`, `"drp"`, `"htwis"`, `"hils"`, `"mmwis"`, `"online"`, `"ilp"` |
+| `time_limit` | `float` | `100.0` | Time limit in seconds |
+| `seed` | `int` | `0` | Random seed for reproducibility |
+| `reduction_style` | `str` | `""` | Reduction preset (empty = default reductions) |
+
+**Result: `TwoPackingResult`** — `size` (int), `weight` (int), `vertices` (ndarray).
+
+```python
+from chszlablib import Graph, IndependenceProblems, TwoPackingKernel
+
+# One-shot solve
+g = Graph.from_edge_list([(0,1),(1,2),(2,3),(3,4)])
+result = IndependenceProblems.two_packing(g, algorithm="chils", time_limit=10.0)
+print(f"2-packing size: {result.size}, vertices: {result.vertices}")
+
+# Two-step workflow (reduce-and-transform, then solve MIS kernel)
+tpk = TwoPackingKernel(g)
+kernel = tpk.reduce_and_transform()
+if tpk.kernel_nodes > 0:
+    sol = IndependenceProblems.branch_reduce(kernel, time_limit=10.0)
+    result = tpk.lift_solution(sol.vertices)
+else:
+    import numpy as np
+    result = tpk.lift_solution(np.array([], dtype=np.int32))
+print(f"2-packing weight: {result.weight}, vertices: {result.vertices}")
+```
+
+> **Available constants:** `IndependenceProblems.TWO_PACKING_ALGORITHMS`. The `"ilp"` algorithm uses `TwoPackingKernel` for reduction, then solves the remaining MIS kernel exactly via ILP (requires `pip install gurobipy` and a valid [Gurobi license](https://www.gurobi.com/downloads/)).
 
 #### `IndependenceProblems.hypermis(hg, ...)` — Maximum Independent Set on Hypergraphs (HyperMIS)
 
@@ -1640,6 +1704,26 @@ result = sm.finish()
 print(f"Streaming matched {result.num_matched} edges")
 ```
 
+### Maximum 2-Packing Set
+
+```python
+from chszlablib import Graph, IndependenceProblems, TwoPackingKernel
+
+# Facility placement: place facilities so no two share a common neighbor
+# (ensures every customer is served by at most one facility)
+g = Graph.from_metis("city_network.graph")
+result = IndependenceProblems.two_packing(g, algorithm="chils", time_limit=30.0)
+print(f"Can place {result.size} facilities: {result.vertices}")
+
+# Two-step workflow: reduce first, then solve the small kernel exactly
+tpk = TwoPackingKernel(g)
+kernel = tpk.reduce_and_transform()
+print(f"Reduced {g.num_nodes} nodes → {tpk.kernel_nodes} kernel nodes")
+sol = IndependenceProblems.branch_reduce(kernel, time_limit=60.0)
+result = tpk.lift_solution(sol.vertices)
+print(f"Optimal 2-packing weight: {result.weight}")
+```
+
 ### Dynamic Graph Algorithms
 
 ```python
@@ -1755,6 +1839,7 @@ CHSZLabLib/
 │   ├── HeidelbergMotifClustering/ # Motif clustering
 │   ├── HeiHGM_Bmatching/        # Hypergraph b-matching
 │   ├── HeiHGM_Streaming/        # Streaming hypergraph matching
+│   ├── red2pack/                # Maximum 2-packing set
 │   ├── DynDeltaOrientation/     # Dynamic edge orientation
 │   ├── DynDeltaApprox/          # Dynamic edge orientation (approximate)
 │   ├── DynMatch/                # Dynamic matching
@@ -2023,6 +2108,29 @@ If you use CHSZLabLib in your research, please cite the relevant papers for each
   publisher = {SIAM},
   year      = {2025},
   doi       = {10.1137/1.9781611978759.12}
+}
+```
+
+### red2pack (Maximum 2-Packing Set)
+
+```bibtex
+@article{borowitz2025scalable,
+  author    = {Jannick Borowitz and Ernestine Gro{\ss}mann and Christian Schulz and Dominik Schweisgut},
+  title     = {Scalable Algorithms for 2-Packing Sets on Arbitrary Graphs},
+  journal   = {Journal of Graph Algorithms and Applications},
+  volume    = {29},
+  number    = {1},
+  pages     = {159--186},
+  year      = {2025},
+  doi       = {10.7155/jgaa.v29i1.3064}
+}
+
+@article{borowitz2025weighted2packing,
+  author    = {Jannick Borowitz and Ernestine Gro{\ss}mann and Christian Schulz},
+  title     = {Finding Maximum Weight 2-Packing Sets on Arbitrary Graphs},
+  journal   = {Networks},
+  year      = {2025},
+  doi       = {10.1002/net.70028}
 }
 ```
 

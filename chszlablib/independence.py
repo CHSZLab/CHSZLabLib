@@ -75,6 +75,23 @@ class BMatchingResult:
     """Whether the ILP solver proved optimality (only for ``"reductions"``)."""
 
 
+@dataclass
+class TwoPackingResult:
+    """Result of a maximum 2-packing set computation.
+
+    Given a graph G = (V, E), a 2-packing set S is a subset of V such
+    that no two vertices in S share a common neighbor.  Equivalently, the
+    distance between any two vertices in S is at least 3.
+    """
+
+    size: int
+    """Number of vertices in the 2-packing set."""
+    weight: int
+    """Total node weight of the selected vertices."""
+    vertices: np.ndarray
+    """1-D int array of vertex IDs in the 2-packing set."""
+
+
 class IndependenceProblems:
     """Maximum independent set and maximum weight independent set solvers."""
 
@@ -91,6 +108,7 @@ class IndependenceProblems:
             "mmwis": "Maximum weight independent set, evolutionary (KaMIS/MMWIS)",
             "chils": "Maximum weight independent set, concurrent local search (CHILS)",
             "learn_and_reduce": "Maximum weight independent set, GNN-guided kernelization (LearnAndReduce)",
+            "two_packing": "Maximum (weighted) 2-packing set (red2pack)",
             "hypermis": "Maximum independent set on hypergraphs (HyperMIS)",
             "bmatching": "Hypergraph b-matching (HeiHGM/Bmatching)",
         }
@@ -116,6 +134,12 @@ class IndependenceProblems:
         "reductions", "ils",
     )
     """Valid ``algorithm`` values for :meth:`bmatching`."""
+
+    TWO_PACKING_ALGORITHMS: tuple[str, ...] = (
+        "exact", "exact_weighted", "chils", "drp",
+        "htwis", "hils", "mmwis", "online", "ilp",
+    )
+    """Valid ``algorithm`` values for :meth:`two_packing`."""
 
     # --- KaMIS: Unweighted MIS ---
 
@@ -648,6 +672,141 @@ class IndependenceProblems:
             is_optimal=bool(is_optimal),
         )
 
+    # --- red2pack: Maximum 2-Packing Set ---
+
+    @staticmethod
+    def two_packing(
+        g: Graph,
+        algorithm: str = "chils",
+        time_limit: float = 100.0,
+        seed: int = 0,
+        reduction_style: str = "",
+    ) -> TwoPackingResult:
+        """Compute a maximum (weighted) 2-packing set.
+
+        Given a graph G = (V, E), find a 2-packing set S of maximum weight
+        such that no two vertices in S share a common neighbor (equivalently,
+        dist(u, v) >= 3 for all u, v in S).
+
+        Uses red2pack's reduce-and-transform strategy: apply 2-packing-set
+        reductions, transform to an equivalent MIS problem, and solve with
+        the chosen algorithm.
+
+        Parameters
+        ----------
+        g : Graph
+            Input graph. Node weights define the objective; if unset,
+            all weights default to 1.
+        algorithm : str, optional
+            Algorithm name (default ``"chils"``).
+            Options: ``"exact"``, ``"exact_weighted"``, ``"chils"``,
+            ``"drp"``, ``"htwis"``, ``"hils"``, ``"mmwis"``,
+            ``"online"``, ``"ilp"``.
+        time_limit : float, optional
+            Wall-clock time budget in seconds (default 100.0).
+        seed : int, optional
+            Random seed (default 0).
+        reduction_style : str, optional
+            Reduction preset: ``""`` (default from configurator),
+            ``"fast"``, ``"strong"``, ``"full"``, ``"heuristic"``.
+
+        Returns
+        -------
+        TwoPackingResult
+            ``size`` -- number of vertices in the 2-packing set,
+            ``weight`` -- total weight of selected vertices,
+            ``vertices`` -- 1-D int array of vertex IDs in the set.
+
+        Raises
+        ------
+        ValueError
+            If *algorithm* or *time_limit* is invalid.
+        """
+        from chszlablib.exceptions import InvalidModeError
+
+        if algorithm not in IndependenceProblems.TWO_PACKING_ALGORITHMS:
+            raise InvalidModeError(
+                f"Unknown algorithm {algorithm!r}. "
+                f"Valid: {IndependenceProblems.TWO_PACKING_ALGORITHMS}"
+            )
+        if time_limit < 0:
+            raise ValueError(f"time_limit must be >= 0, got {time_limit}")
+
+        g.finalize()
+        xadj = g.xadj.astype(np.int32, copy=False)
+        adjncy = g.adjncy.astype(np.int32, copy=False)
+        vwgt = (
+            g.node_weights.astype(np.int32, copy=False)
+            if g.node_weights is not None
+            else np.array([], dtype=np.int32)
+        )
+
+        if algorithm == "ilp":
+            return IndependenceProblems._two_packing_ilp(
+                g, xadj, adjncy, vwgt, time_limit, seed, reduction_style,
+            )
+
+        from chszlablib._red2pack import solve_two_packing as _solve
+
+        total_weight, vertices = _solve(
+            xadj, adjncy, vwgt, algorithm, time_limit, seed, reduction_style,
+        )
+        return TwoPackingResult(
+            size=len(vertices), weight=int(total_weight), vertices=vertices,
+        )
+
+    @staticmethod
+    def _two_packing_ilp(
+        g: Graph,
+        xadj: np.ndarray,
+        adjncy: np.ndarray,
+        vwgt: np.ndarray,
+        time_limit: float,
+        seed: int,
+        reduction_style: str,
+    ) -> TwoPackingResult:
+        """Solve 2-packing via kernelization + ILP on the MIS kernel."""
+        import gurobipy as gp
+
+        tpk = TwoPackingKernel(
+            g, reduction_style=reduction_style,
+            time_limit=time_limit, seed=seed,
+        )
+        kernel = tpk.reduce_and_transform()
+
+        if tpk.kernel_nodes == 0:
+            return tpk.lift_solution(np.array([], dtype=np.int32))
+
+        # Build MIS ILP on kernel graph
+        kn = kernel.num_nodes
+        k_xadj = kernel.xadj
+        k_adjncy = kernel.adjncy
+        k_wgt = kernel.node_weights if kernel.node_weights is not None else np.ones(kn, dtype=np.int64)
+
+        with gp.Env(empty=True) as env:
+            env.setParam("OutputFlag", 0)
+            env.start()
+            with gp.Model(env=env) as model:
+                x = model.addMVar(kn, vtype=gp.GRB.BINARY, name="x")
+                model.setObjective(k_wgt @ x, gp.GRB.MAXIMIZE)
+
+                # Edge constraints: x_u + x_v <= 1
+                for u in range(kn):
+                    for idx in range(k_xadj[u], k_xadj[u + 1]):
+                        v = int(k_adjncy[idx])
+                        if u < v:
+                            model.addConstr(x[u] + x[v] <= 1)
+
+                model.Params.TimeLimit = max(0.0, time_limit)
+                model.optimize()
+
+                mis_verts = np.array(
+                    [i for i in range(kn) if x[i].X > 0.5],
+                    dtype=np.int32,
+                )
+
+        return tpk.lift_solution(mis_verts)
+
 
 class StreamingBMatcher:
     """True streaming hypergraph matching — process edges one at a time.
@@ -886,4 +1045,123 @@ class LearnAndReduceKernel:
     @property
     def kernel_nodes(self) -> int:
         """Number of nodes in the reduced kernel (-1 if not yet kernelized)."""
+        return self._kernel_n
+
+
+class TwoPackingKernel:
+    """Two-step 2-packing set solver: reduce-and-transform, then solve MIS kernel.
+
+    Uses red2pack's reduction rules to shrink the 2-packing problem and
+    transform it into an equivalent MIS problem on a smaller graph.  You
+    solve the kernel MIS with any solver and lift the solution back.
+
+    Usage::
+
+        tpk = TwoPackingKernel(g)
+        kernel = tpk.reduce_and_transform()
+        sol = IndependenceProblems.branch_reduce(kernel)
+        result = tpk.lift_solution(sol.vertices)
+
+    Parameters
+    ----------
+    g : Graph
+        Input graph with optional node weights.
+    reduction_style : str, optional
+        Reduction preset: ``""`` (default), ``"fast"``, ``"strong"``,
+        ``"full"``, ``"heuristic"``.
+    time_limit : float, optional
+        Time limit for reductions in seconds (default 1000.0).
+    seed : int, optional
+        Random seed (default 0).
+    weighted : bool, optional
+        Whether to use weighted reductions (default: auto-detect from
+        ``g.node_weights``).
+    """
+
+    REDUCTION_STYLES: tuple[str, ...] = ("", "fast", "strong", "full", "heuristic")
+
+    def __init__(
+        self,
+        g: Graph,
+        reduction_style: str = "",
+        time_limit: float = 1000.0,
+        seed: int = 0,
+        weighted: bool | None = None,
+    ) -> None:
+        g.finalize()
+
+        if weighted is None:
+            weighted = g.node_weights is not None
+
+        from chszlablib._red2pack import TwoPackingKernel as _TPKernel
+
+        xadj = g.xadj.astype(np.int32, copy=False)
+        adjncy = g.adjncy.astype(np.int32, copy=False)
+        vwgt = (
+            g.node_weights.astype(np.int32, copy=False)
+            if g.node_weights is not None
+            else np.array([], dtype=np.int32)
+        )
+
+        self._kernel = _TPKernel(
+            xadj, adjncy, vwgt,
+            reduction_style, time_limit, seed, weighted,
+        )
+        self._kernel_graph: Graph | None = None
+        self._offset_weight: int = 0
+        self._kernel_n: int = -1
+
+    def reduce_and_transform(self) -> Graph:
+        """Run reductions and transform to MIS kernel graph.
+
+        Returns
+        -------
+        Graph
+            The reduced kernel graph (may have 0 nodes if fully reduced).
+        """
+        solved, xadj, adjncy, vwgt, offset, kernel_n = (
+            self._kernel.run_reduce_and_transform()
+        )
+        self._offset_weight = int(offset)
+        self._kernel_n = int(kernel_n)
+
+        if solved or kernel_n == 0:
+            self._kernel_graph = Graph(0)
+            self._kernel_graph.finalize()
+        else:
+            self._kernel_graph = Graph.from_csr(
+                xadj, adjncy, node_weights=vwgt,
+            )
+
+        return self._kernel_graph
+
+    def lift_solution(self, mis_vertices: np.ndarray) -> TwoPackingResult:
+        """Lift a kernel MIS solution back to the original 2-packing set.
+
+        Parameters
+        ----------
+        mis_vertices : np.ndarray
+            1-D int array of vertex IDs in the kernel MIS (0-indexed).
+
+        Returns
+        -------
+        TwoPackingResult
+            The full 2-packing set in the original graph.
+        """
+        kv = np.asarray(mis_vertices, dtype=np.int32)
+        total_weight, vertices = self._kernel.lift_solution(kv)
+        return TwoPackingResult(
+            size=len(vertices),
+            weight=int(total_weight),
+            vertices=vertices,
+        )
+
+    @property
+    def offset_weight(self) -> int:
+        """Weight determined by reductions alone (before solving kernel)."""
+        return self._offset_weight
+
+    @property
+    def kernel_nodes(self) -> int:
+        """Number of nodes in the kernel (-1 if not yet reduced)."""
         return self._kernel_n
