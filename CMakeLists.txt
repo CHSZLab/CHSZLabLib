@@ -547,7 +547,7 @@ target_link_libraries(red2pack_static PUBLIC
 )
 
 target_compile_options(red2pack_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w -fpermissive>)
-target_compile_definitions(red2pack_static PRIVATE NDEBUG)
+target_compile_definitions(red2pack_static PRIVATE NDEBUG BOSSA_CLOCK)
 
 if(OpenMP_CXX_FOUND)
     target_link_libraries(red2pack_static PUBLIC OpenMP::OpenMP_CXX)
