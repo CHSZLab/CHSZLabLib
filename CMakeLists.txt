@@ -300,7 +300,7 @@ inline graph *build_graph(red2pack::m2s_graph_access &input_graph) {
     return g;
 }
 
-inline graph *build_induced_subgraph(const red2pack::m2s_graph_access &input_graph,
+inline graph *build_induced_subgraph(red2pack::m2s_graph_access &input_graph,
                                      const std::vector<bool> &mask,
                                      const red2pack::sized_vector<red2pack::NodeID> &reverse_mapping,
                                      const red2pack::sized_vector<red2pack::NodeID> &mapping) {
