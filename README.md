@@ -1,7 +1,7 @@
 <h1 align="center">CHSZLabLib</h1>
 
 <p align="center">
-  <strong>State-of-the-art graph algorithms of the <a href="https://ae.ifi.uni-heidelberg.de/">Algorithm Engineering Group Heidelberg</a> from C++ <br> Easy to use in Python</strong>
+  <strong>State-of-the-art graph algorithms of the <a href="https://ae.ifi.uni-heidelberg.de/">Algorithm Engineering Group Heidelberg</a> from C++ <br> Easy to use in Python </strong>
 </p>
 
 <p align="center">
