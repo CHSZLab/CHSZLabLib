@@ -87,6 +87,7 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 - Eva Rotenberg
 - Peter Sanders
 - Sebastian Schlag
+- Daniel Seemaier
 - Darren Strash
 - Jesper Larsson Träff
 - Bora Ucar
