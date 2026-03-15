@@ -1,0 +1,74 @@
+[submodule "KaHIP"]
+	path = external_repositories/KaHIP
+	url = https://github.com/KaHIP/KaHIP.git
+	branch = master
+[submodule "VieClus"]
+	path = external_repositories/VieClus
+	url = https://github.com/VieClus/VieClus.git
+	branch = master
+[submodule "VieCut"]
+	path = external_repositories/VieCut
+	url = https://github.com/VieCut/VieCut.git
+	branch = master
+[submodule "CHILS"]
+	path = external_repositories/CHILS
+	url = https://github.com/KarlsruheMIS/CHILS.git
+	branch = main
+[submodule "KaMIS"]
+	path = external_repositories/KaMIS
+	url = https://github.com/KarlsruheMIS/KaMIS.git
+[submodule "SCC"]
+	path = external_repositories/SCC
+	url = https://github.com/ScalableCorrelationClustering/ScalableCorrelationClustering.git
+[submodule "HeiOrient"]
+	path = external_repositories/HeiOrient
+	url = https://github.com/HeiOrient/HeiOrient.git
+[submodule "fpt-max-cut"]
+	path = external_repositories/fpt-max-cut
+	url = https://github.com/DataReductionMaxCut/fpt-max-cut.git
+[submodule "HeidelbergMotifClustering"]
+	path = external_repositories/HeidelbergMotifClustering
+	url = https://github.com/LocalClustering/HeidelbergMotifClustering.git
+[submodule "HeiStream"]
+	path = external_repositories/HeiStream
+	url = https://github.com/KaHIP/HeiStream.git
+[submodule "external_repositories/HyperMIS"]
+	path = external_repositories/HyperMIS
+	url = https://github.com/KarlsruheMIS/HyperMIS
+[submodule "external_repositories/HeiCut"]
+	path = external_repositories/HeiCut
+	url = https://github.com/heicut/heicut
+[submodule "external_repositories/CluStRE"]
+	path = external_repositories/CluStRE
+	url = https://github.com/KaHIP/CluStRE
+[submodule "external_repositories/HeiHGM_Bmatching"]
+	path = external_repositories/HeiHGM_Bmatching
+	url = https://github.com/HeiHGM/Bmatching.git
+[submodule "external_repositories/HeiHGM_Streaming"]
+	path = external_repositories/HeiHGM_Streaming
+	url = https://github.com/HeiHGM/Streaming.git
+[submodule "external_repositories/DynDeltaApprox"]
+	path = external_repositories/DynDeltaApprox
+	url = https://github.com/DynGraphLab/DynDeltaApprox.git
+[submodule "external_repositories/DynDeltaOrientation"]
+	path = external_repositories/DynDeltaOrientation
+	url = https://github.com/DynGraphLab/DynDeltaOrientation.git
+[submodule "external_repositories/DynMatch"]
+	path = external_repositories/DynMatch
+	url = https://github.com/DynGraphLab/DynMatch.git
+	branch = master
+[submodule "external_repositories/DynWMIS"]
+	path = external_repositories/DynWMIS
+	url = https://github.com/DynGraphLab/DynWMIS.git
+[submodule "external_repositories/SharedMap"]
+	path = external_repositories/SharedMap
+	url = https://github.com/HenningWoydt/SharedMap.git
+[submodule "external_repositories/FREIGHT"]
+	path = external_repositories/FREIGHT
+	url = https://github.com/KaHIP/FREIGHT
+[submodule "external_repositories/LearnAndReduce"]
+	path = external_repositories/LearnAndReduce
+	url = https://github.com/KarlsruheMIS/LearnAndReduce.git
+[submodule "external_repositories/red2pack"]
+	path = external_repositories/red2pack
+	url = https://github.com/KarlsruheMIS/red2pack.git

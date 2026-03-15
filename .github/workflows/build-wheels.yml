@@ -1,0 +1,131 @@
+name: Build wheels
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+env:
+  # VieCut's bundled tlx uses cmake_minimum_required(VERSION 2.8) which
+  # CMake 4.x rejects. This env var tells CMake to accept older policies.
+  CMAKE_ARGS: "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+
+jobs:
+  build-linux:
+    name: Linux ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: pypa/cibuildwheel@v3.3
+        env:
+          CIBW_BUILD: "${{ matrix.python-version }}-manylinux_x86_64"
+          CIBW_SKIP: "cp31?t-*"
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+          CIBW_BEFORE_ALL: >-
+            yum install -y hwloc-devel &&
+            bash {project}/scripts/build_mtkahypar.sh &&
+            bash {project}/scripts/build_sharedmap_mtkahypar.sh
+          CIBW_ENVIRONMENT: >-
+            CXX=g++
+            CMAKE_ARGS=-DCMAKE_POLICY_VERSION_MINIMUM=3.5
+            LD_LIBRARY_PATH={project}/external_repositories/HeiCut/extern/mt-kahypar-library:{project}/external_repositories/HeiCut/extern/mt-kahypar-library/tbb_lib/intel64/gcc4.8:{project}/external_repositories/SharedMap/extern/local/mt-kahypar/lib:$LD_LIBRARY_PATH
+          CIBW_TEST_REQUIRES: pytest
+          CIBW_TEST_COMMAND: >-
+            cp -r {project}/tests /tmp/_cibw_tests && pytest /tmp/_cibw_tests -v -s --tb=long && rm -rf /tmp/_cibw_tests
+          CIBW_REPAIR_WHEEL_COMMAND: >-
+            LD_LIBRARY_PATH={project}/external_repositories/HeiCut/extern/mt-kahypar-library:{project}/external_repositories/HeiCut/extern/mt-kahypar-library/tbb_lib/intel64/gcc4.8:{project}/external_repositories/SharedMap/extern/local/mt-kahypar/lib:$LD_LIBRARY_PATH
+            auditwheel repair -w {dest_dir} {wheel}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-linux-${{ matrix.python-version }}
+          path: wheelhouse/*.whl
+
+  build-macos-arm64:
+    name: macOS arm64 ${{ matrix.python-version }}
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: pypa/cibuildwheel@v3.3
+        env:
+          CIBW_BUILD: "${{ matrix.python-version }}-macosx_arm64"
+          CIBW_SKIP: "cp31?t-*"
+          CIBW_BEFORE_ALL: >-
+            brew install libomp hwloc tbb boost &&
+            bash {project}/scripts/build_mtkahypar.sh &&
+            bash {project}/scripts/build_sharedmap_mtkahypar.sh
+          CIBW_ENVIRONMENT: >-
+            CC=clang
+            CXX=clang++
+            MACOSX_DEPLOYMENT_TARGET=14.0
+            OpenMP_ROOT=/opt/homebrew/opt/libomp
+            CMAKE_ARGS="-DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DOpenMP_ROOT=/opt/homebrew/opt/libomp"
+            KAHYPAR_DOWNLOAD_TBB=OFF
+            KAHYPAR_DOWNLOAD_BOOST=OFF
+          CIBW_TEST_REQUIRES: pytest
+          CIBW_TEST_COMMAND: >-
+            cp -r {project}/tests /tmp/_cibw_tests && pytest /tmp/_cibw_tests -v -s --tb=long && rm -rf /tmp/_cibw_tests
+          CIBW_REPAIR_WHEEL_COMMAND: >-
+            DYLD_LIBRARY_PATH={project}/external_repositories/HeiCut/extern/mt-kahypar-library:{project}/external_repositories/SharedMap/extern/local/mt-kahypar/lib:$DYLD_LIBRARY_PATH
+            delocate-wheel --require-archs arm64 -w {dest_dir} {wheel}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-macos-arm64-${{ matrix.python-version }}
+          path: wheelhouse/*.whl
+
+  # Windows builds are disabled: the bundled C++ graph algorithm libraries
+  # (KaHIP, HeiStream, HyperMIS, etc.) rely on POSIX headers (sys/time.h,
+  # sys/mman.h, execinfo.h) that are not available on MSVC/Windows.
+
+  build-sdist:
+    name: Source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install build
+      - run: python -m build --sdist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  create-release:
+    name: Create GitHub Release
+    needs: [build-linux, build-macos-arm64, build-sdist]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

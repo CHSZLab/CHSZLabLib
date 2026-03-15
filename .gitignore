@@ -1,0 +1,14 @@
+build/
+dist/
+*.egg-info/
+__pycache__/
+*.pyc
+*.so
+*.whl
+.venv/
+test_env/
+build-mtkahypar/
+report.md
+summary.md
+docs/plans/
+benchmarks/
