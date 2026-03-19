@@ -40,6 +40,13 @@
 > **For maximum performance:** The bundled C++ libraries are compiled with default settings for broad compatibility. For peak performance and access to every tuning knob, use the **latest main branch of the original repositories** directly (linked in the table below). The python front end is meant for usability, not for performance measurements. 
 
 ---
+## Super Quick Start
+
+```bash
+python3 -m venv chszlab_env
+source chszlab_env/bin/activate
+pip install chszlablib
+```
 
 
 ## About
