@@ -13,21 +13,24 @@ env:
 
 jobs:
   build-linux:
-    name: Linux ${{ matrix.manylinux }} ${{ matrix.python-version }}
+    name: Linux ${{ matrix.manylinux_tag }} ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         python-version: ["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]
-        manylinux: ["manylinux_2_17", "manylinux_2_28"]
+        manylinux: ["quay.io/pypa/manylinux2014_x86_64", "manylinux_2_28"]
         include:
-          - manylinux: manylinux_2_17
+          - manylinux: "quay.io/pypa/manylinux2014_x86_64"
+            manylinux_tag: manylinux_2_17
             before_all: >-
               yum install -y epel-release &&
               yum install -y hwloc-devel &&
+              ln -sf /opt/python/cp312-cp312/bin/python3 /usr/local/bin/python3 &&
               bash {project}/scripts/build_mtkahypar.sh &&
               bash {project}/scripts/build_sharedmap_mtkahypar.sh
           - manylinux: manylinux_2_28
+            manylinux_tag: manylinux_2_28
             before_all: >-
               yum install -y hwloc-devel &&
               bash {project}/scripts/build_mtkahypar.sh &&
@@ -56,7 +59,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheel-linux-${{ matrix.manylinux }}-${{ matrix.python-version }}
+          name: wheel-linux-${{ matrix.manylinux_tag }}-${{ matrix.python-version }}
           path: wheelhouse/*.whl
 
   build-macos-arm64:
