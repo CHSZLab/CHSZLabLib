@@ -21,6 +21,12 @@ add_compile_definitions(
     _LIBCPP_ENABLE_CXX17_REMOVED_RANDOM_SHUFFLE
     _LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION
 )
+# GCC 10 (manylinux_2_17) has a template ordering bug: std::pair may be
+# instantiated before <utility> defines __is_tuple_like_impl specialization,
+# causing a hard error.  -fpermissive downgrades it to a warning.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "11")
+    add_compile_options(-fpermissive)
+endif()
 # KaMIS's bundled KaHIP uses `using namespace __gnu_cxx;` which doesn't exist
 # on Apple Clang. Force-include a header that provides an empty namespace.
 # Also provide shims for GCC-only headers like <parallel/numeric>.
