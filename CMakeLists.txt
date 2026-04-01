@@ -2085,6 +2085,12 @@ endif()
 # =============================================================================
 set(FREIGHT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/FREIGHT/code_for_hypergraphs)
 
+# --- Patch random_functions.h: constexpr array too large for some compilers ---
+file(READ ${FREIGHT_DIR}/lib/tools/random_functions.h _SRC)
+string(REPLACE "constexpr ConstRandArray rand_nums = ConstRandArray<TAM>();"
+               "const ConstRandArray rand_nums = ConstRandArray<TAM>();" _SRC "${_SRC}")
+file(WRITE ${FREIGHT_DIR}/lib/tools/random_functions.h "${_SRC}")
+
 set(FREIGHT_SOURCES
     ${FREIGHT_DIR}/lib/partition/onepass_partitioning/vertex_partitioning.cpp
     ${FREIGHT_DIR}/lib/partition/onepass_partitioning/floating_block.cpp
