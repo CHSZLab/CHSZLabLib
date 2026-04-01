@@ -1,32 +1,49 @@
 name: Publish to PyPI
 
 on:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: ["Build wheels"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to publish (e.g. v0.0.20)"
+        description: "Release tag to publish (e.g. v0.5.26)"
         required: true
 
 jobs:
   publish:
     name: Upload to PyPI
     runs-on: ubuntu-latest
+    # Only run if build-wheels succeeded (or manual dispatch)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       startsWith(github.event.workflow_run.head_branch, 'v'))
     permissions:
       contents: read
       id-token: write
     steps:
+      - name: Determine tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.event.workflow_run.head_branch }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Download release assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="${{ github.event.release.tag_name || github.event.inputs.tag }}"
+          TAG="${{ steps.tag.outputs.tag }}"
+          echo "Downloading wheels for ${TAG}..."
           mkdir -p dist
           gh release download "${TAG}" \
             --repo "${{ github.repository }}" \
             --dir dist \
             --pattern "*.whl"
+          ls -la dist/
 
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
