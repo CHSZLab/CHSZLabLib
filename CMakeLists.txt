@@ -2114,7 +2114,11 @@ target_compile_definitions(freight_static PUBLIC
     -DNDEBUG
 )
 target_compile_options(freight_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>)
-target_compile_options(freight_static PUBLIC $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-march=native>)
+# -march=native on x86 so crc32() uses hardware SSE4.2 (matching the CLI).
+# Skip on ARM — the crc32 fallback (fnv2a) is used there regardless.
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i[3-6]86")
+    target_compile_options(freight_static PUBLIC -march=native)
+endif()
 
 if(OpenMP_CXX_FOUND)
     target_link_libraries(freight_static PUBLIC OpenMP::OpenMP_CXX)
