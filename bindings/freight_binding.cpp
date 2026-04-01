@@ -18,7 +18,9 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -119,10 +121,14 @@ public:
         srand(seed);
         random_functions::setSeed(seed);
 
-        /* Create partitioner */
+        /* Create partitioner (order matches freight.cpp initialize_onepass_partitioner) */
         partitioner_ = create_partitioner(
             algorithm, k, rec_bisection_base, fennel_gamma,
             sampling_type, n_samples);
+        if (sampling_type == SAMPLING_INACTIVE_LINEAR_COMPLEXITY ||
+            sampling_type == SAMPLING_NEIGHBORS_LINEAR_COMPLEXITY) {
+            partitioner_->enable_self_sorting_array();
+        }
         partitioner_->set_sampling_threashold(sampling_threshold);
 
         /* Instantiate blocks (matching freight.cpp line 105) */
@@ -357,11 +363,19 @@ static py::array_t<int> freight_partition(
         srand(seed);
         random_functions::setSeed(seed);
 
-        /* Create partitioner */
+        /* Create partitioner (order matches freight.cpp initialize_onepass_partitioner) */
         vertex_partitioning* partitioner = create_partitioner(
             algorithm, k, rec_bisection_base, fennel_gamma,
             sampling_type, n_samples);
+        if (sampling_type == SAMPLING_INACTIVE_LINEAR_COMPLEXITY ||
+            sampling_type == SAMPLING_NEIGHBORS_LINEAR_COMPLEXITY) {
+            partitioner->enable_self_sorting_array();
+        }
         partitioner->set_sampling_threashold(sampling_threshold);
+
+        bool use_self_sorting_array =
+            (sampling_type == SAMPLING_INACTIVE_LINEAR_COMPLEXITY ||
+             sampling_type == SAMPLING_NEIGHBORS_LINEAR_COMPLEXITY);
 
         /* Allocate state */
         std::vector<PartitionID> stream_nodes_assign(n, INVALID_PARTITION);
@@ -374,10 +388,29 @@ static py::array_t<int> freight_partition(
         PartitionID next_key = 0;
         std::vector<int64_t> valid_neighboring_nets;
 
+        /* Build edge-to-vertex mapping for evaluation (only needed for multi-pass) */
+        std::vector<std::vector<int64_t>> net_to_nodes;
+        if (num_streams_passes > 1) {
+            net_to_nodes.resize(num_nets);
+            for (int64_t node = 0; node < n; node++) {
+                for (int64_t e = vp(node); e < vp(node + 1); e++) {
+                    net_to_nodes[ve(e)].push_back(node);
+                }
+            }
+        }
+
+        /* Best partition tracking for restreaming */
+        std::vector<PartitionID> best_nodes_assign;
+        std::vector<NodeWeight> best_blocks_weight;
+        double best_objective = std::numeric_limits<double>::max();
+
         /* Multi-pass streaming */
         for (int pass = 0; pass < num_streams_passes; pass++) {
             /* Instantiate blocks (only on first pass due to size > 0 guard) */
             partitioner->instantiate_blocks(n, num_nets, k, imbalance);
+            if (pass > 0 && use_self_sorting_array) {
+                partitioner->reset_sorted_blocks();
+            }
 
             /* Hierarchical mode */
             if (hierarchical && pass == 0) {
@@ -387,25 +420,38 @@ static py::array_t<int> freight_partition(
                 partitioner->create_problem_tree(nn, mm, kk, false, false, kk);
             }
 
-            /* Reset state for restreaming passes */
-            if (pass > 0) {
-                for (auto& block : partitioner->blocks) {
-                    for (size_t t = 0; t < block.e_weight.size(); t++) {
-                        block.e_weight[t] = 0;
-                    }
-                    for (auto&& recp : block.recompute) recp = true;
+            /* Reset thread-local state each pass (matching CLI's OpenMP init block) */
+            std::fill(all_blocks_to_keys.begin(), all_blocks_to_keys.end(), INVALID_PARTITION);
+            next_key = 0;
+
+            /* Restreaming: reset CUT_NET entries in cut-net mode so
+               previously-cut nets can be reconsidered (matches readFirstLineStream) */
+            if (pass > 0 && !use_connectivity) {
+                for (auto& entry : stream_edges_assign) {
+                    if (entry == CUT_NET) entry = INVALID_PARTITION;
                 }
-                std::fill(stream_edges_assign.begin(), stream_edges_assign.end(), INVALID_PARTITION);
-                /* Keep stream_nodes_assign from previous pass */
             }
 
             /* Process all nodes */
             for (int64_t curr_node = 0; curr_node < n; curr_node++) {
                 int my_thread = 0;
 
+                NodeWeight nw_val = has_node_weights ? static_cast<NodeWeight>(nw_ptr[curr_node]) : 1;
+
+                /* Restreaming: remove vertex from its old block before re-evaluating */
+                if (pass > 0) {
+                    PartitionID old_block = stream_nodes_assign[curr_node];
+                    if (old_block != INVALID_PARTITION) {
+                        stream_blocks_weight[old_block] -= 1;
+                        partitioner->remove_nodeweight(old_block, 1);
+                        if (use_self_sorting_array) {
+                            partitioner->decrement_sorted_block(old_block);
+                        }
+                    }
+                }
+
                 /* Skip I/O for hashing */
                 if (algorithm == ONEPASS_HASHING || algorithm == ONEPASS_HASHING_CRC32) {
-                    NodeWeight nw_val = has_node_weights ? static_cast<NodeWeight>(nw_ptr[curr_node]) : 1;
                     PartitionID block = partitioner->solve_node(curr_node, nw_val, my_thread);
                     stream_nodes_assign[curr_node] = block;
                     stream_blocks_weight[block] += 1;
@@ -452,18 +498,11 @@ static py::array_t<int> freight_partition(
                 }
 
                 /* Solve */
-                NodeWeight nw_val = has_node_weights ? static_cast<NodeWeight>(nw_ptr[curr_node]) : 1;
                 PartitionID block = partitioner->solve_node(curr_node, nw_val, my_thread);
 
                 /* Register result */
                 stream_nodes_assign[curr_node] = block;
-
-                if (pass == 0) {
-                    stream_blocks_weight[block] += 1;
-                } else {
-                    /* Restreaming: adjust block weights */
-                    stream_blocks_weight[block] += 1;
-                }
+                stream_blocks_weight[block] += 1;
 
                 /* Update per-net tracking */
                 for (auto& net_id : valid_neighboring_nets) {
@@ -476,6 +515,38 @@ static py::array_t<int> freight_partition(
                     }
                 }
             }
+
+            /* Evaluate this pass and track best partition */
+            if (num_streams_passes > 1) {
+                std::vector<PartitionID> saved_edges_assign = stream_edges_assign;
+
+                double pass_cut = 0, pass_con = 0;
+                for (int64_t net = 0; net < num_nets; net++) {
+                    std::set<PartitionID> blocks_in_net;
+                    for (auto node : net_to_nodes[net]) {
+                        blocks_in_net.insert(stream_nodes_assign[node]);
+                    }
+                    if (blocks_in_net.size() > 1) {
+                        pass_cut += 1;
+                        pass_con += blocks_in_net.size() - 1;
+                    }
+                }
+
+                double pass_objective = use_connectivity ? pass_con : pass_cut;
+                if (pass_objective < best_objective) {
+                    best_objective = pass_objective;
+                    best_nodes_assign = stream_nodes_assign;
+                    best_blocks_weight = stream_blocks_weight;
+                }
+
+                stream_edges_assign = saved_edges_assign;
+            }
+        }
+
+        /* Restore best partition if restreaming was used */
+        if (num_streams_passes > 1 && !best_nodes_assign.empty()) {
+            stream_nodes_assign = best_nodes_assign;
+            stream_blocks_weight = best_blocks_weight;
         }
 
         /* Build result */
@@ -519,7 +590,7 @@ PYBIND11_MODULE(_freight, m) {
           py::arg("hierarchical") = false,
           py::arg("rec_bisection_base") = 2,
           py::arg("fennel_gamma") = 1.5f,
-          py::arg("sampling_type") = (int)SAMPLING_INACTIVE,
+          py::arg("sampling_type") = (int)SAMPLING_INACTIVE_LINEAR_COMPLEXITY,
           py::arg("n_samples") = 0,
           py::arg("sampling_threshold") = 1.0f,
           py::arg("suppress_output") = true,
@@ -555,7 +626,7 @@ PYBIND11_MODULE(_freight, m) {
              py::arg("hierarchical") = false,
              py::arg("rec_bisection_base") = 2,
              py::arg("fennel_gamma") = 1.5f,
-             py::arg("sampling_type") = (int)SAMPLING_INACTIVE,
+             py::arg("sampling_type") = (int)SAMPLING_INACTIVE_LINEAR_COMPLEXITY,
              py::arg("n_samples") = 0,
              py::arg("sampling_threshold") = 1.0f)
         .def("assign_node", &FreightPartitioner::assign_node,

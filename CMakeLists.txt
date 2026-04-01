@@ -2085,32 +2085,6 @@ endif()
 # =============================================================================
 set(FREIGHT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external_repositories/FREIGHT/code_for_hypergraphs)
 
-# --- Patch definitions.h: remove x86intrin.h (ARM compatibility) ---
-file(READ ${FREIGHT_DIR}/lib/definitions.h _SRC)
-string(REPLACE "#include <x86intrin.h>" "// #include <x86intrin.h>  // patched out for portability" _SRC "${_SRC}")
-file(WRITE ${FREIGHT_DIR}/lib/definitions.h "${_SRC}")
-
-# --- Patch random_functions.h: constexpr array too large for some compilers ---
-file(READ ${FREIGHT_DIR}/lib/tools/random_functions.h _SRC)
-string(REPLACE "constexpr ConstRandArray rand_nums = ConstRandArray<TAM>();"
-               "const ConstRandArray rand_nums = ConstRandArray<TAM>();" _SRC "${_SRC}")
-file(WRITE ${FREIGHT_DIR}/lib/tools/random_functions.h "${_SRC}")
-
-# --- Patch buffered_map.h: const-correctness (build() calls non-const redo(),
-#     get_min() called on const refs in comparison operators) ---
-file(READ ${FREIGHT_DIR}/lib/data_structure/buffered_map.h _SRC)
-string(REPLACE "void build() const {" "void build() {" _SRC "${_SRC}")
-string(REPLACE "U& get_min() {" "U& get_min() const {" _SRC "${_SRC}")
-file(WRITE ${FREIGHT_DIR}/lib/data_structure/buffered_map.h "${_SRC}")
-
-# --- Patch vertex_partitioning.h: const-correctness (get_block_address) ---
-file(READ ${FREIGHT_DIR}/lib/partition/onepass_partitioning/vertex_partitioning.h _SRC)
-string(REPLACE "floating_block* get_block_address(PartitionID block_id) const;"
-               "floating_block* get_block_address(PartitionID block_id);" _SRC "${_SRC}")
-string(REPLACE "inline floating_block* vertex_partitioning::get_block_address(PartitionID block_id) const {"
-               "inline floating_block* vertex_partitioning::get_block_address(PartitionID block_id) {" _SRC "${_SRC}")
-file(WRITE ${FREIGHT_DIR}/lib/partition/onepass_partitioning/vertex_partitioning.h "${_SRC}")
-
 set(FREIGHT_SOURCES
     ${FREIGHT_DIR}/lib/partition/onepass_partitioning/vertex_partitioning.cpp
     ${FREIGHT_DIR}/lib/partition/onepass_partitioning/floating_block.cpp
@@ -2140,6 +2114,7 @@ target_compile_definitions(freight_static PUBLIC
     -DNDEBUG
 )
 target_compile_options(freight_static PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>)
+target_compile_options(freight_static PUBLIC $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-march=native>)
 
 if(OpenMP_CXX_FOUND)
     target_link_libraries(freight_static PUBLIC OpenMP::OpenMP_CXX)
