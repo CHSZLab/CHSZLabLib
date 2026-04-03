@@ -16,11 +16,11 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <limits>
 #include <map>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -335,14 +335,18 @@ static py::array_t<int> freight_partition(
 
     bool use_connectivity = (objective_str == "connectivity");
 
-    /* Suppress output */
+    /* Output suppression: the binding never calls FREIGHT I/O functions
+     * that print to cout/cerr, so we use a lightweight null streambuf
+     * instead of opening /dev/null (avoids a syscall per invocation). */
+    struct null_buf : std::streambuf {
+        int overflow(int c) override { return c; }
+    };
+    null_buf nbuf;
     std::streambuf* saved_cout = nullptr;
     std::streambuf* saved_cerr = nullptr;
-    std::ofstream devnull;
     if (suppress_output) {
-        devnull.open("/dev/null");
-        saved_cout = std::cout.rdbuf(devnull.rdbuf());
-        saved_cerr = std::cerr.rdbuf(devnull.rdbuf());
+        saved_cout = std::cout.rdbuf(&nbuf);
+        saved_cerr = std::cerr.rdbuf(&nbuf);
     }
     auto restore_output = [&]() {
         if (suppress_output) {
@@ -386,23 +390,25 @@ static py::array_t<int> freight_partition(
         std::vector<std::pair<PartitionID, EdgeWeight>> neighbor_blocks(k);
         std::vector<PartitionID> all_blocks_to_keys(k, INVALID_PARTITION);
         PartitionID next_key = 0;
-        std::vector<int64_t> valid_neighboring_nets;
 
-        /* Build edge-to-vertex mapping for evaluation (only needed for multi-pass) */
-        std::vector<std::vector<int64_t>> net_to_nodes;
-        if (num_streams_passes > 1) {
-            net_to_nodes.resize(num_nets);
-            for (int64_t node = 0; node < n; node++) {
-                for (int64_t e = vp(node); e < vp(node + 1); e++) {
-                    net_to_nodes[ve(e)].push_back(node);
-                }
-            }
+        /* Per-net bit vectors for connectivity evaluation (multi-pass only).
+         * Cut-net evaluation uses stream_edges_assign directly (count CUT_NET). */
+        size_t k_words = (k + 63) / 64;
+        std::vector<uint64_t> net_block_bits;
+        bool track_bits = (num_streams_passes > 1 && use_connectivity);
+        if (track_bits) {
+            net_block_bits.resize(num_nets * k_words, 0);
         }
 
         /* Best partition tracking for restreaming */
         std::vector<PartitionID> best_nodes_assign;
         std::vector<NodeWeight> best_blocks_weight;
         double best_objective = std::numeric_limits<double>::max();
+        int best_pass = -1;
+        if (num_streams_passes > 1) {
+            best_nodes_assign.resize(n);
+            best_blocks_weight.resize(k);
+        }
 
         /* Multi-pass streaming */
         for (int pass = 0; pass < num_streams_passes; pass++) {
@@ -455,13 +461,19 @@ static py::array_t<int> freight_partition(
                     PartitionID block = partitioner->solve_node(curr_node, nw_val, my_thread);
                     stream_nodes_assign[curr_node] = block;
                     stream_blocks_weight[block] += 1;
+                    if (track_bits) {
+                        uint64_t bit = uint64_t(1) << (block & 63);
+                        size_t word = block >> 6;
+                        for (int64_t e = vp(curr_node); e < vp(curr_node + 1); e++) {
+                            net_block_bits[static_cast<int64_t>(ve(e)) * k_words + word] |= bit;
+                        }
+                    }
                     continue;
                 }
 
                 /* Clear edge weights */
                 partitioner->clear_edgeweight_blocks(neighbor_blocks, next_key, my_thread);
                 next_key = 0;
-                valid_neighboring_nets.clear();
 
                 /* Read node's nets from vptr/vedges CSR */
                 int64_t edge_begin = vp(curr_node);
@@ -472,10 +484,6 @@ static py::array_t<int> freight_partition(
                     EdgeWeight edge_wt = has_edge_weights ? static_cast<EdgeWeight>(ew_ptr[net_id]) : 1;
 
                     PartitionID target_block = stream_edges_assign[net_id];
-
-                    if (target_block != CUT_NET) {
-                        valid_neighboring_nets.push_back(net_id);
-                    }
 
                     if (target_block != INVALID_PARTITION && target_block != CUT_NET) {
                         PartitionID key = all_blocks_to_keys[target_block];
@@ -504,56 +512,75 @@ static py::array_t<int> freight_partition(
                 stream_nodes_assign[curr_node] = block;
                 stream_blocks_weight[block] += 1;
 
-                /* Update per-net tracking */
-                for (auto& net_id : valid_neighboring_nets) {
-                    PartitionID& old_block = stream_edges_assign[net_id];
-                    if (use_connectivity) {
-                        old_block = block;
-                    } else {
-                        old_block = (old_block == block || old_block == INVALID_PARTITION)
-                            ? block : CUT_NET;
+                /* Set per-net block bits for evaluation */
+                if (track_bits) {
+                    uint64_t bit = uint64_t(1) << (block & 63);
+                    size_t word = block >> 6;
+                    for (int64_t e = edge_begin; e < edge_end; e++) {
+                        net_block_bits[static_cast<int64_t>(ve(e)) * k_words + word] |= bit;
+                    }
+                }
+
+                /* Update per-net tracking (re-iterate edges; data is in L1 cache) */
+                for (int64_t e = edge_begin; e < edge_end; e++) {
+                    PartitionID& eblk = stream_edges_assign[ve(e)];
+                    if (eblk != CUT_NET) {
+                        if (use_connectivity) {
+                            eblk = block;
+                        } else {
+                            eblk = (eblk == block || eblk == INVALID_PARTITION)
+                                ? block : CUT_NET;
+                        }
                     }
                 }
             }
 
-            /* Evaluate this pass and track best partition */
+            /* Evaluate this pass and track best partition. */
             if (num_streams_passes > 1) {
-                std::vector<PartitionID> saved_edges_assign = stream_edges_assign;
-
-                double pass_cut = 0, pass_con = 0;
-                for (int64_t net = 0; net < num_nets; net++) {
-                    std::set<PartitionID> blocks_in_net;
-                    for (auto node : net_to_nodes[net]) {
-                        blocks_in_net.insert(stream_nodes_assign[node]);
+                double pass_objective;
+                if (use_connectivity) {
+                    /* Connectivity: popcount on incrementally-built bit vectors */
+                    double pass_con = 0;
+                    for (int64_t net = 0; net < num_nets; net++) {
+                        int distinct = 0;
+                        for (size_t w = 0; w < k_words; w++) {
+                            distinct += __builtin_popcountll(
+                                net_block_bits[net * static_cast<int64_t>(k_words) + w]);
+                        }
+                        if (distinct > 1) pass_con += distinct - 1;
                     }
-                    if (blocks_in_net.size() > 1) {
-                        pass_cut += 1;
-                        pass_con += blocks_in_net.size() - 1;
+                    pass_objective = pass_con;
+                    std::fill(net_block_bits.begin(), net_block_bits.end(), 0);
+                } else {
+                    /* Cut-net: count CUT_NET entries in stream_edges_assign */
+                    double pass_cut = 0;
+                    for (int64_t net = 0; net < num_nets; net++) {
+                        if (stream_edges_assign[net] == CUT_NET) pass_cut += 1;
                     }
+                    pass_objective = pass_cut;
                 }
-
-                double pass_objective = use_connectivity ? pass_con : pass_cut;
                 if (pass_objective < best_objective) {
                     best_objective = pass_objective;
-                    best_nodes_assign = stream_nodes_assign;
-                    best_blocks_weight = stream_blocks_weight;
+                    best_pass = pass;
+                    if (pass < num_streams_passes - 1) {
+                        memcpy(best_nodes_assign.data(),
+                               stream_nodes_assign.data(), n * sizeof(PartitionID));
+                        memcpy(best_blocks_weight.data(),
+                               stream_blocks_weight.data(), k * sizeof(NodeWeight));
+                    }
                 }
-
-                stream_edges_assign = saved_edges_assign;
             }
         }
 
-        /* Restore best partition if restreaming was used */
-        if (num_streams_passes > 1 && !best_nodes_assign.empty()) {
-            stream_nodes_assign = best_nodes_assign;
-            stream_blocks_weight = best_blocks_weight;
-        }
-
-        /* Build result */
+        /* Build result — copy from best source directly to numpy output. */
         py::array_t<int> result(n);
-        auto r = result.mutable_unchecked<1>();
-        for (int64_t i = 0; i < n; i++) {
-            r(i) = static_cast<int>(stream_nodes_assign[i]);
+        static_assert(sizeof(PartitionID) == sizeof(int),
+                      "PartitionID must be same size as int for memcpy");
+        {
+            const auto& source =
+                (num_streams_passes > 1 && best_pass < num_streams_passes - 1)
+                    ? best_nodes_assign : stream_nodes_assign;
+            memcpy(result.mutable_data(), source.data(), n * sizeof(int));
         }
 
         delete partitioner;
