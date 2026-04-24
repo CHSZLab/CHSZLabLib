@@ -190,12 +190,19 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 
 ## Quick Start
 
-**1. Create a Python environment and install CHSZLabLib:**
+**1. Install CHSZLabLib:**
 
 ```bash
 python3 -m venv chszlab_env
 source chszlab_env/bin/activate
 pip install chszlablib
+```
+
+Or via [Homebrew](https://brew.sh/):
+
+```bash
+brew tap CHSZLab/chszlablib
+brew install chszlablib
 ```
 
 **2. Download a sample graph from the [10th DIMACS Implementation Challenge](https://sites.cc.gatech.edu/dimacs10/downloads.shtml):**
