@@ -48,6 +48,13 @@ source chszlab_env/bin/activate
 pip install chszlablib
 ```
 
+Or via [Homebrew](https://brew.sh/) (macOS ARM64, Linux x86_64):
+
+```bash
+brew tap CHSZLab/chszlablib
+brew install chszlablib
+```
+
 
 ## About
 
