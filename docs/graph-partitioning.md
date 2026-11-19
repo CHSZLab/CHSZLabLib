@@ -34,6 +34,7 @@ Decomposition.partition(
     imbalance: float = 0.03,
     seed: int = 0,
     suppress_output: bool = True,
+    connected_blocks: bool = False,
 ) -> PartitionResult
 ```
 
@@ -47,6 +48,7 @@ Decomposition.partition(
 | `imbalance` | `float` | `0.03` | Allowed weight imbalance as a fraction (0.03 = 3%). |
 | `seed` | `int` | `0` | Random seed for reproducibility. |
 | `suppress_output` | `bool` | `True` | Suppress C++ stdout/stderr output. |
+| `connected_blocks` | `bool` | `False` | Make every block a connected subgraph. Requires `mode="strong"`; guaranteed only for connected input graphs. |
 
 #### Available Modes
 
@@ -54,7 +56,8 @@ Decomposition.partition(
 |------|-------|---------|----------|
 | `"fast"` | Fastest | Good | Large-scale exploration |
 | `"eco"` | Balanced | Very good | Default choice |
-| `"strong"` | Slowest | Best | Final production partitions |
+| `"strong"` | Slow | Very high | Final production partitions |
+| `"ultra"` | Slowest (~2x `"strong"`) | Best | Highest quality (`partition` and `evolutionary_partition` only) |
 | `"fastsocial"` | Fastest | Good | Social / power-law networks |
 | `"ecosocial"` | Balanced | Very good | Social / power-law networks |
 | `"strongsocial"` | Slowest | Best | Social / power-law networks |
@@ -72,7 +75,7 @@ Decomposition.partition(
 
 | Exception | Condition |
 |-----------|-----------|
-| `ValueError` | `num_parts < 2` or `imbalance < 0`. |
+| `ValueError` | `num_parts < 2`, `imbalance < 0`, or `connected_blocks=True` with a mode other than `"strong"`. |
 | `InvalidModeError` | `mode` is not one of the valid choices. |
 
 ### Example
@@ -84,6 +87,9 @@ g = Graph.from_metis("mesh.graph")
 result = Decomposition.partition(g, num_parts=8, mode="strong", imbalance=0.01)
 print(f"Edge cut: {result.edgecut}")
 print(f"Block assignments: {result.assignment}")
+
+# Every block a connected subgraph
+connected = Decomposition.partition(g, num_parts=8, mode="strong", connected_blocks=True)
 ```
 
 ---

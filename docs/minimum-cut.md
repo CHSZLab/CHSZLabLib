@@ -10,13 +10,14 @@ VieCut computes the **global minimum cut** of an undirected graph: a partition o
 
 Minimum cuts identify the most vulnerable bottleneck in a network. Applications include network reliability analysis, image segmentation, and connectivity certification.
 
-VieCut provides three algorithms with different exactness/performance trade-offs:
+VieCut provides four algorithms with different exactness/performance trade-offs:
 
 | Algorithm | Description | Complexity |
 |-----------|-------------|------------|
 | `"inexact"` | Heuristic VieCut (shared-memory parallel, near-linear time) | Fastest, not guaranteed optimal |
 | `"exact"` | Shared-memory parallel exact algorithm | Guaranteed optimal |
 | `"cactus"` | Enumerates all minimum cuts via cactus representation | Most comprehensive |
+| `"sw"` | Stoer-Wagner (sequential exact algorithm, VieCut 2.0) | Guaranteed optimal; for small and medium graphs |
 
 ---
 
@@ -53,7 +54,7 @@ Decomposition.mincut(
 
 | Exception | Condition |
 |-----------|-----------|
-| `InvalidModeError` | `algorithm` is not `"inexact"`, `"exact"`, or `"cactus"`. |
+| `InvalidModeError` | `algorithm` is not `"inexact"`, `"exact"`, `"cactus"`, or `"sw"`. |
 
 ### Example
 

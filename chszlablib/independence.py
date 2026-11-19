@@ -562,7 +562,7 @@ class IndependenceProblems:
         (offset, fixed_verts, kernel_eptr, kernel_everts,
          kernel_num_nodes, remap, reduction_time) = _reduce_kernel(
             eptr, everts, hg.num_nodes, time_limit, seed,
-            True, False,  # strong_reductions=True, heuristic=False
+            True,  # strong_reductions
         )
 
         # Start with reduction-fixed vertices

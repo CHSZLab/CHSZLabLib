@@ -6,6 +6,7 @@
 #include <cmath>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdexcept>
 
 #include "kaHIP_interface.h"
 #include "balance_configuration.h"
@@ -19,9 +20,10 @@
 
 namespace py = pybind11;
 
-// ULTRAFASTSOCIAL is not in the original KaHIP interface header
+// ULTRAFASTSOCIAL is a chszlablib-only mode, not in the KaHIP interface header.
+// It uses 7 because KaHIP v3.28 assigns 6 to ULTRA.
 #ifndef ULTRAFASTSOCIAL
-#define ULTRAFASTSOCIAL 6
+#define ULTRAFASTSOCIAL 7
 #endif
 
 // ---------------------------------------------------------------------------
@@ -36,8 +38,11 @@ py_kaffpaE(py::array_t<int, py::array::c_style> vwgt,
            int nparts, double imbalance, bool suppress_output,
            bool graph_partitioned,
            py::array_t<int, py::array::c_style> initial_partition,
-           int time_limit, int seed, int mode)
+           int time_limit, int seed, int mode, bool connected_blocks)
 {
+    if (connected_blocks && mode != STRONG)
+        throw std::invalid_argument("connected_blocks requires mode STRONG");
+
     int n = static_cast<int>(xadj.size() - 1);
 
     int* vwgt_ptr    = vwgt.size()    > 0 ? vwgt.mutable_data()    : nullptr;
@@ -65,6 +70,7 @@ py_kaffpaE(py::array_t<int, py::array::c_style> vwgt,
         case FAST:           cfg.fast(partition_config); break;
         case ECO:            cfg.eco(partition_config); break;
         case STRONG:         cfg.strong(partition_config); break;
+        case ULTRA:          cfg.ultra(partition_config); break;
         case FASTSOCIAL:     cfg.fastsocial(partition_config); break;
         case ULTRAFASTSOCIAL:
             cfg.fastsocial(partition_config);
@@ -75,6 +81,12 @@ py_kaffpaE(py::array_t<int, py::array::c_style> vwgt,
         case ECOSOCIAL:      cfg.ecosocial(partition_config); break;
         case STRONGSOCIAL:   cfg.strongsocial(partition_config); break;
         default:             cfg.eco(partition_config); break;
+    }
+
+    // Same settings as the CLI flag --connected_blocks (parse_parameters.h)
+    if (connected_blocks) {
+        partition_config.connected_blocks      = true;
+        partition_config.bipartition_algorithm = BIPARTITION_BFS;
     }
 
     partition_config.seed       = seed;
@@ -165,7 +177,8 @@ PYBIND11_MODULE(_kahipe, m) {
     m.attr("FASTSOCIAL")     = 3;
     m.attr("ECOSOCIAL")      = 4;
     m.attr("STRONGSOCIAL")   = 5;
-    m.attr("ULTRAFASTSOCIAL") = 6;
+    m.attr("ULTRA")          = 6;
+    m.attr("ULTRAFASTSOCIAL") = 7;
 
     m.def("kaffpaE", &py_kaffpaE,
           py::arg("vwgt"), py::arg("xadj"), py::arg("adjcwgt"),
@@ -173,6 +186,7 @@ PYBIND11_MODULE(_kahipe, m) {
           py::arg("suppress_output"), py::arg("graph_partitioned"),
           py::arg("initial_partition"),
           py::arg("time_limit"), py::arg("seed"), py::arg("mode"),
+          py::arg("connected_blocks") = false,
           R"doc(
           Run KaHIP's evolutionary/memetic graph partitioner (kaffpaE).
 
@@ -201,7 +215,11 @@ PYBIND11_MODULE(_kahipe, m) {
           seed : int
               Random seed.
           mode : int
-              Quality mode (FAST=0, ECO=1, STRONG=2, ...).
+              Quality mode (FAST=0, ECO=1, STRONG=2, ..., ULTRA=6,
+              ULTRAFASTSOCIAL=7).
+          connected_blocks : bool
+              Make every block a connected subgraph (like kaffpaE
+              --connected_blocks; requires mode STRONG and a connected graph).
 
           Returns
           -------

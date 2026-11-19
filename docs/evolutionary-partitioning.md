@@ -26,6 +26,7 @@ Decomposition.evolutionary_partition(
     seed: int = 0,
     suppress_output: bool = True,
     initial_partition: np.ndarray | None = None,
+    connected_blocks: bool = False,
 ) -> PartitionResult
 ```
 
@@ -41,6 +42,7 @@ Decomposition.evolutionary_partition(
 | `seed` | `int` | `0` | Random seed for reproducibility. |
 | `suppress_output` | `bool` | `True` | Suppress C++ stdout/stderr output. |
 | `initial_partition` | `np.ndarray` or `None` | `None` | Optional warm-start partition (one block ID per node, int32). If provided, the evolutionary search begins from this solution. |
+| `connected_blocks` | `bool` | `False` | Make every block a connected subgraph. Requires `mode="strong"`; guaranteed only for connected input graphs. |
 
 #### Available Modes
 
@@ -48,7 +50,8 @@ Decomposition.evolutionary_partition(
 |------|-------|---------|-------|
 | `"fast"` | Fastest | Good | Quick initial exploration |
 | `"eco"` | Balanced | Very good | Good default |
-| `"strong"` | Slowest | Best | Maximum quality |
+| `"strong"` | Slow | Very high | Maximum quality |
+| `"ultra"` | Slowest | Best | KaHIP v3.28 preconfiguration, ~2x `"strong"` time |
 | `"fastsocial"` | Fastest | Good | Optimized for social/power-law graphs |
 | `"ecosocial"` | Balanced | Very good | Social/power-law graphs |
 | `"strongsocial"` | Slowest | Best | Social/power-law graphs |
@@ -68,7 +71,7 @@ Decomposition.evolutionary_partition(
 
 | Exception | Condition |
 |-----------|-----------|
-| `ValueError` | `num_parts < 2`, `time_limit < 0`, or `imbalance < 0`. |
+| `ValueError` | `num_parts < 2`, `time_limit < 0`, `imbalance < 0`, or `connected_blocks=True` with a mode other than `"strong"`. |
 | `InvalidModeError` | `mode` is not one of the valid choices. |
 
 ### Example

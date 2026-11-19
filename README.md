@@ -137,7 +137,7 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 
 | Library | Domain | Algorithms |
 |:--------|:-------|:-----------|
-| [KaHIP](docs/graph-partitioning.md) | Graph partitioning | KaFFPa (6 modes), KaFFPaE (evolutionary), node separators, nested dissection |
+| [KaHIP](docs/graph-partitioning.md) | Graph partitioning | KaFFPa (7 modes incl. `ultra`), connected blocks, KaFFPaE (evolutionary), node separators, nested dissection |
 | [HeiStream](docs/streaming-partitioning.md) | Streaming partitioning | Fennel, BuffCut, parallel pipeline, restreaming |
 | [FREIGHT](docs/streaming-hypergraph-partitioning.md) | Streaming hypergraph partitioning | Fennel, Fennel Approx Sqrt, LDG, Hashing (one-pass, O(k+nets) memory) |
 | [SharedMap](docs/process-mapping.md) | Process mapping | Hierarchical process mapping (fast/eco/strong modes) |
@@ -146,7 +146,7 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 
 | Library | Domain | Algorithms |
 |:--------|:-------|:-----------|
-| [VieClus](docs/graph-clustering.md) | Community detection | Modularity-maximizing evolutionary clustering |
+| [VieClus](docs/graph-clustering.md) | Community detection | Modularity-maximizing evolutionary clustering, optional Leiden mode (connected clusters) |
 | [SCC](docs/correlation-clustering.md) | Correlation clustering | Label propagation + evolutionary on signed graphs |
 | [HeidelbergMotifClustering](docs/local-motif-clustering.md) | Local clustering | Triangle-motif-based flow and partitioning methods |
 | [CluStRE](docs/streaming-clustering.md) | Streaming graph clustering | Streaming modularity clustering with restreaming and local search |
@@ -155,7 +155,7 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 
 | Library | Domain | Algorithms |
 |:--------|:-------|:-----------|
-| [VieCut](docs/minimum-cut.md) | Minimum cuts | Inexact (parallel heuristic), Exact (parallel), Cactus (parallel) |
+| [VieCut](docs/minimum-cut.md) | Minimum cuts | Inexact (parallel heuristic), Exact (parallel), Cactus (parallel), Stoer-Wagner |
 | [fpt-max-cut](docs/maximum-cut.md) | Maximum cut | FPT kernelization + heuristic/exact solvers |
 | [HeiCut](docs/hypergraph-minimum-cut.md) | Hypergraph minimum cut | Kernelization, submodular minimization, ILP, k-trimmed certificates |
 
@@ -166,7 +166,7 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 | [KaMIS](docs/maximum-independent-set.md) | Independent set | ReduMIS, OnlineMIS, Branch&Reduce, MMWIS |
 | [CHILS](docs/concurrent-mwis.md) | Weighted independent set | Concurrent heuristic independent local search |
 | [LearnAndReduce](docs/learn-and-reduce.md) | MWIS kernelization | GNN-guided reduction rules + kernel solve + lift |
-| [HyperMIS](docs/hypergraph-independent-set.md) | Hypergraph independent set | Kernelization reductions (+ optional ILP via Gurobi) |
+| [HyperMIS](docs/hypergraph-independent-set.md) | Hypergraph independent set | Kernelization reductions + exact ILP on the kernel (Gurobi) |
 | [HeiHGM/Bmatching](docs/hypergraph-b-matching.md) | Hypergraph b-matching | Greedy (7 orderings), reductions+ILP+unfold, ILS |
 | [HeiHGM/Streaming](docs/hypergraph-b-matching.md) | Streaming hypergraph matching | Naive, greedy, greedy\_set, best\_evict, lenient |
 | [red2pack](docs/two-packing.md) | Maximum 2-packing set | Exact, DRP, CHILS, HtWIS, HILS, MMWIS, OnlineMIS, ILP |
@@ -232,6 +232,9 @@ for u, v in [(0,1), (1,2), (2,0), (3,4), (4,5), (5,3), (2,3)]:
 # --- Partitioning (KaHIP) ---
 p = Decomposition.partition(g, num_parts=2, mode="strong")
 print(f"Edge cut: {p.edgecut}, assignment: {p.assignment}")
+
+# Every block a connected subgraph (KaHIP connected blocks)
+cp = Decomposition.partition(g, num_parts=2, mode="strong", connected_blocks=True)
 
 # Evolutionary partitioning (KaHIP)
 ep = Decomposition.evolutionary_partition(g, num_parts=2, time_limit=5)
@@ -409,7 +412,7 @@ The build script handles everything automatically:
 |:--------|:--------|
 | `networkx` | `Graph.from_networkx()` / `to_networkx()` conversions |
 | `scipy` | `Graph.from_scipy_sparse()` / `to_scipy_sparse()` conversions |
-| `gurobipy` | Exact ILP solver for `IndependenceProblems.hypermis(method="exact")` — requires a [Gurobi license](https://www.gurobi.com/downloads/) |
+| `gurobipy` | Exact ILP solver used by `IndependenceProblems.hypermis` — requires a [Gurobi license](https://www.gurobi.com/downloads/) |
 | OpenMP | Optional (enables parallelism in VieClus, CHILS, HeiStream) |
 
 ---
@@ -621,7 +624,8 @@ $$c(V_i) \leq (1 + \varepsilon) \left\lceil \frac{c(V)}{k} \right\rceil \quad \t
 where $\varepsilon \geq 0$ is the allowed imbalance. The problem is NP-hard; KaHIP uses a multilevel approach with local search refinement.
 
 ```python
-Decomposition.partition(g, num_parts=2, mode="eco", imbalance=0.03, seed=0) -> PartitionResult
+Decomposition.partition(g, num_parts=2, mode="eco", imbalance=0.03, seed=0,
+                        connected_blocks=False) -> PartitionResult
 ```
 
 | Parameter | Type | Default | Description |
@@ -630,6 +634,7 @@ Decomposition.partition(g, num_parts=2, mode="eco", imbalance=0.03, seed=0) -> P
 | `mode` | `str` | `"eco"` | Quality/speed trade-off |
 | `imbalance` | `float` | `0.03` | Allowed weight imbalance (0.03 = 3%) |
 | `seed` | `int` | `0` | Random seed for reproducibility |
+| `connected_blocks` | `bool` | `False` | Make every block a connected subgraph (requires `mode="strong"` and a connected input graph) |
 
 **Partitioning modes:**
 
@@ -637,10 +642,15 @@ Decomposition.partition(g, num_parts=2, mode="eco", imbalance=0.03, seed=0) -> P
 |:-----|:------|:--------|:---------|
 | `"fast"` | Fastest | Good | Large-scale exploration |
 | `"eco"` | Balanced | Very good | Default choice |
-| `"strong"` | Slowest | Best | Final production partitions |
+| `"strong"` | Slow | Very high | Final production partitions |
+| `"ultra"` | Slowest (~2x `"strong"`) | Best | Highest quality (KaHIP v3.28 preconfiguration) |
 | `"fastsocial"` | Fastest | Good | Social / power-law networks |
 | `"ecosocial"` | Balanced | Very good | Social / power-law networks |
 | `"strongsocial"` | Slowest | Best | Social / power-law networks |
+
+`node_separator` and `node_ordering` accept the same modes except `"ultra"`.
+
+**Connected blocks.** With `connected_blocks=True`, KaHIP ensures that every block induces a connected subgraph, using connectivity-aware refinement, component elimination and greedy rebalancing. This is supported only with `mode="strong"`; other modes raise `ValueError`. If the input graph is disconnected, connected blocks cannot be guaranteed.
 
 **Result: `PartitionResult`** — `edgecut` (int), `assignment` (ndarray).
 
@@ -650,6 +660,9 @@ from chszlablib import Graph, Decomposition
 g = Graph.from_metis("mesh.graph")
 p = Decomposition.partition(g, num_parts=8, mode="strong", imbalance=0.01)
 print(f"Edgecut: {p.edgecut}")
+
+u = Decomposition.partition(g, num_parts=8, mode="ultra")
+c = Decomposition.partition(g, num_parts=8, mode="strong", connected_blocks=True)
 ```
 
 
@@ -662,8 +675,11 @@ print(f"Edgecut: {p.edgecut}")
 ```python
 Decomposition.evolutionary_partition(g, num_parts, time_limit, mode="strong",
                                      imbalance=0.03, seed=0,
-                                     initial_partition=None) -> PartitionResult
+                                     initial_partition=None,
+                                     connected_blocks=False) -> PartitionResult
 ```
+
+Modes: all `partition` modes (including `"ultra"`) plus `"ultrafastsocial"`. `connected_blocks=True` (with `mode="strong"`) makes every block a connected subgraph, as in `partition`.
 
 **Result: `PartitionResult`** with `edgecut`, `assignment`, and `balance`.
 
@@ -841,10 +857,10 @@ print(f"PE assignment: {result.assignment}")
 
 $$Q = \frac{1}{2m} \sum_{u, v \in V} \left[ A_{uv} - \frac{d_u ~ d_v}{2m} \right] \delta\bigl(c(u), c(v)\bigr),$$
 
-where $A_{uv}$ is the adjacency matrix entry, $d_v$ is the degree of node $v$, $c(v)$ denotes the cluster of $v$, and $\delta$ is the Kronecker delta. Modularity quantifies the density of edges within clusters relative to a random graph with the same degree sequence. VieClus uses an evolutionary algorithm with multilevel refinement to maximize this objective.
+where $A_{uv}$ is the adjacency matrix entry, $d_v$ is the degree of node $v$, $c(v)$ denotes the cluster of $v$, and $\delta$ is the Kronecker delta. Modularity quantifies the density of edges within clusters relative to a random graph with the same degree sequence. VieClus uses an evolutionary algorithm with multilevel refinement to maximize this objective. With `leiden=True`, VieClus uses the Leiden algorithm (Traag, Waltman, van Eck, 2019) instead of Louvain as its core clustering method, which guarantees that every cluster is a connected subgraph; `leiden_theta` (default `0.01`) is the Leiden refinement temperature.
 
 ```python
-Decomposition.cluster(g, time_limit=1.0, seed=0, cluster_upperbound=0) -> ClusterResult
+Decomposition.cluster(g, time_limit=1.0, seed=0, cluster_upperbound=0, leiden=False, leiden_theta=0.01) -> ClusterResult
 ```
 
 **Result: `ClusterResult`** — `modularity` (float), `num_clusters` (int), `assignment` (ndarray).
@@ -995,6 +1011,7 @@ Decomposition.mincut(g, algorithm="inexact", seed=0) -> MincutResult
 | VieCut (heuristic) | `"inexact"` | Parallel near-linear time; best for large graphs |
 | Exact | `"exact"` | Shared-memory parallel exact algorithm |
 | Cactus | `"cactus"` | Enumerates all minimum cuts (parallel) |
+| Stoer-Wagner | `"sw"` | Exact, sequential; for small and medium graphs |
 
 **Result: `MincutResult`** — `cut_value` (int), `partition` (ndarray 0/1).
 
@@ -1094,7 +1111,7 @@ Maximum independent set, maximum weight independent set, and matching solvers.
 | [`chils`](#api-chils) | Maximum weight independent set (concurrent local search) | CHILS |
 | [`learn_and_reduce`](#api-learn-and-reduce) | Maximum weight independent set (GNN-guided kernelization) | LearnAndReduce |
 | [`two_packing`](#api-two-packing) | Maximum (weighted) 2-packing set (reduce-and-transform) | red2pack |
-| [`hypermis`](#api-hypermis) | Maximum independent set on hypergraphs (heuristic or exact) | HyperMIS |
+| [`hypermis`](#api-hypermis) | Maximum independent set on hypergraphs (reductions + exact ILP) | HyperMIS |
 | [`bmatching`](#api-bmatching) | Hypergraph b-matching (greedy, reductions+ILP, ILS) | HeiHGM/Bmatching |
 | [`StreamingBMatcher`](#api-streamingbmatcher) | Streaming hypergraph matching | HeiHGM/Streaming |
 
@@ -1282,22 +1299,17 @@ print(f"2-packing weight: {result.weight}, vertices: {result.vertices}")
 
 $$\max_{I \subseteq V} |I| \quad \text{subject to} \quad |I \cap e| \leq 1 \quad \text{for all } e \in E.$$
 
-This is stricter than graph independence: every hyperedge may contribute **at most one** vertex to $I$. Two solving strategies are available:
-
-- **`"heuristic"`** (default) — kernelization reductions + greedy heuristic peeling in C++. Fast, but not provably optimal.
-- **`"exact"`** — kernelization reductions (no heuristic), then the remaining kernel is solved exactly via an ILP formulation using `gurobipy`. Requires `pip install gurobipy` and a valid [Gurobi license](https://www.gurobi.com/downloads/).
+This is stricter than graph independence: every hyperedge may contribute **at most one** vertex to $I$. HyperMIS first applies its kernelization reductions in C++ (including unconfined vertex removal), then solves the remaining kernel exactly via an ILP formulation using `gurobipy`. Requires `pip install gurobipy` and a valid [Gurobi license](https://www.gurobi.com/downloads/).
 
 ```python
-IndependenceProblems.hypermis(hg, method="heuristic", time_limit=60.0, seed=0, strong_reductions=True) -> HyperMISResult
+IndependenceProblems.hypermis(hg, time_limit=60.0, seed=0) -> HyperMISResult
 ```
 
 | Parameter | Type | Default | Description |
 |:----------|:-----|:--------|:------------|
 | `hg` | `HyperGraph` | — | Input hypergraph |
-| `method` | `"heuristic"` \| `"exact"` | `"heuristic"` | Solving strategy |
-| `time_limit` | `float` | `60.0` | Time budget in seconds (also used as Gurobi time limit for `"exact"`) |
+| `time_limit` | `float` | `60.0` | Time budget in seconds for reductions plus ILP (the ILP gets the time left after reductions) |
 | `seed` | `int` | `0` | Random seed for reproducibility |
-| `strong_reductions` | `bool` | `True` | Enable aggressive reductions (unconfined vertices, larger edge thresholds) |
 
 **Result: `HyperMISResult`** — `size` (int), `weight` (int), `vertices` (ndarray), `offset` (int — vertices fixed by reductions), `reduction_time` (float — seconds spent reducing), `is_optimal` (bool — `True` if the ILP proved optimality).
 
@@ -1306,16 +1318,12 @@ from chszlablib import HyperGraph, IndependenceProblems
 
 hg = HyperGraph.from_edge_list([[0, 1, 2], [2, 3, 4], [4, 5]])
 
-# Heuristic (always available, fast)
+# Reductions + exact ILP on the kernel (requires: pip install gurobipy)
 result = IndependenceProblems.hypermis(hg, time_limit=10.0)
-print(f"IS size: {result.size}, vertices: {result.vertices}")
-
-# Exact solve via ILP (requires: pip install gurobipy)
-result = IndependenceProblems.hypermis(hg, method="exact", time_limit=10.0)
-print(f"IS size: {result.size}, optimal: {result.is_optimal}")
+print(f"IS size: {result.size}, vertices: {result.vertices}, optimal: {result.is_optimal}")
 ```
 
-> **Note:** Check `IndependenceProblems.HYPERMIS_ILP_AVAILABLE` at runtime to see if `gurobipy` is installed. Valid methods are listed in `IndependenceProblems.HYPERMIS_METHODS`.
+> **Note:** Check `IndependenceProblems.HYPERMIS_ILP_AVAILABLE` at runtime to see if `gurobipy` is installed; without it, `hypermis` raises `ImportError`.
 
 
 <a id="api-bmatching"></a>
@@ -1895,7 +1903,7 @@ CHSZLabLib/
 | Find a large independent set | `IndependenceProblems.redumis` | `time_limit` |
 | Find max-weight independent set | `IndependenceProblems.chils` | `time_limit`, `num_concurrent` |
 | MWIS with GNN-guided kernelization | `IndependenceProblems.learn_and_reduce` | `solver`, `config`, `gnn_filter` |
-| Independent set on a hypergraph | `IndependenceProblems.hypermis` | `method`, `time_limit`, `strong_reductions` |
+| Independent set on a hypergraph | `IndependenceProblems.hypermis` | `time_limit`, `seed` |
 | Find max-weight b-matching on hypergraph | `IndependenceProblems.bmatching` | `algorithm`, `seed`, `ILP_time_limit` |
 | Stream hypergraph edges for matching | `StreamingBMatcher` | `algorithm`, `epsilon` |
 | Orient edges (min max out-degree) | `Orientation.orient_edges` | `algorithm` |
@@ -1938,8 +1946,7 @@ fp = FreightPartitioner(num_nodes=6, num_nets=3, k=2)                   # true s
 fp.assign_node(0, nets=[[0,1,2],[0,4,5]]); fp.get_assignment()          # stream & collect
 
 hg = HyperGraph.from_edge_list([[0,1,2],[2,3,4],[4,5]])
-IndependenceProblems.hypermis(hg)                                       # hypergraph IS (heuristic)
-IndependenceProblems.hypermis(hg, method="exact")                       # hypergraph IS (exact, needs gurobipy)
+IndependenceProblems.hypermis(hg)                                       # hypergraph IS (reductions + ILP, needs gurobipy)
 Decomposition.hypergraph_mincut(hg)                                     # hypergraph min-cut (kernelizer)
 Decomposition.hypergraph_mincut(hg, algorithm="submodular")             # hypergraph min-cut (submodular)
 

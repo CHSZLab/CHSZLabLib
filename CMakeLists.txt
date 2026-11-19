@@ -154,6 +154,8 @@ set(VIECLUS_CLUSTERING_SOURCES
     ${VIECLUS_DIR}/lib/parallel_mh_clustering/exchange/exchanger_clustering.cpp
     ${VIECLUS_DIR}/lib/tools/graph_communication.cpp
     ${VIECLUS_DIR}/lib/clustering/louvainmethod.cpp
+    ${VIECLUS_DIR}/lib/clustering/leidenmethod.cpp
+    ${VIECLUS_DIR}/lib/clustering/connectivity.cpp
     ${VIECLUS_DIR}/lib/clustering/labelpropagation.cpp
     ${VIECLUS_DIR}/lib/clustering/neighborhood.cpp
     ${VIECLUS_DIR}/lib/clustering/coarsening/coarsening.cpp
@@ -171,6 +173,8 @@ add_library(vieclus_static STATIC
 
 target_include_directories(vieclus_static PUBLIC
     ${VIECLUS_DIR}
+    ${VIECLUS_DIR}/lib                                 # before extern/KaHIP/lib (as upstream): VieClus's own parallel_mh_clustering headers
+    ${VIECLUS_DIR}/app
     ${VIECLUS_DIR}/extern/KaHIP/app
     ${VIECLUS_DIR}/extern/argtable3-3.0.3
     ${VIECLUS_DIR}/extern/KaHIP/lib
@@ -178,8 +182,6 @@ target_include_directories(vieclus_static PUBLIC
     ${VIECLUS_DIR}/extern/KaHIP/lib/partition
     ${VIECLUS_DIR}/extern/KaHIP/lib/partition/uncoarsening/refinement/quotient_graph_refinement/flow_refinement
     ${VIECLUS_DIR}/extern/KaHIP/lib/tools
-    ${VIECLUS_DIR}/lib
-    ${VIECLUS_DIR}/app
     ${VIECLUS_DIR}/interface
 )
 
@@ -1512,6 +1514,7 @@ add_library(kahipe_static STATIC
     ${KAHIPE_DIR}/lib/tools/graph_extractor.cpp
     ${KAHIPE_DIR}/lib/tools/misc.cpp
     ${KAHIPE_DIR}/lib/tools/partition_snapshooter.cpp
+    ${KAHIPE_DIR}/lib/partition/connected_blocks.cpp
     ${KAHIPE_DIR}/lib/partition/graph_partitioner.cpp
     ${KAHIPE_DIR}/lib/partition/w_cycles/wcycle_partitioner.cpp
     ${KAHIPE_DIR}/lib/partition/coarsening/coarsening.cpp
@@ -1541,6 +1544,7 @@ add_library(kahipe_static STATIC
     ${KAHIPE_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/advanced_models.cpp
     ${KAHIPE_DIR}/lib/partition/uncoarsening/refinement/cycle_improvements/cycle_refinement.cpp
     ${KAHIPE_DIR}/lib/partition/uncoarsening/refinement/mixed_refinement.cpp
+    ${KAHIPE_DIR}/lib/partition/uncoarsening/refinement/jet_refinement/jet_refinement.cpp
     ${KAHIPE_DIR}/lib/partition/uncoarsening/refinement/label_propagation_refinement/label_propagation_refinement.cpp
     ${KAHIPE_DIR}/lib/partition/uncoarsening/refinement/refinement.cpp
     ${KAHIPE_DIR}/lib/partition/uncoarsening/refinement/quotient_graph_refinement/2way_fm_refinement/two_way_fm.cpp
@@ -2620,6 +2624,7 @@ add_library(heicut_static STATIC
     ${HEICUT_DIR}/lib/solvers/kernelizer.cpp
     ${HEICUT_DIR}/lib/solvers/submodular.cpp
     ${HEICUT_DIR}/lib/coarsening/label_propagation.cpp
+    ${HEICUT_DIR}/lib/conversion/hypergraph_converter.cpp
     ${HEICUT_DIR}/lib/decomposition/core_decomposition.cpp
     ${HEICUT_DIR}/lib/trimmer/trimmer.cpp
     ${HEICUT_DIR}/lib/parse_parameters/parse_parameters.cpp

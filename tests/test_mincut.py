@@ -52,9 +52,38 @@ def test_mincut_weighted():
     assert result.cut_value == 1
 
 
-@pytest.mark.parametrize("algo", ["inexact", "exact", "cactus"])
+@pytest.mark.parametrize("algo", ["inexact", "exact", "cactus", "sw"])
 def test_mincut_algorithms(algo):
     """Verify multiple algorithms agree on the barbell graph."""
     g = make_barbell()
     result = Decomposition.mincut(g, algorithm=algo)
     assert result.cut_value == 1, f"Algorithm {algo} returned {result.cut_value}"
+
+
+def test_mincut_sw_matches_exact():
+    """Stoer-Wagner agrees with the exact algorithm on a random weighted graph."""
+    rng = np.random.default_rng(7)
+    n = 60
+    g = Graph(num_nodes=n)
+    for i in range(n - 1):  # path keeps the graph connected
+        g.add_edge(i, i + 1, weight=int(rng.integers(1, 10)))
+    extra = set()
+    while len(extra) < 120:
+        u, v = sorted(int(x) for x in rng.integers(0, n, size=2))
+        if v - u > 1:
+            extra.add((u, v))
+    for u, v in sorted(extra):
+        g.add_edge(u, v, weight=int(rng.integers(1, 10)))
+    sw = Decomposition.mincut(g, algorithm="sw")
+    exact = Decomposition.mincut(g, algorithm="exact")
+    assert sw.cut_value == exact.cut_value
+    # The returned side must realize the reported cut value.
+    side = sw.partition
+    assert 0 < side.sum() < n
+    g.finalize()
+    cut = sum(
+        int(w) for u in range(n)
+        for v, w in zip(g.adjncy[g.xadj[u]:g.xadj[u + 1]], g.edge_weights[g.xadj[u]:g.xadj[u + 1]])
+        if side[u] != side[v]
+    ) // 2
+    assert cut == sw.cut_value

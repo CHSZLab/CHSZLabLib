@@ -23,15 +23,21 @@ _MODE_MAP = {
     "strongsocial": 5,
 }
 
-_KAFFPAE_MODE_MAP = {
+_PARTITION_MODE_MAP = {
     **_MODE_MAP,
-    "ultrafastsocial": 6,
+    "ultra": 6,
+}
+
+_KAFFPAE_MODE_MAP = {
+    **_PARTITION_MODE_MAP,
+    "ultrafastsocial": 7,
 }
 
 _MINCUT_ALGO_MAP = {
     "inexact": "inexact",
     "exact": "exact",
     "cactus": "cactus",
+    "sw": "sw",
 }
 
 FreightAlgorithm = Literal[
@@ -64,12 +70,16 @@ _PROCESS_MAP_ALGORITHM_SET = {
 PartitionMode = Literal[
     "fast", "eco", "strong", "fastsocial", "ecosocial", "strongsocial",
 ]
+KaFFPaMode = Literal[
+    "fast", "eco", "strong", "fastsocial", "ecosocial", "strongsocial",
+    "ultra",
+]
 KaFFPaEMode = Literal[
     "fast", "eco", "strong", "fastsocial", "ecosocial", "strongsocial",
-    "ultrafastsocial",
+    "ultra", "ultrafastsocial",
 ]
 MincutAlgorithm = Literal[
-    "inexact", "exact", "cactus",
+    "inexact", "exact", "cactus", "sw",
 ]
 MaxcutMethod = Literal["heuristic", "exact"]
 MotifMethod = Literal["social", "lmchgp"]
@@ -223,17 +233,19 @@ class Decomposition:
 
     PARTITION_MODES: tuple[str, ...] = (
         "fast", "eco", "strong", "fastsocial", "ecosocial", "strongsocial",
+        "ultra",
     )
-    """Valid modes for :meth:`partition`, :meth:`node_separator`, :meth:`node_ordering`."""
+    """Valid modes for :meth:`partition` (:meth:`node_separator` and
+    :meth:`node_ordering` accept all of them except ``"ultra"``)."""
 
     KAFFPAE_MODES: tuple[str, ...] = (
         "fast", "eco", "strong", "fastsocial", "ecosocial", "strongsocial",
-        "ultrafastsocial",
+        "ultra", "ultrafastsocial",
     )
     """Valid modes for :meth:`evolutionary_partition`."""
 
     MINCUT_ALGORITHMS: tuple[str, ...] = (
-        "inexact", "exact", "cactus",
+        "inexact", "exact", "cactus", "sw",
     )
     """Valid algorithms for :meth:`mincut`."""
 
@@ -303,10 +315,11 @@ class Decomposition:
     def partition(
         g: Graph,
         num_parts: int = 2,
-        mode: PartitionMode = "eco",
+        mode: KaFFPaMode = "eco",
         imbalance: float = 0.03,
         seed: int = 0,
         suppress_output: bool = True,
+        connected_blocks: bool = False,
     ) -> PartitionResult:
         """Partition a graph into *num_parts* balanced blocks using KaHIP.
 
@@ -332,7 +345,8 @@ class Decomposition:
             =================  =========  ===========  =============================
             ``"fast"``         Fastest    Good         Large-scale exploration
             ``"eco"``          Balanced   Very good    Default choice
-            ``"strong"``       Slowest    Best         Final production partitions
+            ``"strong"``       Slow       Very high    Final production partitions
+            ``"ultra"``        Slowest    Best         Highest quality (~2x ``"strong"`` time)
             ``"fastsocial"``   Fastest    Good         Social / power-law networks
             ``"ecosocial"``    Balanced   Very good    Social / power-law networks
             ``"strongsocial"`` Slowest    Best         Social / power-law networks
@@ -344,6 +358,10 @@ class Decomposition:
             Random seed for reproducibility.
         suppress_output : bool
             If True, suppress stdout/stderr from the C++ algorithm.
+        connected_blocks : bool
+            If True, every block is a connected subgraph (KaHIP
+            ``--connected_blocks``). Requires ``mode="strong"``; connectivity is
+            only guaranteed if the input graph is connected.
 
         Returns
         -------
@@ -354,7 +372,8 @@ class Decomposition:
         Raises
         ------
         ValueError
-            If ``num_parts < 2`` or ``imbalance < 0``.
+            If ``num_parts < 2``, ``imbalance < 0``, or ``connected_blocks``
+            is used with a mode other than ``"strong"``.
         InvalidModeError
             If ``mode`` is not recognized.
 
@@ -363,6 +382,7 @@ class Decomposition:
         >>> g = Graph.from_metis("mesh.graph")
         >>> p = Decomposition.partition(g, num_parts=8, mode="strong", imbalance=0.01)
         >>> print(f"Edgecut: {p.edgecut}")
+        >>> c = Decomposition.partition(g, num_parts=8, mode="strong", connected_blocks=True)
         """
         from chszlablib._kahip import kaffpa
 
@@ -370,7 +390,11 @@ class Decomposition:
             raise ValueError(f"num_parts must be >= 2, got {num_parts}")
         if imbalance < 0:
             raise ValueError(f"imbalance must be >= 0, got {imbalance}")
-        mode_code = _validate_mode(mode, _MODE_MAP)
+        mode_code = _validate_mode(mode, _PARTITION_MODE_MAP)
+        if connected_blocks and mode_code != _MODE_MAP["strong"]:
+            raise ValueError(
+                f"connected_blocks requires mode='strong', got {mode!r}"
+            )
 
         g.finalize()
         vwgt = g.node_weights.astype(np.int32, copy=False)
@@ -381,7 +405,7 @@ class Decomposition:
         edgecut, part = kaffpa(
             vwgt, xadj, adjcwgt, adjncy,
             num_parts, imbalance, suppress_output, seed,
-            mode_code,
+            mode_code, connected_blocks,
         )
         return PartitionResult(edgecut=edgecut, assignment=part)
 
@@ -538,6 +562,7 @@ class Decomposition:
         seed: int = 0,
         suppress_output: bool = True,
         initial_partition: np.ndarray | None = None,
+        connected_blocks: bool = False,
     ) -> PartitionResult:
         """Partition a graph using KaHIP's evolutionary/memetic algorithm (KaFFPaE).
 
@@ -565,6 +590,7 @@ class Decomposition:
             =====================  =========  ===========
             Mode                   Speed      Quality
             =====================  =========  ===========
+            ``"ultra"``            Slowest    Best
             ``"ultrafastsocial"``  Fastest    Baseline
             =====================  =========  ===========
 
@@ -578,6 +604,10 @@ class Decomposition:
             Optional warm-start partition (one block ID per node). If provided,
             the evolutionary algorithm begins from this solution instead of
             computing initial partitions from scratch.
+        connected_blocks : bool
+            If True, every block is a connected subgraph (KaFFPaE
+            ``--connected_blocks``). Requires ``mode="strong"``; connectivity is
+            only guaranteed if the input graph is connected.
 
         Returns
         -------
@@ -589,7 +619,8 @@ class Decomposition:
         Raises
         ------
         ValueError
-            If ``num_parts < 2``, ``time_limit < 0``, or ``imbalance < 0``.
+            If ``num_parts < 2``, ``time_limit < 0``, ``imbalance < 0``, or
+            ``connected_blocks`` is used with a mode other than ``"strong"``.
         InvalidModeError
             If ``mode`` is not recognized.
 
@@ -612,6 +643,10 @@ class Decomposition:
         if imbalance < 0:
             raise ValueError(f"imbalance must be >= 0, got {imbalance}")
         mode_code = _validate_mode(mode, _KAFFPAE_MODE_MAP)
+        if connected_blocks and mode_code != _MODE_MAP["strong"]:
+            raise ValueError(
+                f"connected_blocks requires mode='strong', got {mode!r}"
+            )
 
         g.finalize()
         vwgt = g.node_weights.astype(np.int32, copy=False)
@@ -630,7 +665,7 @@ class Decomposition:
             num_parts, imbalance, suppress_output,
             graph_partitioned, init_part,
             time_limit, seed,
-            mode_code,
+            mode_code, connected_blocks,
         )
         return PartitionResult(edgecut=edgecut, assignment=part, balance=balance)
 
@@ -951,6 +986,7 @@ class Decomposition:
             VieCut (heuristic)  ``"inexact"``    Parallel near-linear time; best for large graphs
             Exact               ``"exact"``      Shared-memory parallel exact algorithm
             Cactus              ``"cactus"``     Enumerates all minimum cuts (parallel)
+            Stoer-Wagner        ``"sw"``         Exact, sequential; for small/medium graphs
             ==================  ===============  ======================================
 
         seed : int
@@ -1097,6 +1133,8 @@ class Decomposition:
         seed: int = 0,
         cluster_upperbound: int = 0,
         suppress_output: bool = True,
+        leiden: bool = False,
+        leiden_theta: float = 0.01,
     ) -> ClusterResult:
         """Cluster a graph using VieClus (modularity maximization).
 
@@ -1121,6 +1159,12 @@ class Decomposition:
             Maximum number of clusters allowed (0 means no limit).
         suppress_output : bool
             If True, suppress stdout/stderr from the C++ algorithm.
+        leiden : bool
+            If True, use the Leiden algorithm (Traag, Waltman, van Eck, 2019)
+            instead of Louvain as the core clustering method. Every cluster
+            is then a connected subgraph.
+        leiden_theta : float
+            Leiden refinement temperature (must be > 0, default 0.01).
 
         Returns
         -------
@@ -1132,7 +1176,7 @@ class Decomposition:
         Raises
         ------
         ValueError
-            If ``time_limit < 0``.
+            If ``time_limit < 0`` or ``leiden_theta <= 0``.
 
         Examples
         --------
@@ -1144,6 +1188,8 @@ class Decomposition:
 
         if time_limit < 0:
             raise ValueError(f"time_limit must be >= 0, got {time_limit}")
+        if leiden_theta <= 0:
+            raise ValueError(f"leiden_theta must be > 0, got {leiden_theta}")
 
         g.finalize()
 
@@ -1153,7 +1199,8 @@ class Decomposition:
         adjncy = g.adjncy.astype(np.int32, copy=False)
 
         modularity, num_clusters, assignment = _cluster(
-            vwgt, xadj, adjcwgt, adjncy, suppress_output, seed, time_limit, cluster_upperbound
+            vwgt, xadj, adjcwgt, adjncy, suppress_output, seed, time_limit, cluster_upperbound,
+            leiden, leiden_theta,
         )
 
         return ClusterResult(

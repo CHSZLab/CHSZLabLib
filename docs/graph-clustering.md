@@ -23,6 +23,8 @@ Decomposition.cluster(
     seed: int = 0,
     cluster_upperbound: int = 0,
     suppress_output: bool = True,
+    leiden: bool = False,
+    leiden_theta: float = 0.01,
 ) -> ClusterResult
 ```
 
@@ -35,6 +37,8 @@ Decomposition.cluster(
 | `seed` | `int` | `0` | Random seed for reproducibility. |
 | `cluster_upperbound` | `int` | `0` | Maximum number of clusters allowed. 0 means no upper bound. |
 | `suppress_output` | `bool` | `True` | Suppress C++ stdout/stderr output. |
+| `leiden` | `bool` | `False` | Use the Leiden algorithm instead of Louvain as the core clustering method. Guarantees that every cluster is a connected subgraph. |
+| `leiden_theta` | `float` | `0.01` | Leiden refinement temperature (must be > 0). |
 
 ### Returns
 
@@ -50,7 +54,7 @@ Decomposition.cluster(
 
 | Exception | Condition |
 |-----------|-----------|
-| `ValueError` | `time_limit < 0`. |
+| `ValueError` | `time_limit < 0` or `leiden_theta <= 0`. |
 
 ### Example
 

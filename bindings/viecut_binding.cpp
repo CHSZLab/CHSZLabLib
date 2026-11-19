@@ -13,6 +13,7 @@
 
 #include "algorithms/global_mincut/algorithms.h"
 #include "algorithms/global_mincut/minimum_cut.h"
+#include "algorithms/global_mincut/stoer_wagner_minimum_cut.h"
 #include "common/configuration.h"
 #include "common/definitions.h"
 #include "data_structure/graph_access.h"
@@ -93,7 +94,11 @@ py_minimum_cut(py::array_t<int32_t, py::array::c_style> xadj,
     close(devnull);
 
     // Select and run algorithm
-    minimum_cut* mc = selectMincutAlgorithm<mutableGraphPtr>(algorithm);
+    // VieCut registers Stoer-Wagner ("sw") only in its sequential build, so it
+    // is constructed here directly; the other names go through VieCut's selector.
+    minimum_cut* mc = algorithm == "sw"
+        ? new stoer_wagner_minimum_cut()
+        : selectMincutAlgorithm<mutableGraphPtr>(algorithm);
     EdgeWeight cut_value = mc->perform_minimum_cut(G);
     delete mc;
 
@@ -148,7 +153,7 @@ PYBIND11_MODULE(_viecut, m) {
           adjwgt : ndarray[int32]
               Edge weights (same length as adjncy).
           algorithm : str
-              Algorithm name: "inexact" (heuristic VieCut), "exact" (shared-memory exact), "cactus" (all minimum cuts).
+              Algorithm name: "inexact" (heuristic VieCut), "exact" (shared-memory exact), "cactus" (all minimum cuts), "sw" (Stoer-Wagner, exact, sequential).
           save_cut : bool
               If True, compute and return the partition assignment.
           seed : int

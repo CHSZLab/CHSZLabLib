@@ -20,7 +20,8 @@ py_cluster(py::array_t<int, py::array::c_style> vwgt,
            py::array_t<int, py::array::c_style> adjcwgt,
            py::array_t<int, py::array::c_style> adjncy,
            bool suppress_output, int seed,
-           double time_limit, int cluster_upperbound)
+           double time_limit, int cluster_upperbound,
+           bool leiden, double leiden_theta)
 {
     int n = static_cast<int>(xadj.size() - 1);
 
@@ -45,6 +46,7 @@ py_cluster(py::array_t<int, py::array::c_style> vwgt,
                        adjcwgt_ptr, adjncy.mutable_data(),
                        suppress_output, seed,
                        time_limit, cluster_upperbound,
+                       leiden, leiden_theta,
                        &modularity, &num_clusters, clustering.mutable_data());
 
     fflush(stdout);
@@ -67,6 +69,7 @@ PYBIND11_MODULE(_vieclus, m) {
           py::arg("vwgt"), py::arg("xadj"), py::arg("adjcwgt"),
           py::arg("adjncy"), py::arg("suppress_output"), py::arg("seed"),
           py::arg("time_limit"), py::arg("cluster_upperbound"),
+          py::arg("leiden") = false, py::arg("leiden_theta") = 0.01,
           R"doc(
           Run VieClus graph clustering.
 
@@ -88,6 +91,10 @@ PYBIND11_MODULE(_vieclus, m) {
               Time limit in seconds.
           cluster_upperbound : int
               Maximum cluster size (0 = no limit).
+          leiden : bool
+              Use the Leiden algorithm instead of Louvain (connected clusters).
+          leiden_theta : float
+              Leiden refinement temperature (default 0.01).
 
           Returns
           -------

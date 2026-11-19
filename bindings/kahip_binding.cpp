@@ -2,6 +2,7 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 #include <cstdlib>
+#include <stdexcept>
 
 #include "kaHIP_interface.h"
 
@@ -16,7 +17,7 @@ py_kaffpa(py::array_t<int, py::array::c_style> vwgt,
           py::array_t<int, py::array::c_style> adjcwgt,
           py::array_t<int, py::array::c_style> adjncy,
           int nparts, double imbalance, bool suppress_output,
-          int seed, int mode)
+          int seed, int mode, bool connected_blocks)
 {
     int n = static_cast<int>(xadj.size() - 1);
 
@@ -26,10 +27,19 @@ py_kaffpa(py::array_t<int, py::array::c_style> vwgt,
     py::array_t<int> part(n);
     int edgecut = 0;
 
-    kaffpa(&n, vwgt_ptr, xadj.mutable_data(),
-           adjcwgt_ptr, adjncy.mutable_data(),
-           &nparts, &imbalance, suppress_output, seed, mode,
-           &edgecut, part.mutable_data());
+    if (connected_blocks) {
+        if (mode != STRONG)
+            throw std::invalid_argument("connected_blocks requires mode STRONG");
+        kaffpa_connected_blocks(&n, vwgt_ptr, xadj.mutable_data(),
+                                adjcwgt_ptr, adjncy.mutable_data(),
+                                &nparts, &imbalance, suppress_output, seed, mode,
+                                &edgecut, part.mutable_data());
+    } else {
+        kaffpa(&n, vwgt_ptr, xadj.mutable_data(),
+               adjcwgt_ptr, adjncy.mutable_data(),
+               &nparts, &imbalance, suppress_output, seed, mode,
+               &edgecut, part.mutable_data());
+    }
 
     return std::make_tuple(edgecut, part);
 }
@@ -101,11 +111,13 @@ PYBIND11_MODULE(_kahip, m) {
     m.attr("FASTSOCIAL")  = 3;
     m.attr("ECOSOCIAL")   = 4;
     m.attr("STRONGSOCIAL") = 5;
+    m.attr("ULTRA")       = 6;
 
     m.def("kaffpa", &py_kaffpa,
           py::arg("vwgt"), py::arg("xadj"), py::arg("adjcwgt"),
           py::arg("adjncy"), py::arg("nparts"), py::arg("imbalance"),
           py::arg("suppress_output"), py::arg("seed"), py::arg("mode"),
+          py::arg("connected_blocks") = false,
           R"doc(
           Run KaHIP's kaffpa graph partitioner.
 
@@ -128,7 +140,10 @@ PYBIND11_MODULE(_kahip, m) {
           seed : int
               Random seed.
           mode : int
-              Quality mode (FAST=0, ECO=1, STRONG=2, ...).
+              Quality mode (FAST=0, ECO=1, STRONG=2, ..., ULTRA=6).
+          connected_blocks : bool
+              Make every block a connected subgraph (kaffpa_connected_blocks;
+              requires mode STRONG and a connected input graph).
 
           Returns
           -------

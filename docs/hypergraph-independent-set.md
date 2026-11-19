@@ -8,14 +8,7 @@
 
 HyperMIS computes a **maximum independent set on a hypergraph**. Given a hypergraph *H = (V, E)* where each hyperedge contains two or more vertices, find a maximum independent set *I* such that for every hyperedge *e* with |e| >= 2, at most one vertex from *e* is in *I*. This is "strong" independence: every hyperedge may contribute at most one vertex to the solution.
 
-Two solving strategies are available:
-
-| Method | Description | Requirements |
-|--------|-------------|--------------|
-| `"heuristic"` | Kernelization reductions + greedy heuristic peeling | None |
-| `"exact"` | Kernelization reductions + ILP on remaining kernel | `gurobipy` + valid Gurobi license |
-
-The heuristic method is fast but not provably optimal. The exact method solves the remaining kernel after reductions via integer linear programming and certifies optimality when feasible.
+HyperMIS first applies its kernelization reductions (including unconfined vertex removal), then solves the remaining kernel exactly via integer linear programming with `gurobipy` (requires a valid Gurobi license). `is_optimal` reports whether the ILP proved optimality within the time limit.
 
 ---
 
@@ -26,10 +19,8 @@ The heuristic method is fast but not provably optimal. The exact method solves t
 ```python
 IndependenceProblems.hypermis(
     hg: HyperGraph,
-    method: str = "heuristic",
     time_limit: float = 60.0,
     seed: int = 0,
-    strong_reductions: bool = True,
 ) -> HyperMISResult
 ```
 
@@ -38,10 +29,8 @@ IndependenceProblems.hypermis(
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `hg` | `HyperGraph` | *required* | Input hypergraph. |
-| `method` | `str` | `"heuristic"` | Solving strategy: `"heuristic"` or `"exact"`. |
-| `time_limit` | `float` | `60.0` | Wall-clock time budget in seconds. Also used as the Gurobi time limit for `"exact"`. |
+| `time_limit` | `float` | `60.0` | Wall-clock time budget in seconds for reductions plus ILP (the ILP gets the time left after reductions). |
 | `seed` | `int` | `0` | Random seed for reproducibility. |
-| `strong_reductions` | `bool` | `True` | Enable aggressive reduction rules (unconfined vertices, larger edge-size threshold). |
 
 ### Returns
 
@@ -54,15 +43,14 @@ IndependenceProblems.hypermis(
 | `vertices` | `np.ndarray` (int32) | Vertex IDs in the independent set. |
 | `offset` | `int` | Number of vertices determined during the reduction phase. |
 | `reduction_time` | `float` | Wall-clock seconds spent on reductions. |
-| `is_optimal` | `bool` | `True` if the ILP proved optimality (only possible with `"exact"`). |
+| `is_optimal` | `bool` | `True` if the ILP proved optimality within the time limit. |
 
 ### Exceptions
 
 | Exception | Condition |
 |-----------|-----------|
-| `InvalidModeError` | `method` is not `"heuristic"` or `"exact"`. |
 | `ValueError` | `time_limit < 0`. |
-| `ImportError` | `method="exact"` but `gurobipy` is not installed. |
+| `ImportError` | `gurobipy` is not installed. |
 
 ### Checking ILP Availability
 
@@ -70,9 +58,9 @@ IndependenceProblems.hypermis(
 from chszlablib import IndependenceProblems
 
 if IndependenceProblems.HYPERMIS_ILP_AVAILABLE:
-    print("Gurobi is available for exact solving")
+    print("Gurobi is available, hypermis can be used")
 else:
-    print("Only heuristic method available (install gurobipy for exact)")
+    print("Install gurobipy to use hypermis")
 ```
 
 ### Example
@@ -87,15 +75,9 @@ hg = HyperGraph.from_edge_list([
     [4, 5, 6],
 ])
 
-# Heuristic solution
-result = IndependenceProblems.hypermis(hg, method="heuristic")
+result = IndependenceProblems.hypermis(hg, time_limit=120.0)
 print(f"IS size: {result.size}, optimal: {result.is_optimal}")
 print(f"Reductions fixed {result.offset} vertices in {result.reduction_time:.2f}s")
-
-# Exact solution (requires gurobipy)
-if IndependenceProblems.HYPERMIS_ILP_AVAILABLE:
-    exact = IndependenceProblems.hypermis(hg, method="exact", time_limit=120.0)
-    print(f"Exact IS size: {exact.size}, optimal: {exact.is_optimal}")
 ```
 
 ---
