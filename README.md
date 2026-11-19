@@ -48,10 +48,11 @@ source chszlab_env/bin/activate
 pip install chszlablib
 ```
 
-Or via [Homebrew](https://brew.sh/) (macOS ARM64, Linux x86_64):
+Or via [Homebrew](https://brew.sh/) (macOS 15+ ARM64, Linux x86_64):
 
 ```bash
 brew tap CHSZLab/chszlablib
+brew trust chszlab/chszlablib   # Homebrew 7+ only loads formulae from trusted taps
 brew install chszlablib
 ```
 
@@ -202,6 +203,7 @@ Or via [Homebrew](https://brew.sh/):
 
 ```bash
 brew tap CHSZLab/chszlablib
+brew trust chszlab/chszlablib   # Homebrew 7+ only loads formulae from trusted taps
 brew install chszlablib
 ```
 
