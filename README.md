@@ -69,10 +69,10 @@ For full algorithmic control (custom parameter tuning, every possible knob), use
 **Current:**
 - Christian Schulz (Group Leader)
 - Adil Chhabra (PhD Student)
-- Henrik Reinstädtler (PhD Student)
 - Henning Woydt (PhD Student)
 - Kenneth Langedal (PostDoc)
 - Ernestine Großmann (PostDoc, former PhD)
+- Henrik Reinstädtler (PostDoc, former PhD)
 
 **Student Research Assistants:**
 - Fabian Walliser
