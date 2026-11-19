@@ -23,7 +23,6 @@ The KaHIP and VieCut speedups below were engineered with [Agentic Algorithm Engi
 ### Changed
 
 - **macOS wheels require macOS 15 or newer** (previously 14). GitHub retired the macOS 14 build runners, and the bundled Homebrew libraries (hwloc, boost) on macOS 15 target 15.0. On older macOS, pip builds from the source distribution.
-- **No manylinux_2_17 (glibc 2.17) wheel for Python 3.14**: NumPy provides no Python 3.14 wheel for that platform. Python 3.14 on Linux uses the manylinux_2_28 wheel (glibc 2.28 or newer).
 - **`ULTRAFASTSOCIAL` renumbered from 6 to 7** in the `_kahipe` module, because KaHIP v3.28 uses 6 for `ULTRA`. Mode strings (`"ultrafastsocial"`) are unaffected; only code that passes the raw integer must be updated.
 - **HyperMIS:** unconfined vertex reductions are always active and the strong reduction settings are the upstream defaults (HyperMIS v1.1). The public `IndependenceProblems.hypermis()` API is unchanged.
 
