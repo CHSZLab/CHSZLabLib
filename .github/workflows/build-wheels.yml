@@ -85,7 +85,7 @@ jobs:
           CIBW_ENVIRONMENT: >-
             CC=clang
             CXX=clang++
-            MACOSX_DEPLOYMENT_TARGET=14.0
+            MACOSX_DEPLOYMENT_TARGET=15.0
             OpenMP_ROOT=/opt/homebrew/opt/libomp
             CMAKE_ARGS="-DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DOpenMP_ROOT=/opt/homebrew/opt/libomp"
             KAHYPAR_DOWNLOAD_TBB=OFF
