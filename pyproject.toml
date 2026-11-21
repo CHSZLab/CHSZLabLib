@@ -5,10 +5,42 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "chszlablib"
 version = "0.6.1"
+description = "Python frontend to the graph and hypergraph algorithms of the Algorithm Engineering Group Heidelberg (KaHIP, VieCut, KaMIS, VieClus, HeiStream and more)"
+authors = [{ name = "Christian Schulz" }]
+keywords = [
+    "graph algorithms", "graph partitioning", "hypergraph partitioning",
+    "minimum cut", "clustering", "community detection", "independent set",
+    "matching", "edge orientation", "process mapping", "streaming algorithms",
+    "dynamic graphs", "combinatorial optimization", "KaHIP", "VieCut", "KaMIS",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: C++",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 requires-python = ">=3.9"
 dependencies = ["numpy>=1.20"]
 readme = "README.md"
 license = "MIT"
+
+[project.urls]
+Repository = "https://github.com/CHSZLab/CHSZLabLib"
+Documentation = "https://github.com/CHSZLab/CHSZLabLib#readme"
+Issues = "https://github.com/CHSZLab/CHSZLabLib/issues"
+Changelog = "https://github.com/CHSZLab/CHSZLabLib/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 networkx = ["networkx>=2.6"]
