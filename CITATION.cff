@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "CHSZLabLib is a frontend to many algorithm libraries. If you use it in research, please cite the papers of the algorithms you use; they are listed in the Citations section of the README. You may additionally cite CHSZLabLib itself as below."
+title: "CHSZLabLib: Python Frontend to Algorithms of the Algorithm Engineering Group Heidelberg"
+type: software
+authors:
+  - family-names: Schulz
+    given-names: Christian
+    affiliation: Heidelberg University
+repository-code: "https://github.com/CHSZLab/CHSZLabLib"
+license: MIT
+version: "0.6.1"
+date-released: "2026-11-19"
+keywords:
+  - graph algorithms
+  - graph partitioning
+  - hypergraph partitioning
+  - minimum cut
+  - community detection
+  - independent set
+  - combinatorial optimization
+  - Python
