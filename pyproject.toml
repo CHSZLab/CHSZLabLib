@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "chszlablib"
-version = "0.6.1"
+version = "0.6.2"
 description = "Python frontend to the graph and hypergraph algorithms of the Algorithm Engineering Group Heidelberg (KaHIP, VieCut, KaMIS, VieClus, HeiStream and more)"
 authors = [{ name = "Christian Schulz" }]
 keywords = [

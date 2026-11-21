@@ -2,7 +2,14 @@
 
 All notable changes to CHSZLabLib are documented in this file. Versions before 0.6.1 are listed on the [GitHub tags page](https://github.com/CHSZLab/CHSZLabLib/tags).
 
-## [0.6.1] (unreleased)
+## [0.6.2] (2026-11-21)
+
+### Changed
+
+- **Package metadata:** the PyPI page now has a description, keywords, classifiers (Python 3.9 to 3.14, Linux and macOS) and links to the repository, documentation, issues and changelog.
+- **CITATION.cff:** GitHub shows a "Cite this repository" button. Please still cite the papers of the algorithms you use (see the Citations section of the README).
+
+## [0.6.1] (2026-11-19)
 
 ### Added
 

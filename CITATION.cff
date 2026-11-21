@@ -8,8 +8,8 @@ authors:
     affiliation: Heidelberg University
 repository-code: "https://github.com/CHSZLab/CHSZLabLib"
 license: MIT
-version: "0.6.1"
-date-released: "2026-11-19"
+version: "0.6.2"
+date-released: "2026-11-21"
 keywords:
   - graph algorithms
   - graph partitioning
